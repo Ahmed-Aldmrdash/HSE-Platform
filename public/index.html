@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#D51E27">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="تصاريح العمل">
+<meta name="description" content="نظام تصاريح العمل - Elsewedy Polymers. أرسل وتابع طلبات تصاريح العمل بسهولة.">
+<title>تصاريح العمل - Elsewedy Polymers</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<!-- ======================================================= -->
+<!-- شاشة دخول الموظف (تظهر عند فتح الموقع لأول مرة)        -->
+<!-- ======================================================= -->
+<div id="workerLoginOverlay" class="worker-login-overlay" style="display:none;">
+  <div class="worker-login-card">
+    <div class="login-logo-box">
+      <img src="icons/icon-192.png" alt="Elsewedy Polymers" onerror="this.style.display='none'">
+    </div>
+    <div class="wl-title">مرحباً بك</div>
+    <div class="wl-sub">نظام تصاريح العمل · Elsewedy Polymers</div>
+
+    <!-- Step 1: الكود الوظيفي -->
+    <div id="wl-step1">
+      <div class="field" style="text-align:right;">
+        <label>الكود الوظيفي <span class="req-star">*</span></label>
+        <input id="wl_empCode" type="text" placeholder="أدخل كودك الوظيفي" autocomplete="off"
+               style="text-align:center;font-size:20px;font-family:'Oswald',sans-serif;letter-spacing:2px;font-weight:700;"
+               oninput="this.value=this.value.toUpperCase()"
+               onkeydown="if(event.key==='Enter') checkEmpCode()">
+      </div>
+      <button class="submit-btn" id="wl_checkBtn" onclick="checkEmpCode()">تسجيل الدخول ←</button>
+      <div id="wl_checkMsg" class="wl-msg"></div>
+    </div>
+
+    <!-- Step 2: بيانات التسجيل (للمرة الأولى فقط) -->
+    <div id="wl-step2" style="display:none;">
+      <div class="wl-new-badge">⭐ كود جديد — أدخل بياناتك مرة واحدة فقط</div>
+      <div class="field" style="text-align:right;">
+        <label>الاسم بالكامل <span class="req-star">*</span></label>
+        <input id="wl_name" type="text" placeholder="اسمك رباعي بالكامل">
+      </div>
+      <div class="row2">
+        <div class="field" style="text-align:right;">
+          <label>رقم التليفون <span class="req-star">*</span></label>
+          <input id="wl_phone" type="tel" placeholder="01xxxxxxxxx">
+        </div>
+        <div class="field" style="text-align:right;">
+          <label>القسم <span class="req-star">*</span></label>
+          <input id="wl_dept" type="text" placeholder="مثال: M.B">
+        </div>
+      </div>
+      <button class="submit-btn" id="wl_registerBtn" onclick="registerEmployee()">حفظ وتسجيل الدخول ✓</button>
+      <div id="wl_registerMsg" class="wl-msg"></div>
+      <button class="wl-back-btn" onclick="resetWorkerLogin()">← رجوع</button>
+    </div>
+
+    <!-- فاصل: دخول المشرفين -->
+    <div class="wl-divider"><span>أو</span></div>
+    <button class="wl-admin-btn" onclick="goToAdminLogin()">🛡️ دخول المشرفين / الإدارة</button>
+  </div>
+</div>
+
+<!-- ======================================================= -->
+<!-- التطبيق الرئيسي                                          -->
+<!-- ======================================================= -->
+<div class="wrap" id="mainApp" style="display:none;">
+
+  <div class="app-header">
+    <div class="header-logo-box">
+      <img src="icons/icon-192.png" alt="Elsewedy Polymers" onerror="this.style.display='none'">
+    </div>
+    <div>
+      <h1>تصاريح العمل</h1>
+      <p>Elsewedy Polymers · Work Permit System</p>
+    </div>
+    <!-- بادج الموظف الحالي -->
+    <div id="empBadgeArea" style="display:none;margin-inline-start:auto;">
+      <div class="emp-badge-pill" id="empBadgePill"></div>
+    </div>
+    <!-- بادج المشرف الحالي -->
+    <div id="userBadgeArea" style="display:none;margin-inline-start:auto;text-align:left;">
+      <div class="user-badge-pill" id="userBadgePill"></div>
+    </div>
+    <button id="installBtn" class="install-btn" style="display:none;" onclick="triggerInstall()">⬇ تثبيت التطبيق</button>
+  </div>
+
+  <div class="tabs" id="mainTabs">
+    <div class="tab active" id="tabWorker" onclick="switchTab('worker')">📋 نموذج طلب</div>
+    <div class="tab" id="tabMyHistory" onclick="switchTab('myhistory')">📁 سجل تصاريحي</div>
+    <div class="tab" id="tabSup" onclick="switchTab('sup')">🛡️ لوحة المشرف</div>
+    <div class="tab" id="tabUsers" onclick="switchTab('users')" style="display:none;">👥 المستخدمون</div>
+  </div>
+
+  <!-- WORKER FORM VIEW -->
+  <div id="viewWorker">
+    <div id="formArea"></div>
+  </div>
+
+  <!-- MY HISTORY VIEW -->
+  <div id="viewMyHistory" style="display:none;">
+    <div class="my-history-header">
+      <div class="my-history-title">📁 سجل تصاريحي</div>
+      <div class="my-history-sub" id="myHistorySub"></div>
+    </div>
+    <div class="my-history-filter-bar" id="myHistoryFilters"></div>
+    <div id="myHistoryList"><div class="loading">جارِ التحميل…</div></div>
+  </div>
+
+  <!-- SUPERVISOR VIEW -->
+  <div id="viewSup" style="display:none;">
+    <div id="loginGate"></div>
+    <div id="supDashboard" style="display:none;">
+      <div class="sup-header-row">
+        <h3>🛡️ لوحة المشرف</h3>
+        <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
+      </div>
+
+      <div class="toolbar">
+        <div class="filters" id="typeFilters"></div>
+      </div>
+      <div class="toolbar">
+        <div class="filters" id="filters"></div>
+        <button class="export-btn" onclick="exportExcel()">⬇ تصدير Excel</button>
+      </div>
+      <div id="supList"><div class="loading">جارِ التحميل…</div></div>
+    </div>
+  </div>
+
+  <!-- USER MANAGEMENT VIEW (Super Admin only) -->
+  <div id="viewUsers" style="display:none;">
+    <div class="sup-header-row" style="margin-bottom:16px;">
+      <h3>👥 إدارة الحسابات والمستخدمين</h3>
+      <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
+    </div>
+
+    <!-- Add New User Form -->
+    <div class="um-add-card">
+      <div class="section-title" style="margin-top:0;">إضافة مستخدم جديد</div>
+      <div class="row2">
+        <div class="field">
+          <label>الاسم الكامل <span class="req-star">*</span></label>
+          <input id="um_name" type="text" placeholder="مثال: أحمد محمد">
+        </div>
+        <div class="field">
+          <label>اسم المستخدم <span class="req-star">*</span></label>
+          <input id="um_username" type="text" placeholder="مثال: ahmed123">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>كلمة المرور <span class="req-star">*</span></label>
+          <input id="um_password" type="password" placeholder="كلمة المرور">
+        </div>
+        <div class="field">
+          <label>الدور <span class="req-star">*</span></label>
+          <select id="um_role">
+            <option value="admin">Admin — مشرف عام</option>
+            <option value="supervisor">Supervisor — مشرف</option>
+          </select>
+        </div>
+      </div>
+      <button class="submit-btn" id="um_addBtn" onclick="addUser()" style="margin-top:4px;">➕ إضافة المستخدم</button>
+      <div id="um_addMsg" class="um-msg"></div>
+    </div>
+
+    <!-- Users Table -->
+    <div id="um_usersList"><div class="loading">جارِ التحميل…</div></div>
+
+    <!-- Change Password Modal -->
+    <div id="um_passModal" class="um-modal-overlay" style="display:none;">
+      <div class="um-modal-card">
+        <div class="section-title" style="margin-top:0;">🔑 تغيير كلمة المرور</div>
+        <p id="um_passModalName" style="color:var(--muted);font-size:13px;margin:0 0 12px;"></p>
+        <div class="field">
+          <label>كلمة المرور الجديدة <span class="req-star">*</span></label>
+          <input id="um_newPass" type="password" placeholder="كلمة المرور الجديدة">
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button class="submit-btn" style="flex:1;" onclick="saveUserPassword()">حفظ</button>
+          <button class="logout-btn" style="flex:1;" onclick="closePassModal()">إلغاء</button>
+        </div>
+        <div id="um_passMsg" class="um-msg"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
+
