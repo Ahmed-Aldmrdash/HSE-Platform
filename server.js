@@ -37,6 +37,21 @@ if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
+// ── Security Headers Middleware ───────────────────────────────
+// Applied before all other routes. No external dependency needed.
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self';"
+  );
+  next();
+});
+
 // ── Middleware ────────────────────────────────────────────────
 // Tighter payload limit — workers submit text only; 2 MB is generous
 app.use(express.json({ limit: '2mb' }));
@@ -59,6 +74,15 @@ const submitLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'تجاوزت الحد المسموح لتقديم التصاريح. حاول مجدداً بعد 15 دقيقة.' }
+});
+
+/** Employee registration: max 20 per 15 min per IP */
+const employeeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'تجاوزت عدد محاولات التسجيل. حاول مجدداً بعد 15 دقيقة.' }
 });
 
 // ── Cache-Busting: prevent browsers/CDNs caching app-shell files ──────────
@@ -121,14 +145,14 @@ function writeStorage(data) {
 
 // ── Input Sanitization Helpers ────────────────────────────────
 /**
- * Strips HTML/script tags and trims whitespace.
+ * Strips HTML/script meta-characters and trims whitespace.
  * Use on every string field before persisting to storage.
+ * Does NOT double-encode — avoids the &amp; double-encoding problem.
  */
 function sanitizeStr(val, maxLen = 500) {
   if (val === undefined || val === null) return '';
   return String(val)
-    .replace(/[<>"'`]/g, '') // strip HTML meta-chars
-    .replace(/&/g, '&amp;')  // encode ampersand
+    .replace(/[<>"'`\\]/g, '') // strip HTML meta-chars + backslash
     .trim()
     .slice(0, maxLen);
 }
@@ -353,18 +377,25 @@ app.get('/api/storage/:key', (req, res) => {
 });
 
 // ── POST /api/storage/:key — حفظ قيمة (rate-limited on work-permits key)
-// حماية متعددة الطبقات:
-//   • app-users / users ← superadmin JWT فقط
-//   • work-permits ← worker submissions مسموح بها + rate-limited، لكن حقل status يُجبر على 'pending'
-//     لمنع تزوير الحالة. التغييرات الفعلية للحالة تمر عبر PATCH /api/permits/:id فقط.
+// Storage key security:
+//   • Only the 'work-permits' key is writable without authentication.
+//   • All other keys require superadmin JWT.
+//   • Key must consist of safe characters only (no path traversal).
+const WRITABLE_KEYS_UNAUTH = ['work-permits'];
+const KEY_PATTERN = /^[a-zA-Z0-9_\-]+$/;
+
 app.post('/api/storage/:key', (req, res, next) => {
+  const key = req.params.key;
+  // Path traversal / injection guard
+  if (!KEY_PATTERN.test(key) || key.length > 64) {
+    return res.status(400).json({ error: 'Invalid storage key format' });
+  }
   // Apply submit rate limit only for work-permits writes
-  if (req.params.key === 'work-permits') {
+  if (key === 'work-permits') {
     return submitLimiter(req, res, next);
   }
   next();
 }, (req, res, next) => {
-
   const key = req.params.key;
   const PROTECTED_KEYS = ['app-users', 'users'];
 
@@ -372,6 +403,10 @@ app.post('/api/storage/:key', (req, res, next) => {
     return authenticateToken(req, res, () => {
       requireRole('superadmin')(req, res, next);
     });
+  }
+  // Block any key not in the unauth-writable allowlist
+  if (!WRITABLE_KEYS_UNAUTH.includes(key)) {
+    return res.status(403).json({ error: 'كتابة هذا المفتاح غير مسموح به' });
   }
   next();
 }, async (req, res) => {
@@ -382,13 +417,12 @@ app.post('/api/storage/:key', (req, res, next) => {
     return res.status(400).json({ error: 'القيمة (value) مطلوبة في جسم الطلب' });
   }
 
-  // ── Security: strip status forgery on work-permits writes ──────────
-  // Any direct write to the work-permits key that attempts to set a status
-  // other than 'pending' on any permit is sanitized here.
-  // Actual status changes MUST go through PATCH /api/permits/:id.
+  // ── Security: strip status forgery + sanitize all string fields on new permits ─
   if (key === 'work-permits') {
     try {
       let permits = JSON.parse(value);
+      // Prototype pollution guard
+      if (typeof permits !== 'object' || permits === null) throw new Error('invalid permits payload');
       if (Array.isArray(permits)) {
         // Load existing permits to compare and preserve authenticated statuses
         const existing = readStorage();
@@ -413,13 +447,66 @@ app.post('/api/storage/:key', (req, res, next) => {
               closure:           prev.closure
             };
           }
-          // New permit: force status to pending_area_head regardless of what client sends
-          return { ...p, status: 'pending_area_head', reviewedBy: '', reviewedAt: '', reviewNote: '', closure: null, areaHeadReviewedBy: '', areaHeadReviewedAt: '' };
+          // New permit: sanitize free-text fields, force status to pending_area_head
+          const safeTools = Array.isArray(p.tools)
+            ? p.tools.map(t => sanitizeStr(String(t), 100)).slice(0, 10)
+            : sanitizeStr(String(p.tools || ''), 300);
+          const safeChecklist = Array.isArray(p.checklist)
+            ? p.checklist.map(c => ({
+                section:  sanitizeStr(String(c.section  || ''), 100),
+                question: sanitizeStr(String(c.question || ''), 300),
+                answer:   ['\u0646\u0639\u0645', '\u0644\u0627', '\u0644\u0627 \u064a\u0646\u0637\u0628\u0642'].includes(c.answer) ? c.answer : '\u0644\u0627 \u064a\u0646\u0637\u0628\u0642'
+              }))
+            : [];
+          const safeRisks = Array.isArray(p.risks)
+            ? p.risks.slice(0, 10).map(r => ({
+                source:  sanitizeStr(String(r.source  || ''), 200),
+                l:       Math.min(5, Math.max(1, parseInt(r.l, 10) || 1)),
+                s:       Math.min(5, Math.max(1, parseInt(r.s, 10) || 1)),
+                score:   Math.min(25, Math.max(1, parseInt(r.score, 10) || 1)),
+                control: sanitizeStr(String(r.control || ''), 300)
+              }))
+            : [];
+          return {
+            id:               sanitizeStr(String(p.id || ''), 30),
+            typeKey:          sanitizeStr(String(p.typeKey || 'general'), 30),
+            typeLabel:        sanitizeStr(String(p.typeLabel || ''), 30),
+            typeFullLabel:    sanitizeStr(String(p.typeFullLabel || ''), 60),
+            department:       sanitizeStr(String(p.department || ''), 100),
+            shift:            sanitizeStr(String(p.shift || ''), 30),
+            date:             sanitizeStr(String(p.date || ''), 15),
+            previousPermitNo: sanitizeStr(String(p.previousPermitNo || ''), 50),
+            timeFrom:         sanitizeStr(String(p.timeFrom || ''), 10),
+            timeTo:           sanitizeStr(String(p.timeTo || ''), 10),
+            workerName:       sanitizeStr(String(p.workerName || ''), 100),
+            requesterKind:    ['\u0645\u0648\u0638\u0641', '\u0645\u0642\u0627\u0648\u0644'].includes(p.requesterKind) ? p.requesterKind : '\u0645\u0648\u0638\u0641',
+            requesterPhone:   sanitizeStr(String(p.requesterPhone || ''), 20),
+            employeeId:       sanitizeStr(String(p.employeeId || ''), 50),
+            description:      sanitizeStr(String(p.description || ''), 1000),
+            location:         sanitizeStr(String(p.location || ''), 150),
+            equipment:        sanitizeStr(String(p.equipment || ''), 200),
+            tools:            safeTools,
+            workersNames:     sanitizeStr(String(p.workersNames || ''), 500),
+            checklist:        safeChecklist,
+            checklistNote:    sanitizeStr(String(p.checklistNote || ''), 500),
+            risks:            safeRisks,
+            status:           'pending_area_head',
+            reviewedBy:       '',
+            reviewedAt:       '',
+            reviewNote:       '',
+            closure:          null,
+            areaHeadReviewedBy:  '',
+            areaHeadReviewedAt:  '',
+            safetyOfficerName:   '',
+            areaManagerName:     '',
+            submittedAt:      p.submittedAt || new Date().toISOString()
+          };
         });
         value = JSON.stringify(permits);
       }
     } catch (e) {
       console.error('work-permits sanitize error:', e.message);
+      return res.status(400).json({ error: 'Invalid permit payload' });
     }
   }
 
@@ -912,7 +999,7 @@ app.get('/api/employees/:empCode', (req, res) => {
 });
 
 // ── POST /api/employees — إضافة/تحديث موظف
-app.post('/api/employees', async (req, res) => {
+app.post('/api/employees', employeeLimiter, async (req, res) => {
   const { empCode, name, phone, department } = req.body;
 
   if (!empCode || !name) {

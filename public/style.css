@@ -13,18 +13,34 @@
     --radius:14px;
   }
   *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;overflow-x:hidden;} /* [FIX] منع الـ scrollbar الأفقي على الشاشات الضيقة */
+  html{
+    overflow-x:hidden;
+    -webkit-text-size-adjust:100%; /* prevent iOS font scaling on rotation */
+  }
   body{
+    margin:0;padding:0;overflow-x:hidden;
     background:#FFFFFF;
     background-image:
       radial-gradient(circle at 90% -10%, rgba(213,30,39,0.06), transparent 45%),
       repeating-linear-gradient(135deg, rgba(0,0,0,0.015) 0 2px, transparent 2px 14px);
     color:var(--ink);
     font-family:'Cairo', sans-serif;
+    font-size:clamp(14px, 3.5vw, 16px);
     min-height:100vh;
-    padding:20px 14px 60px;
+    padding:clamp(12px, 3vw, 20px) clamp(10px, 3vw, 14px) 60px;
+    -webkit-overflow-scrolling:touch;
   }
-  .wrap{max-width:640px;margin:0 auto;}
+  /* Fluid container — expands gracefully on tablets & laptops */
+  .wrap{
+    max-width:640px;
+    width:100%;
+    margin:0 auto;
+  }
+  /* All dynamic content: prevent Arabic text from breaking card layout */
+  .sup-card, .ticket, .permit-history-card, .full-details, .desc {
+    word-break:break-word;
+    overflow-wrap:anywhere;
+  }
 
   /* Header */
   .app-header{display:flex;align-items:center;gap:12px;margin-bottom:18px;}
@@ -112,11 +128,11 @@
     background-position:6px center;
     background-size:16px 16px;
   }
-  .ticket-body{padding:16px 18px 18px;}
+  .ticket-body{padding:clamp(12px,3vw,18px) clamp(14px,4vw,18px) clamp(14px,4vw,18px);}
 
   .field{margin-bottom:13px;}
   .field label{
-    display:block;font-size:12.5px;font-weight:700;color:var(--muted);
+    display:block;font-size:clamp(11.5px,3vw,12.5px);font-weight:700;color:var(--muted);
     margin-bottom:5px;
   }
   .field input, .field select, .field textarea{
@@ -124,15 +140,19 @@
     border:1.5px solid var(--paper-line);
     background:#FBFAF5;
     border-radius:8px;
-    padding:10px 11px;
+    padding:clamp(9px,2.5vw,10px) 11px;
     font-family:'Cairo',sans-serif;
-    font-size:14.5px;
+    font-size:clamp(14px,3.5vw,14.5px);
     color:var(--ink);
+    /* Prevent iOS zoom on focus (font-size must be ≥16px for iOS or explicitly set) */
+    -webkit-appearance:none;
+    appearance:none;
   }
   .field input:focus, .field select:focus, .field textarea:focus{
     outline:none;border-color:var(--amber-dark);
   }
   .field textarea{resize:vertical;min-height:60px;}
+  /* Two-column grid degrades to single column on very small screens */
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 
   .submit-btn{
@@ -218,9 +238,36 @@
   .req-star{color:var(--danger);}
   select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%237A7566'%3E%3Cpath d='M5.5 7.5l4.5 4 4.5-4' stroke='%237A7566' stroke-width='1.6' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 10px center;}
 
-  @media (max-width:400px){
+  /* ── Breakpoint: Small phones (≤360px) ─────────────── */
+  @media (max-width:360px){
     .row2{grid-template-columns:1fr;}
-    .meta-grid{grid-template-columns:1fr 1fr;}
+    .meta-grid{grid-template-columns:1fr;}
+    .ticket-head{flex-direction:column;gap:6px;align-items:flex-start;}
+    .actions{flex-direction:column;}
+    .act-btn{width:100%;}
+  }
+  /* ── Breakpoint: Standard mobile (≤480px) ───────────── */
+  @media (max-width:480px){
+    .row2{grid-template-columns:1fr;}
+    .sup-top{flex-direction:column;align-items:flex-start;}
+    .sup-top .stamp{align-self:flex-start;}
+    .toolbar{flex-direction:column;align-items:stretch;}
+    .export-btn{width:100%;text-align:center;}
+    body{padding-bottom:80px;} /* extra room for mobile browser chrome */
+  }
+  /* ── Breakpoint: Tablet portrait (≥768px) ───────────── */
+  @media (min-width:768px){
+    .wrap{max-width:720px;}
+    body{padding:24px 24px 60px;}
+    .row2{grid-template-columns:1fr 1fr;} /* always 2-col on tablets */
+    .meta-grid{grid-template-columns:repeat(3,1fr);}
+    .ticket-body{padding:20px 24px 24px;}
+    .sup-card{padding:18px 22px;}
+  }
+  /* ── Breakpoint: Large screens / laptops (≥1200px) ──── */
+  @media (min-width:1200px){
+    .wrap{max-width:900px;}
+    .ticket-body{padding:24px 28px 28px;}
   }
 
   /* type picker */
@@ -234,17 +281,35 @@
   }
   .section-title:first-of-type{margin-top:2px;}
 
-  /* checklist */
+  /* checklist — WCAG AA: ≥44px tap targets for radio buttons */
   .checklist{display:flex;flex-direction:column;gap:0;}
   .check-row{
     padding:10px 0;border-bottom:1px solid var(--paper-line);
     display:flex;flex-direction:column;gap:7px;
   }
   .check-row:last-child{border-bottom:none;}
-  .check-q{font-size:13.5px;line-height:1.5;}
-  .check-opts{display:flex;gap:14px;font-size:12.5px;color:var(--muted);flex-wrap:wrap;}
-  .check-opts label{display:flex;align-items:center;gap:4px;cursor:pointer;}
-  .check-opts input{width:auto;margin:0;}
+  .check-q{font-size:clamp(13px,3.5vw,13.5px);line-height:1.6;word-break:break-word;}
+  .check-opts{
+    display:flex;gap:8px;font-size:clamp(12px,3vw,12.5px);color:var(--muted);
+    flex-wrap:wrap;
+  }
+  .check-opts label{
+    display:flex;align-items:center;gap:6px;cursor:pointer;
+    min-height:44px; /* WCAG AA touch target */
+    padding:4px 10px;
+    background:rgba(0,0,0,0.025);
+    border-radius:8px;
+    border:1px solid transparent;
+    transition:border-color .12s, background .12s;
+    flex:1;min-width:70px;justify-content:center;
+  }
+  .check-opts label:hover{border-color:var(--amber);background:rgba(213,30,39,0.04);}
+  .check-opts input[type="radio"]{width:auto;margin:0;accent-color:var(--amber);cursor:pointer;}
+  /* On mobile, make each radio option a clearly-separated pill */
+  @media (max-width:480px){
+    .check-opts{gap:5px;}
+    .check-opts label{flex:initial;padding:6px 12px;}
+  }
 
   /* risk rows */
   .risk-row{
@@ -276,8 +341,10 @@
   .login-wrap{display:flex;align-items:center;justify-content:center;min-height:50vh;}
   .login-card{
     background:var(--paper);color:var(--ink);border-radius:var(--radius);
-    padding:28px 24px;width:100%;max-width:340px;text-align:center;
+    padding:clamp(18px,5vw,28px) clamp(16px,5vw,24px);
+    width:100%;max-width:340px;text-align:center;
     box-shadow:0 12px 30px -10px rgba(0,0,0,0.55);
+    -webkit-overflow-scrolling:touch;
   }
   .login-card .lock-icon{font-size:30px;margin-bottom:8px;}
   .login-card h2{margin:0 0 4px;font-size:17px;}
@@ -385,13 +452,19 @@
   /* Password Change Modal */
   .um-modal-overlay{
     position:fixed;inset:0;background:rgba(0,0,0,0.55);
-    display:flex;align-items:center;justify-content:center;z-index:999;padding:16px;
+    display:flex;align-items:center;justify-content:center;z-index:999;
+    padding:clamp(12px,4vw,16px);
     backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);
+    -webkit-overflow-scrolling:touch;
   }
   .um-modal-card{
     background:var(--paper);border-radius:var(--radius);
-    padding:24px;width:100%;max-width:360px;
+    padding:clamp(16px,4vw,24px);
+    width:100%;max-width:min(360px,calc(100vw - 24px));
     box-shadow:0 20px 50px -10px rgba(0,0,0,0.6);
+    max-height:90vh;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
   }
 
   /* ===================================================================
@@ -417,8 +490,11 @@
     border:1px solid rgba(255,255,255,0.12);
     backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
     border-radius:20px;
-    padding:32px 28px 28px;
-    width:100%;max-width:380px;
+    padding:clamp(20px,5vw,32px) clamp(18px,5vw,28px) clamp(18px,5vw,28px);
+    width:100%;max-width:min(380px,calc(100vw - 24px));
+    max-height:95dvh; /* dvh = dynamic viewport height, accounts for browser chrome */
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
     box-shadow:0 30px 60px -15px rgba(0,0,0,0.7), 0 0 0 1px rgba(213,30,39,0.15);
     animation:wlSlideIn .35s cubic-bezier(.22,.68,0,1.2) both;
   }
@@ -620,6 +696,126 @@
   .phc-msg.rejected{background:rgba(200,20,33,0.07);color:var(--danger);}
   .phc-msg.muted{background:rgba(0,0,0,0.04);color:var(--muted);}
   .phc-submitted{font-size:11px;color:var(--muted);margin-top:6px;}
+
+  /* ===================================================================
+     Checklist Section Labels
+  =================================================================== */
+  .chk-section-label {
+    font-family: 'Oswald', sans-serif;
+    font-size: 11.5px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--steel);
+    font-weight: 700;
+    margin: 14px 0 6px;
+    padding: 5px 10px;
+    background: rgba(213,30,39,0.06);
+    border-right: 3px solid var(--steel);
+    border-radius: 0 6px 6px 0;
+  }
+  .checklist .check-row:first-of-type { border-top: none; }
+
+  /* ───────────────────────────────────────────────────────────────────
+     Tools Checklist (Checkbox Group)
+  =================================================================== */
+  .tools-checklist {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 8px;
+    padding: 10px 12px;
+    background: rgba(213,30,39,0.03);
+    border: 1.5px solid var(--paper-line);
+    border-radius: 8px;
+  }
+  .tool-check-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    min-height: 44px; /* WCAG AA touch target */
+    background: #fff;
+    border: 1.5px solid var(--paper-line);
+    border-radius: 20px;
+    font-size: clamp(12px, 3vw, 13px);
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .12s;
+    user-select: none;
+    justify-content: center;
+    text-align: center;
+  }
+  .tool-check-label:hover {
+    border-color: var(--amber);
+    background: rgba(213,30,39,0.04);
+  }
+  .tool-check-label input[type="checkbox"] {
+    /* Restore native checkmark — the global appearance:none on inputs hides it */
+    -webkit-appearance: auto !important;
+    appearance: auto !important;
+    accent-color: #a81c1c !important;
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px;
+    margin: 0 4px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .tool-check-label:has(input:checked),
+  .tool-check-label.active {
+    background-color: #fee2e2 !important;
+    border-color: #dc2626 !important;
+    color: #991b1b !important;
+  }
+  .tool-other-wrap { width: 100%; margin-top: 4px; grid-column: 1 / -1; }
+  .tool-other-input {
+    width: 100%;
+    border: 1.5px solid var(--paper-line);
+    background: #FBFAF5;
+    border-radius: 8px;
+    padding: 8px 11px;
+    font-family: 'Cairo', sans-serif;
+    font-size: 13.5px;
+    color: var(--ink);
+  }
+  .tool-other-input:focus { outline: none; border-color: var(--amber-dark); }
+
+  /* ===================================================================
+     Tool Tags (in details/print view)
+  =================================================================== */
+  .tools-display {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 6px 0;
+  }
+  .tool-tag {
+    display: inline-block;
+    background: rgba(213,30,39,0.08);
+    border: 1px solid rgba(213,30,39,0.25);
+    color: var(--amber-dark);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+  }
+
+  /* ===================================================================
+     Document Control Footer (SE-07-F02)
+  =================================================================== */
+  .doc-control-footer {
+    margin-top: 14px;
+    padding: 7px 12px;
+    background: var(--charcoal-2);
+    border: 1px solid var(--paper-line);
+    border-radius: 7px;
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    color: var(--muted);
+    text-align: center;
+    text-transform: uppercase;
+  }
 
   /* ===================================================================
      🛡️ RBAC CSS Safety-Net

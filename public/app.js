@@ -47,13 +47,69 @@ async function authFetch(url, options = {}) {
   }
 }
 
-// ---------- local storage API (talks to server.js, backed by data/storage.json) ----------
+// ────────────────────────────────────────────────────────────
+// 📢 UI Utilities
+// ────────────────────────────────────────────────────────────
+
+/**
+ * safeEl(id) — null-safe getElementById. Returns the element or null without throwing.
+ */
+function safeEl(id) {
+  try { return document.getElementById(id) || null; } catch(e) { return null; }
+}
+
+/**
+ * showToast(msg, type) — lightweight non-blocking notification.
+ * type: 'error' | 'success' | 'info'
+ * Falls back to console.warn if DOM not ready.
+ */
+let _toastTimer = null;
+function showToast(msg, type = 'error') {
+  try {
+    let toast = document.getElementById('_appToast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = '_appToast';
+      toast.style.cssText = [
+        'position:fixed;bottom:24px;inset-inline-start:50%;transform:translateX(-50%)',
+        'max-width:min(92vw,420px);z-index:99999;padding:12px 20px;border-radius:12px',
+        'font-family:Cairo,sans-serif;font-size:14px;font-weight:700',
+        'box-shadow:0 8px 24px rgba(0,0,0,0.3);transition:opacity .3s;text-align:center',
+        'pointer-events:none;'
+      ].join(';');
+      document.body.appendChild(toast);
+    }
+    const colors = {
+      error:   { bg:'#C81421', color:'#fff' },
+      success: { bg:'#1F7A3D', color:'#fff' },
+      info:    { bg:'#1A1A1A', color:'#fff' }
+    };
+    const c = colors[type] || colors.info;
+    toast.style.background = c.bg;
+    toast.style.color = c.color;
+    toast.textContent = msg;
+    toast.style.opacity = '1';
+    toast.style.display = 'block';
+    if (_toastTimer) clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => {
+      toast.style.opacity = '0';
+      setTimeout(() => { toast.style.display = 'none'; }, 350);
+    }, 4000);
+  } catch(e) {
+    console.warn('[Toast]', msg);
+  }
+}
+
+// ────────────────────────────────────────────────────────────
+// 🔌 Storage API (talks to server.js)
+// ────────────────────────────────────────────────────────────
 async function apiGet(key){
   try{
     const res = await fetch(`/api/storage/${encodeURIComponent(key)}`);
     if(!res.ok) return null;
-    return await res.json(); // {key, value}
+    return await res.json();
   }catch(e){
+    if (!navigator.onLine) showToast('لا يوجد اتصال بالإنترنت — تحقق من اتصالك وحاول مجدداً', 'error');
     console.error('apiGet error', e);
     return null;
   }
@@ -67,6 +123,7 @@ async function apiSet(key, value){
     });
     return res.ok;
   }catch(e){
+    if (!navigator.onLine) showToast('لا يوجد اتصال — تحقق من الشبكة', 'error');
     console.error('apiSet error', e);
     return false;
   }
@@ -198,6 +255,63 @@ const DEPARTMENTS = [
   "Production - Master Batch", "Production - Special Compounds",
   "Quality Control", "R&D", "Warehouse"
 ];
+
+const WORK_LOCATIONS = [
+  "Administration",
+  "all factory",
+  "Maintenance",
+  "outside",
+  "Production - Master Batch",
+  "Production - Special Compounds",
+  "Quality Control",
+  "R&D",
+  "Warehouse"
+];
+
+const TOOLS_LIST = [
+  "عدد يدوية بسيطة",
+  "مكواة لحام بلاستيك",
+  "صاروخ قطعية",
+  "ماكينة لحام",
+  "لمبة قطعية",
+  "هيلتي",
+  "شنيور",
+  "أخرى"
+];
+
+// الأقسام الثلاثة الرسمية لقائمة التحقق
+const HSE_CHECKLIST = {
+  general: {
+    sectionTitle: "أ) متطلبات عامة",
+    items: [
+      "هل الإضاءة والتهوية كافية؟",
+      "هل العمالة مدربة ومؤهلة وعلى علم بجميع مخاطر العمل المطلوب؟",
+      "هل مهمات الوقاية المطلوبة متوفرة ومناسبة / مستخدمة؟",
+      "هل توجد وسائل عزل منطقة العمل (ستائر / شريط / أقماع) / مستخدمة؟",
+      "هل مكان العمل نظيف ومرتب وتم التخلص الآمن من المخلفات؟"
+    ]
+  },
+  oilDischarge: {
+    sectionTitle: "ب) تفريغ زيت (إن وجد)",
+    items: [
+      "هل تم إخلاء المنطقة من أي مواد قابلة أو مسببة للاشتعال؟",
+      "هل تم فحص السيارة ظاهرياً قبل التفريغ ومراجعة المستندات اللازمة؟",
+      "هل تم تحجير السيارة قبل عملية التفريغ؟",
+      "هل تم التأكد من توصيل الكابل الأرضي للسيارة قبل التفريغ؟",
+      "هل يتواجد ممثل الأمن الإداري ومشرف السلامة؟",
+      "هل تم فحص منطقة التفريغ والتأكد من خلو المكان من أي تسريبات أو مخاطر بعد التفريغ؟"
+    ]
+  },
+  specialMaterial: {
+    sectionTitle: "ج) تشغيل خامة خاصة (إن وجد)",
+    items: [
+      "هل مهمات الوقاية المطلوبة الخاصة بالعملية متوفرة وفي حالة سليمة؟",
+      "هل يوجد مصدر مياه بالقرب من مكان العمل؟",
+      "هل تم توعية العاملين من مخاطر المادة وكيفية التعامل معها قبل بدء العمل؟",
+      "هل تم التأكد من توصيل الكابل الأرضي لحلة الخلاط أثناء عملية تفريغ مادة (الفضي / الذهبي)؟"
+    ]
+  }
+};
 
 let currentFilter = 'الكل';
 let currentTypeFilter = 'الكل';
@@ -639,17 +753,20 @@ function finishEmployeeLogin(emp){
 /** تعبئة حقول نموذج الطلب تلقائياً من بيانات الموظف */
 function autoFillForm(){
   if(!currentEmployee) return;
+  // Helper: sets value. For input/textarea, also applies readonly. Selects do not support readonly.
   const set = (id, val, readonly=true) => {
-    const el = document.getElementById(id);
+    const el = safeEl(id);
     if(!el) return;
     el.value = val || '';
-    if(readonly) el.setAttribute('readonly', 'readonly');
-    else el.removeAttribute('readonly');
+    const isInput = el.tagName === 'INPUT' || el.tagName === 'TEXTAREA';
+    if(readonly && isInput) el.setAttribute('readonly', 'readonly');
+    else if(isInput) el.removeAttribute('readonly');
+    // For selects, just set value — readonly attribute has no effect on <select>
   };
   set('f_name', currentEmployee.name, true);
-  set('f_emp', currentEmployee.empCode, true);
+  set('f_emp',  currentEmployee.empCode, true);
   set('f_phone', currentEmployee.phone, false);
-  set('f_dept', currentEmployee.department, false);
+  set('f_dept',  currentEmployee.department, false);
 }
 
 /** helper: عرض رسالة في شاشة الدخول */
@@ -690,16 +807,28 @@ function selectType(key){
 
 function renderForm(){
   const type = PERMIT_TYPES[selectedType];
-  const checklistHtml = type.checklist.map((q,i)=>`
-    <div class="check-row">
-      <div class="check-q">${q}</div>
-      <div class="check-opts">
-        <label><input type="radio" name="chk_${i}" value="نعم" checked> نعم</label>
-        <label><input type="radio" name="chk_${i}" value="لا"> لا</label>
-        <label><input type="radio" name="chk_${i}" value="لا ينطبق"> لا ينطبق</label>
-      </div>
-    </div>
-  `).join('');
+  // بناء قائمة التحقق الثلاثية المقسّمة
+  let chkGlobalIndex = 0;
+  function buildSectionHtml(section) {
+    const rows = section.items.map((q) => {
+      const i = chkGlobalIndex++;
+      return `
+      <div class="check-row">
+        <div class="check-q">${q}</div>
+        <div class="check-opts">
+          <label><input type="radio" name="chk_${i}" value="نعم" checked> نعم</label>
+          <label><input type="radio" name="chk_${i}" value="لا"> لا</label>
+          <label><input type="radio" name="chk_${i}" value="لا ينطبق"> لا ينطبق</label>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="chk-section-label">${section.sectionTitle}</div>${rows}`;
+  }
+  const checklistHtml =
+    buildSectionHtml(HSE_CHECKLIST.general) +
+    buildSectionHtml(HSE_CHECKLIST.oilDischarge) +
+    buildSectionHtml(HSE_CHECKLIST.specialMaterial);
+  const totalChkItems = chkGlobalIndex;
 
   document.getElementById('formArea').innerHTML = `
     <div class="type-picker">
@@ -779,16 +908,26 @@ function renderForm(){
         </div>
         <div class="field">
           <label>مكان العمل <span class="req-star">*</span></label>
-          <input id="f_loc" type="text" placeholder="مثال: خط الإنتاج L3">
+          <select id="workLocationSelect" name="workLocation" required>
+            <option value="">اختر مكان العمل...</option>
+            ${WORK_LOCATIONS.map(loc => `<option value="${loc}">${loc}</option>`).join('')}
+          </select>
         </div>
-        <div class="row2">
-          <div class="field">
-            <label>المعدة / الماكينة / العملية</label>
-            <input id="f_equip" type="text" placeholder="اختياري">
-          </div>
-          <div class="field">
-            <label>الأدوات والعدد المستخدمة</label>
-            <input id="f_tools" type="text" placeholder="اختياري">
+        <div class="field">
+          <label>المعدة / الماكينة / العملية</label>
+          <input id="f_equip" type="text" placeholder="اختياري">
+        </div>
+        <div class="field">
+          <label>الأدوات والعدد <small style="font-weight:400;color:var(--muted);">(بعد فحصها وقبولها)</small></label>
+          <div class="tools-checklist" id="toolsChecklist">
+            ${TOOLS_LIST.map((tool, i) => `
+            <label class="tool-check-label">
+              <input type="checkbox" id="tool_${i}" value="${tool}" class="tool-checkbox">
+              <span>${tool}</span>
+            </label>`).join('')}
+            <div class="tool-other-wrap" id="toolOtherWrap" style="display:none;">
+              <input type="text" id="tool_other_text" placeholder="أدخل الأداة الأخرى..." class="tool-other-input">
+            </div>
           </div>
         </div>
         <div class="field">
@@ -796,8 +935,8 @@ function renderForm(){
           <textarea id="f_workers" placeholder="1- ...&#10;2- ..."></textarea>
         </div>
 
-        <div class="section-title">قائمة التحقق</div>
-        <div class="checklist">${checklistHtml}</div>
+        <div class="section-title">قائمة التحقق (نعم / لا / لا ينطبق)</div>
+        <div class="checklist" data-total-chk="${totalChkItems}">${checklistHtml}</div>
         <div class="field">
           <label>ملاحظات على قائمة التحقق</label>
           <textarea id="f_checknote" placeholder="اختياري"></textarea>
@@ -817,6 +956,16 @@ function renderForm(){
   addRiskRow();
   // تعبئة تلقائية إذا كان الموظف مسجل دخول
   autoFillForm();
+  // تفعيل خانة "أخرى" في قائمة الأدوات
+  const toolCheckboxes = document.querySelectorAll('.tool-checkbox');
+  toolCheckboxes.forEach(cb => {
+    cb.addEventListener('change', function() {
+      if (this.value === 'أخرى') {
+        const wrap = document.getElementById('toolOtherWrap');
+        if (wrap) wrap.style.display = this.checked ? 'block' : 'none';
+      }
+    });
+  });
 }
 
 function addRiskRow(){
@@ -860,11 +1009,35 @@ function calcRisk(el) {
 }
 
 function collectChecklist(){
-  const type = PERMIT_TYPES[selectedType];
-  return type.checklist.map((q,i)=>{
-    const sel = document.querySelector(`input[name="chk_${i}"]:checked`);
-    return { question: q, answer: sel ? sel.value : 'لا ينطبق' };
+  const results = [];
+  let idx = 0;
+  for (const secKey of ['general','oilDischarge','specialMaterial']) {
+    const section = HSE_CHECKLIST[secKey];
+    for (const q of section.items) {
+      const sel = document.querySelector(`input[name="chk_${idx}"]:checked`);
+      results.push({
+        section: section.sectionTitle,
+        question: q,
+        answer: sel ? sel.value : 'لا ينطبق'
+      });
+      idx++;
+    }
+  }
+  return results;
+}
+
+function collectTools(){
+  const checked = [];
+  document.querySelectorAll('.tool-checkbox:checked').forEach(cb => {
+    if (cb.value === 'أخرى') {
+      const otherText = document.getElementById('tool_other_text');
+      const val = otherText ? otherText.value.trim() : '';
+      checked.push(val ? `أخرى: ${val}` : 'أخرى');
+    } else {
+      checked.push(cb.value);
+    }
   });
+  return checked;
 }
 function collectRisks(){
   const rows = document.querySelectorAll('#riskRows .risk-row');
@@ -885,7 +1058,7 @@ async function submitPermit(){
   const dept = document.getElementById('f_dept').value;
   const date = document.getElementById('f_date').value;
   const desc = document.getElementById('f_desc').value.trim();
-  const loc = document.getElementById('f_loc').value.trim();
+  const loc = document.getElementById('workLocationSelect').value;
 
   if(!name || !desc || !date || !dept || !loc){
     alert('من فضلك املأ الحقول المطلوبة: القسم، اسم مقدم الطلب، تاريخ التنفيذ، مكان العمل، ووصف العملية');
@@ -916,7 +1089,7 @@ async function submitPermit(){
     description: desc,
     location: loc,
     equipment: document.getElementById('f_equip').value.trim(),
-    tools: document.getElementById('f_tools').value.trim(),
+    tools: collectTools(),
     workersNames: document.getElementById('f_workers').value.trim(),
     checklist: collectChecklist(),
     checklistNote: document.getElementById('f_checknote').value.trim(),
@@ -1045,11 +1218,20 @@ function renderList(){
 
   container.innerHTML = list.map(p => {
     const failedChecks = (p.checklist||[]).filter(c=>c.answer==='لا').length;
-    const checklistHtml = (p.checklist||[]).map(c=>`
+    // بناء قائمة التحقق مع قدوات الأقسام
+    const checklistBySection = {};
+    (p.checklist||[]).forEach(c => {
+      const sec = c.section || 'بنود عامة';
+      if (!checklistBySection[sec]) checklistBySection[sec] = [];
+      checklistBySection[sec].push(c);
+    });
+    const checklistHtml = Object.entries(checklistBySection).map(([sec, items]) => `
+      <div style="font-size:11.5px;font-weight:800;color:var(--steel);letter-spacing:0.5px;padding:6px 0 3px;border-bottom:1px solid var(--paper-line);margin-bottom:3px;">${escapeHtml(sec)}</div>
+      ${items.map(c=>`
       <div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--paper-line);font-size:12.5px;">
         <span>${escapeHtml(c.question)}</span>
         <span style="font-weight:700;color:${c.answer==='لا'?'var(--danger)':c.answer==='نعم'?'var(--success)':'var(--muted)'};white-space:nowrap;">${c.answer}</span>
-      </div>
+      </div>`).join('')}
     `).join('');
     const risksHtml = (p.risks||[]).map(r=>`
       <div class="risk-summary">
@@ -1084,12 +1266,13 @@ function renderList(){
         <div class="section-title">تقييم المخاطر</div>
         ${risksHtml}
         ${p.workersNames ? `<div class="section-title">القائمون بالعمل</div><div class="desc">${escapeHtml(p.workersNames)}</div>` : ''}
-        ${p.equipment || p.tools ? `<div class="meta-grid" style="margin-top:8px;">
-          ${p.equipment ? `<div><span>المعدة/الماكينة</span>${escapeHtml(p.equipment)}</div>`:''}
-          ${p.tools ? `<div><span>الأدوات</span>${escapeHtml(p.tools)}</div>`:''}
-        </div>`:''}
+        ${p.equipment ? `<div class="meta-grid" style="margin-top:8px;"><div><span>المعدة/الماكينة</span>${escapeHtml(p.equipment)}</div></div>` : ''}
+        ${(p.tools && (Array.isArray(p.tools) ? p.tools.length > 0 : p.tools)) ? `
+          <div class="section-title" style="margin-top:10px;">الأدوات والعدد</div>
+          <div class="tools-display">${Array.isArray(p.tools) ? p.tools.map(t=>`<span class="tool-tag">${escapeHtml(t)}</span>`).join('') : escapeHtml(p.tools)}</div>` : ''}
         ${p.previousPermitNo ? `<div class="reviewed-by">رقم تصريح سابق: ${escapeHtml(p.previousPermitNo)}</div>`:''}
         ${p.requesterPhone ? `<div class="reviewed-by">تليفون: ${escapeHtml(p.requesterPhone)}</div>`:''}
+        <div class="doc-control-footer">SE-07-F02 &nbsp;|&nbsp; VER.NO.: 01 &nbsp;|&nbsp; VER. DATE: 01/01/2025</div>
       </div>
 
       ${(p.status === 'pending' || p.status === 'pending_area_head') ? `
