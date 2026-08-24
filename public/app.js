@@ -517,6 +517,7 @@ async function attemptLogin(){
     currentUserDept = data.user.department || '';
     // ── Set RBAC session role and rebuild UI ──────────────────
     sessionRole = 'supervisor';
+    showUserBadge();
     applyRbacUI();
     // Switch to supervisor view (guard allows 'sup' now)
     switchTab('sup');
