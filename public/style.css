@@ -256,6 +256,21 @@
     color:var(--steel);border-radius:8px;font-weight:700;font-family:'Cairo',sans-serif;
     cursor:pointer;font-size:13.5px;margin-bottom:6px;
   }
+  .add-risk-btn:hover{background:#e3e3e3;}
+
+  .risk-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    margin-right: 12px;
+    margin-bottom: 4px;
+    white-space: nowrap;
+  }
+  .risk-badge.risk-low { background: #28a745; color: #fff; }
+  .risk-badge.risk-medium { background: #ffc107; color: #212529; }
+  .risk-badge.risk-high { background: #dc3545; color: #fff; }
 
   /* login */
   .login-wrap{display:flex;align-items:center;justify-content:center;min-height:50vh;}
@@ -321,6 +336,7 @@
   .role-dot.superadmin{background:#7c3aed;}
   .role-dot.admin{background:var(--amber);}
   .role-dot.supervisor{background:var(--success);}
+  .role-dot.area_head{background:#8e44ad;}
   .role-label{font-family:'Oswald',sans-serif;font-size:10px;letter-spacing:1px;color:var(--muted);}
 
   /* ===== User Management Section ===== */
@@ -354,6 +370,7 @@
   .role-badge.superadmin{background:rgba(124,58,237,0.12);color:#7c3aed;border:1px solid rgba(124,58,237,0.3);}
   .role-badge.admin{background:rgba(213,30,39,0.1);color:var(--amber);border:1px solid rgba(213,30,39,0.3);}
   .role-badge.supervisor{background:rgba(31,122,61,0.1);color:var(--success);border:1px solid rgba(31,122,61,0.3);}
+  .role-badge.area_head{background:rgba(142,68,173,0.12);color:#8e44ad;border:1px solid rgba(142,68,173,0.3);}
 
   .um-action-btns{display:flex;gap:6px;flex-wrap:wrap;}
   .um-btn{
@@ -441,7 +458,7 @@
     color:rgba(255,255,255,0.75);font-size:12.5px;font-weight:700;
     margin-bottom:6px;display:block;
   }
-  .worker-login-card .field input{
+  .worker-login-card .field input, .worker-login-card .field select{
     background:rgba(255,255,255,0.08);
     border:1.5px solid rgba(255,255,255,0.15);
     color:#fff;border-radius:10px;
@@ -449,7 +466,7 @@
     transition:border-color .15s;
   }
   .worker-login-card .field input::placeholder{color:rgba(255,255,255,0.3);}
-  .worker-login-card .field input:focus{
+  .worker-login-card .field input:focus, .worker-login-card .field select:focus{
     outline:none;border-color:var(--amber);background:rgba(213,30,39,0.08);
   }
   .worker-login-card .submit-btn{

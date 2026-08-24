@@ -193,6 +193,11 @@ const PERMIT_TYPES = {
 
 const SHIFTS = ["الأولى","الثانية","الثالثة"];
 const RISK_LEVELS = [1,2,3,4,5];
+const DEPARTMENTS = [
+  "Administration", "all factory", "Maintenance", "outside",
+  "Production - Master Batch", "Production - Special Compounds",
+  "Quality Control", "R&D", "Warehouse"
+];
 
 let currentFilter = 'الكل';
 let currentTypeFilter = 'الكل';
@@ -200,7 +205,8 @@ let permitsCache = [];
 let isLoggedIn = false;
 let currentUsername = '';
 let currentUserName = '';
-let currentUserRole = ''; // 'superadmin' | 'admin' | 'supervisor'
+let currentUserRole = ''; // 'superadmin' | 'admin' | 'supervisor' | 'area_head'
+let currentUserDept = '';
 let selectedType = 'general';
 let supervisorPollTimer = null;
 let lastPermitsRaw = '';
@@ -396,6 +402,7 @@ async function attemptLogin(){
     currentUsername = data.user.username;
     currentUserName = data.user.name || data.user.username;
     currentUserRole = data.user.role;
+    currentUserDept = data.user.department || '';
     // ── Set RBAC session role and rebuild UI ──────────────────
     sessionRole = 'supervisor';
     applyRbacUI();
@@ -411,7 +418,7 @@ function showUserBadge(){
   const area = document.getElementById('userBadgeArea');
   const pill = document.getElementById('userBadgePill');
   if(!area || !pill) return;
-  const roleLabels = { superadmin:'Super Admin', admin:'Admin', supervisor:'Supervisor' };
+  const roleLabels = { superadmin:'Super Admin', admin:'Admin', supervisor:'Supervisor', area_head:'Area Head' };
   pill.innerHTML = `<span class="role-dot ${currentUserRole}"></span><span>${escapeHtml(currentUserName)}</span><span class="role-label">${roleLabels[currentUserRole]||currentUserRole}</span>`;
   area.style.display = 'block';
 }
@@ -422,6 +429,7 @@ function logout(){
   currentUsername = '';
   currentUserName = '';
   currentUserRole = '';
+  currentUserDept = '';
   clearToken();
   if(supervisorPollTimer){ clearInterval(supervisorPollTimer); supervisorPollTimer = null; }
   if(myHistoryPollTimer){  clearInterval(myHistoryPollTimer);  myHistoryPollTimer  = null; }
@@ -711,7 +719,10 @@ function renderForm(){
         <div class="row2">
           <div class="field">
             <label>الإدارة الطالبة / القسم <span class="req-star">*</span></label>
-            <input id="f_dept" type="text" placeholder="مثال: M.B">
+            <select id="f_dept">
+              <option value="">اختر القسم...</option>
+              ${DEPARTMENTS.map(d=>`<option value="${d}">${d}</option>`).join('')}
+            </select>
           </div>
           <div class="field">
             <label>الوردية <span class="req-star">*</span></label>
@@ -808,7 +819,6 @@ function renderForm(){
   autoFillForm();
 }
 
-let riskRowCount = 0;
 function addRiskRow(){
   if(riskRowCount >= 5) return;
   riskRowCount++;
@@ -818,13 +828,35 @@ function addRiskRow(){
   div.id = id;
   div.innerHTML = `
     <div class="field"><label>مصدر الخطر</label><input class="risk-source" type="text" placeholder="مثال: سقوط من ارتفاع"></div>
-    <div class="row2">
-      <div class="field"><label>الاحتمالية L (1-5)</label><select class="risk-l">${RISK_LEVELS.map(n=>`<option value="${n}">${n}</option>`).join('')}</select></div>
-      <div class="field"><label>الشدة S (1-5)</label><select class="risk-s">${RISK_LEVELS.map(n=>`<option value="${n}">${n}</option>`).join('')}</select></div>
+    <div class="row2" style="align-items:flex-end;">
+      <div class="field"><label>الاحتمالية L (1-5)</label><select class="risk-l" onchange="calcRisk(this)">${RISK_LEVELS.map(n=>`<option value="${n}">${n}</option>`).join('')}</select></div>
+      <div class="field"><label>الشدة S (1-5)</label><select class="risk-s" onchange="calcRisk(this)">${RISK_LEVELS.map(n=>`<option value="${n}">${n}</option>`).join('')}</select></div>
+      <div class="risk-badge" style="margin-bottom:12px;"></div>
     </div>
     <div class="field"><label>إجراءات التحكم والوقاية</label><textarea class="risk-control" placeholder="اختياري"></textarea></div>
   `;
   document.getElementById('riskRows').appendChild(div);
+  calcRisk(div.querySelector('.risk-l')); // initial calc
+}
+
+function calcRisk(el) {
+  const row = el.closest('.risk-row');
+  const l = parseInt(row.querySelector('.risk-l').value) || 1;
+  const s = parseInt(row.querySelector('.risk-s').value) || 1;
+  const score = l * s;
+  const badge = row.querySelector('.risk-badge');
+  
+  badge.className = 'risk-badge';
+  if (score <= 4) {
+    badge.textContent = 'خطورة ضعيفة 🟢';
+    badge.classList.add('risk-low');
+  } else if (score <= 12) {
+    badge.textContent = 'خطورة متوسطة 🟡';
+    badge.classList.add('risk-medium');
+  } else {
+    badge.textContent = 'خطورة عالية 🔴';
+    badge.classList.add('risk-high');
+  }
 }
 
 function collectChecklist(){
@@ -850,7 +882,7 @@ function collectRisks(){
 
 async function submitPermit(){
   const name = document.getElementById('f_name').value.trim();
-  const dept = document.getElementById('f_dept').value.trim();
+  const dept = document.getElementById('f_dept').value;
   const date = document.getElementById('f_date').value;
   const desc = document.getElementById('f_desc').value.trim();
   const loc = document.getElementById('f_loc').value.trim();
@@ -889,8 +921,9 @@ async function submitPermit(){
     checklist: collectChecklist(),
     checklistNote: document.getElementById('f_checknote').value.trim(),
     risks: collectRisks(),
-    status: 'pending',
+    status: 'pending_area_head',
     reviewedBy: '',
+    areaHeadReviewedBy: '',
     safetyOfficerName: '',
     areaManagerName: '',
     reviewNote: '',
@@ -941,7 +974,7 @@ function goTrackWithId(permitId){
 // منطق التتبع انتقل بالكامل لتبويب "سجل تصاريحي" (myhistory)
 // ---------- supervisor view ----------
 function renderFilters(){
-  const opts = ['الكل','قيد الانتظار','موافق عليه','مرفوض','مغلق'];
+  const opts = ['الكل','بانتظار رئيس المنطقة','بانتظار الإدارة','موافق عليه','مرفوض','مغلق'];
   document.getElementById('filters').innerHTML = opts.map(o=>
     `<div class="chip ${o===currentFilter?'active':''}" onclick="setFilter('${o}')">${o}</div>`
   ).join('');
@@ -978,7 +1011,8 @@ async function pollPermitsForSupervisor(){
 }
 
 function statusLabel(s){
-  if(s==='pending') return 'قيد الانتظار';
+  if(s==='pending' || s==='pending_area_head') return 'بانتظار رئيس المنطقة';
+  if(s==='pending_admin') return 'بانتظار الإدارة';
   if(s==='approved') return 'موافق عليه';
   if(s==='rejected') return 'مرفوض';
   if(s && s.startsWith('closed')) return 'مغلق';
@@ -1058,32 +1092,52 @@ function renderList(){
         ${p.requesterPhone ? `<div class="reviewed-by">تليفون: ${escapeHtml(p.requesterPhone)}</div>`:''}
       </div>
 
-      ${p.status === 'pending' ? `
-        <div class="row2" style="margin-top:12px;">
-          <div class="field"><label>اسم مشرف السلامة</label><input id="safety-${p.id}" type="text" placeholder="اختياري"></div>
-          <div class="field"><label>اسم مدير المنطقة</label><input id="area-${p.id}" type="text" placeholder="اختياري"></div>
-        </div>
-        <div class="actions">
-          <button class="act-btn approve" onclick="approvePermit('${p.id}')">✓ موافقة</button>
-          <button class="act-btn reject" onclick="toggleNote('${p.id}')">✗ رفض</button>
-        </div>
-        <div class="note-box" id="note-${p.id}">
-          <textarea id="notetext-${p.id}" placeholder="سبب الرفض (اختياري)"></textarea>
-          <button onclick="rejectPermit('${p.id}')">تأكيد الرفض</button>
-        </div>
+      ${(p.status === 'pending' || p.status === 'pending_area_head') ? `
+        ${(currentUserRole === 'area_head' && currentUserDept === p.department) || currentUserRole === 'superadmin' ? `
+          <div class="row2" style="margin-top:12px;">
+            <div class="field"><label>اسم مشرف السلامة</label><input id="safety-${p.id}" type="text" placeholder="اختياري"></div>
+            <div class="field"><label>اسم مدير المنطقة</label><input id="area-${p.id}" type="text" placeholder="اختياري"></div>
+          </div>
+          <div class="actions">
+            <button class="act-btn approve" onclick="approvePermit('${p.id}')">✓ موافقة رئيس المنطقة</button>
+            <button class="act-btn reject" onclick="toggleNote('${p.id}')">✗ رفض</button>
+          </div>
+          <div class="note-box" id="note-${p.id}">
+            <textarea id="notetext-${p.id}" placeholder="سبب الرفض (اختياري)"></textarea>
+            <button onclick="rejectPermit('${p.id}')">تأكيد الرفض</button>
+          </div>
+        ` : `
+          <div class="review-note">⏳ التصريح بانتظار موافقة رئيس منطقة ${escapeHtml(p.department)}</div>
+        `}
+      ` : ''}
+
+      ${p.status === 'pending_admin' ? `
+        <div class="reviewed-by">موافقة مبدئية من: ${escapeHtml(p.areaHeadReviewedBy)||'رئيس المنطقة'} — ${p.areaHeadReviewedAt ? new Date(p.areaHeadReviewedAt).toLocaleString('ar-EG') : ''}</div>
+        ${(currentUserRole === 'admin' || currentUserRole === 'supervisor' || currentUserRole === 'superadmin') ? `
+          <div class="row2" style="margin-top:12px;">
+            <div class="field"><label>اسم مشرف السلامة</label><input id="safety-${p.id}" type="text" placeholder="اختياري"></div>
+            <div class="field"><label>اسم مدير المنطقة</label><input id="area-${p.id}" type="text" placeholder="اختياري"></div>
+          </div>
+          <div class="actions">
+            <button class="act-btn approve" onclick="approvePermit('${p.id}')">✓ اعتماد الإدارة النهائية</button>
+            <button class="act-btn reject" onclick="toggleNote('${p.id}')">✗ رفض</button>
+          </div>
+          <div class="note-box" id="note-${p.id}">
+            <textarea id="notetext-${p.id}" placeholder="سبب الرفض (اختياري)"></textarea>
+            <button onclick="rejectPermit('${p.id}')">تأكيد الرفض</button>
+          </div>
+        ` : `
+          <div class="review-note">⏳ التصريح بانتظار اعتماد الإدارة النهائية</div>
+        `}
       ` : ''}
 
       ${p.status === 'approved' ? `
-        <div class="reviewed-by">وافق عليه: ${escapeHtml(p.reviewedBy)||'المشرف'} — ${p.reviewedAt ? new Date(p.reviewedAt).toLocaleString('ar-EG') : ''}</div>
+        ${p.areaHeadReviewedBy ? `<div class="reviewed-by">موافقة رئيس منطقة: ${escapeHtml(p.areaHeadReviewedBy)} — ${p.areaHeadReviewedAt ? new Date(p.areaHeadReviewedAt).toLocaleString('ar-EG') : ''}</div>` : ''}
+        <div class="reviewed-by">اعتمدته الإدارة: ${escapeHtml(p.reviewedBy)||'الإدارة'} — ${p.reviewedAt ? new Date(p.reviewedAt).toLocaleString('ar-EG') : ''}</div>
         ${p.safetyOfficerName ? `<div class="reviewed-by">مشرف السلامة: ${escapeHtml(p.safetyOfficerName)}</div>`:''}
         ${p.areaManagerName ? `<div class="reviewed-by">مدير المنطقة: ${escapeHtml(p.areaManagerName)}</div>`:''}
-        <div class="closure-box">
-          <div class="field"><label>سبب عدم الاكتمال / الإغلاق الجبري (لو منطبق)</label><input id="closereason-${p.id}" type="text" placeholder="اختياري"></div>
-          <div class="closure-actions">
-            <button style="color:var(--success);" onclick="closePermit('${p.id}','safe')">اكتمل بأمان</button>
-            <button style="color:var(--muted);" onclick="closePermit('${p.id}','incomplete')">لم يكتمل</button>
-            <button style="color:var(--danger);" onclick="closePermit('${p.id}','forced')">إغلاق جبري</button>
-          </div>
+        <div class="review-note" style="background-color: var(--card-bg); border: 1px dashed var(--success);">
+          🔒 التصريح معتمد ومفتوح. يمكن للموظف إغلاقه من حسابه.
         </div>
       ` : ''}
 
@@ -1093,8 +1147,9 @@ function renderList(){
       ` : ''}
 
       ${p.status.startsWith('closed') ? `
-        <div class="reviewed-by">وافق عليه: ${escapeHtml(p.reviewedBy)||'المشرف'}</div>
+        <div class="reviewed-by">اعتمدته الإدارة: ${escapeHtml(p.reviewedBy)||'الإدارة'}</div>
         <div class="reviewed-by">حالة الإغلاق: ${closureLabel(p.closure)} — ${p.closure && p.closure.time ? new Date(p.closure.time).toLocaleString('ar-EG') : ''}</div>
+        ${p.closure && p.closure.closedBy ? `<div class="reviewed-by">أغلقه: ${escapeHtml(p.closure.closedBy)}</div>` : ''}
         ${p.closure && p.closure.reason ? `<div class="review-note">السبب: ${escapeHtml(p.closure.reason)}</div>` : ''}
       ` : ''}
     </div>
@@ -1116,7 +1171,7 @@ async function approvePermit(id){
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action:            'approve',
+        action:            currentUserRole === 'area_head' ? 'area_approve' : 'approve',
         safetyOfficerName: safetyEl ? safetyEl.value.trim() : '',
         areaManagerName:   areaEl   ? areaEl.value.trim()   : ''
       })
@@ -1142,7 +1197,10 @@ async function rejectPermit(id){
     const res = await authFetch(`/api/permits/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'reject', reviewNote: note })
+      body: JSON.stringify({ 
+        action: currentUserRole === 'area_head' ? 'area_reject' : 'reject', 
+        reviewNote: note 
+      })
     });
     const data = await res.json();
     if (res.ok) {
@@ -1171,6 +1229,28 @@ async function closePermit(id, type){
       const idx = permitsCache.findIndex(p => p.id === id);
       if (idx !== -1 && data.permit) permitsCache[idx] = data.permit;
       renderList();
+    } else {
+      alert(data.error || 'حصل خطأ في الإغلاق، حاول تاني');
+    }
+  } catch(e) {
+    alert('حصل خطأ في الاتصال بالسيرفر');
+  }
+}
+
+async function workerClosePermit(id, type) {
+  if (!currentEmployee) return;
+  const reasonEl = document.getElementById('myhistory-closereason-' + id);
+  const reason = reasonEl ? reasonEl.value.trim() : '';
+
+  try {
+    const res = await fetch(`/api/permits/${encodeURIComponent(id)}/worker-close`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ employeeId: currentEmployee.empCode, closureType: type, closureReason: reason })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      renderMyHistory(true);
     } else {
       alert(data.error || 'حصل خطأ في الإغلاق، حاول تاني');
     }
@@ -1283,6 +1363,16 @@ function roleLabel(r){
   return r;
 }
 
+function toggleUmDept() {
+  const role = document.getElementById('um_role').value;
+  const deptRow = document.getElementById('um_deptRow');
+  if (role === 'area_head') {
+    deptRow.style.display = 'flex';
+  } else {
+    deptRow.style.display = 'none';
+  }
+}
+
 async function renderUsersPanel(){
   const listEl = document.getElementById('um_usersList');
   if(!listEl) return;
@@ -1315,7 +1405,10 @@ async function renderUsersPanel(){
                 <td style="color:var(--muted);font-size:12px;">${i+1}</td>
                 <td style="font-weight:700;">${escapeHtml(u.name)}</td>
                 <td style="font-family:'Oswald',sans-serif;font-size:13px;">${escapeHtml(u.username)}</td>
-                <td><span class="role-badge ${u.role}">${roleLabel(u.role)}</span></td>
+                <td>
+                  <span class="role-badge ${u.role}">${roleLabel(u.role)}</span>
+                  ${u.role === 'area_head' && u.department ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">${escapeHtml(u.department)}</div>` : ''}
+                </td>
                 <td style="color:var(--muted);font-size:12px;">${u.createdAt ? new Date(u.createdAt).toLocaleDateString('ar-EG') : '—'}</td>
                 <td>
                   <div class="um-action-btns">
@@ -1340,6 +1433,7 @@ async function addUser(){
   const username = document.getElementById('um_username').value.trim();
   const password = document.getElementById('um_password').value;
   const role = document.getElementById('um_role').value;
+  const dept = document.getElementById('um_dept').value;
   const msgEl = document.getElementById('um_addMsg');
   const btn = document.getElementById('um_addBtn');
 
@@ -1358,7 +1452,7 @@ async function addUser(){
     const res = await authFetch('/api/users',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({name, username, password, role})
+      body: JSON.stringify({name, username, password, role, department: role === 'area_head' ? dept : ''})
     });
     const data = await res.json();
     if(res.ok){
@@ -1449,11 +1543,12 @@ initEmployeeSession();
 // === تبويب "سجل تصاريحي" (My Permits History) ===
 // ================================================================
 
-const MY_HISTORY_FILTERS = ['الكل', 'قيد الانتظار', 'موافق عليه', 'مرفوض', 'مغلق'];
+const MY_HISTORY_FILTERS = ['الكل', 'بانتظار رئيس المنطقة', 'بانتظار الإدارة', 'موافق عليه', 'مرفوض', 'مغلق'];
 
 function myHistoryFilterMatch(p){
   if(myHistoryFilter === 'الكل') return true;
-  if(myHistoryFilter === 'قيد الانتظار') return p.status === 'pending';
+  if(myHistoryFilter === 'بانتظار رئيس المنطقة') return p.status === 'pending' || p.status === 'pending_area_head';
+  if(myHistoryFilter === 'بانتظار الإدارة') return p.status === 'pending_admin';
   if(myHistoryFilter === 'موافق عليه') return p.status === 'approved';
   if(myHistoryFilter === 'مرفوض') return p.status === 'rejected';
   if(myHistoryFilter === 'مغلق') return p.status && p.status.startsWith('closed');
@@ -1524,8 +1619,19 @@ async function renderMyHistory(isSilent = false){
         <div><span>القسم</span>${escapeHtml(p.department || '—')}</div>
       </div>
       <div class="phc-desc">${escapeHtml(p.description || '')}</div>
-      ${st === 'pending' ? `<div class="phc-msg pending">⏳ طلبك لسه قدّام المشرف، هيتحدّث هنا أوّل ما يتم الرد</div>` : ''}
-      ${st === 'approved' ? `<div class="phc-msg approved">✅ تمت الموافقة — ممكن تبدأ العمل حسب الاشتراطات</div>` : ''}
+      ${(st === 'pending' || st === 'pending_area_head') ? `<div class="phc-msg pending">⏳ بانتظار موافقة رئيس المنطقة</div>` : ''}
+      ${st === 'pending_admin' ? `<div class="phc-msg pending">✅ تمت موافقة رئيس المنطقة (بانتظار اعتماد الإدارة العليا)</div>` : ''}
+      ${st === 'approved' ? `
+        <div class="phc-msg approved">🟢 تم الاعتماد النهائي للتصريح — يمكنك الإغلاق بعد الانتهاء</div>
+        <div class="closure-box" style="margin-top:8px;">
+          <div class="field"><input id="myhistory-closereason-${p.id}" type="text" placeholder="سبب عدم الاكتمال أو الإغلاق الجبري (إن وجد)" style="font-size:12px;padding:6px;"></div>
+          <div class="closure-actions" style="margin-top:4px;">
+            <button style="color:var(--success);" onclick="workerClosePermit('${p.id}','safe')">اكتمل بأمان</button>
+            <button style="color:var(--amber);" onclick="workerClosePermit('${p.id}','incomplete')">لم يكتمل</button>
+            <button style="color:var(--danger);" onclick="workerClosePermit('${p.id}','forced')">إغلاق جبري</button>
+          </div>
+        </div>
+      ` : ''}
       ${st === 'rejected' ? `<div class="phc-msg rejected">❌ تم رفض الطلب${p.reviewNote ? ' — السبب: ' + escapeHtml(p.reviewNote) : ''}</div>` : ''}
       ${st.startsWith('closed') ? `<div class="phc-msg muted">🔒 مغلق: ${closureLabel(p.closure)}${p.closure && p.closure.reason ? ' — ' + escapeHtml(p.closure.reason) : ''}</div>` : ''}
       <div class="phc-submitted">أرسل ${p.submittedAt ? new Date(p.submittedAt).toLocaleString('ar-EG') : ''}</div>

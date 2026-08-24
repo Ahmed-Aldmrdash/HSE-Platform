@@ -58,7 +58,17 @@
         </div>
         <div class="field" style="text-align:right;">
           <label>القسم <span class="req-star">*</span></label>
-          <input id="wl_dept" type="text" placeholder="مثال: M.B">
+          <select id="wl_dept">
+            <option value="Administration">Administration</option>
+            <option value="all factory">all factory</option>
+            <option value="Maintenance">Maintenance</option>
+            <option value="outside">outside</option>
+            <option value="Production - Master Batch">Production - Master Batch</option>
+            <option value="Production - Special Compounds">Production - Special Compounds</option>
+            <option value="Quality Control">Quality Control</option>
+            <option value="R&D">R&D</option>
+            <option value="Warehouse">Warehouse</option>
+          </select>
         </div>
       </div>
       <button class="submit-btn" id="wl_registerBtn" onclick="registerEmployee()">حفظ وتسجيل الدخول ✓</button>
@@ -165,9 +175,26 @@
         </div>
         <div class="field">
           <label>الدور <span class="req-star">*</span></label>
-          <select id="um_role">
+          <select id="um_role" onchange="toggleUmDept()">
             <option value="admin">Admin — مشرف عام</option>
             <option value="supervisor">Supervisor — مشرف</option>
+            <option value="area_head">Area Head — رئيس منطقة</option>
+          </select>
+        </div>
+      </div>
+      <div class="row2" id="um_deptRow" style="display:none;">
+        <div class="field">
+          <label>القسم (مطلوب لرئيس المنطقة) <span class="req-star">*</span></label>
+          <select id="um_dept">
+            <option value="Administration">Administration</option>
+            <option value="all factory">all factory</option>
+            <option value="Maintenance">Maintenance</option>
+            <option value="outside">outside</option>
+            <option value="Production - Master Batch">Production - Master Batch</option>
+            <option value="Production - Special Compounds">Production - Special Compounds</option>
+            <option value="Quality Control">Quality Control</option>
+            <option value="R&D">R&D</option>
+            <option value="Warehouse">Warehouse</option>
           </select>
         </div>
       </div>

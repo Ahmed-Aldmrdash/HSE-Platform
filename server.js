@@ -413,8 +413,8 @@ app.post('/api/storage/:key', (req, res, next) => {
               closure:           prev.closure
             };
           }
-          // New permit: force status to pending regardless of what client sends
-          return { ...p, status: 'pending', reviewedBy: '', reviewedAt: '', reviewNote: '', closure: null };
+          // New permit: force status to pending_area_head regardless of what client sends
+          return { ...p, status: 'pending_area_head', reviewedBy: '', reviewedAt: '', reviewNote: '', closure: null, areaHeadReviewedBy: '', areaHeadReviewedAt: '' };
         });
         value = JSON.stringify(permits);
       }
@@ -475,9 +475,13 @@ app.patch(
     const permitId = req.params.id;
     const { action, reviewNote, safetyOfficerName, areaManagerName, closureType, closureReason } = req.body;
 
-    const VALID_ACTIONS = ['approve', 'reject', 'close'];
+    const VALID_ACTIONS = ['approve', 'reject', 'close', 'area_approve', 'area_reject'];
     if (!action || !VALID_ACTIONS.includes(action)) {
       return res.status(400).json({ error: `الإجراء غير صالح. المتاح: ${VALID_ACTIONS.join(' | ')}` });
+    }
+    // area_head actions must be from an area_head user
+    if ((action === 'area_approve' || action === 'area_reject') && req.user.role !== 'area_head' && req.user.role !== 'superadmin') {
+      return res.status(403).json({ error: 'هذا الإجراء مخصص لرئيس المنطقة فقط' });
     }
     if (action === 'close') {
       const VALID_CLOSURE = ['safe', 'incomplete', 'forced'];
@@ -503,9 +507,35 @@ app.patch(
       const now = new Date().toISOString();
       const reviewerName = req.user.name || req.user.username;
 
-      if (action === 'approve') {
-        if (permits[idx].status !== 'pending') {
-          result = { status: 409, body: { error: 'لا يمكن الموافقة إلا على التصاريح قيد الانتظار' } };
+      if (action === 'area_approve') {
+        // Area head first-tier approval: pending_area_head → pending_admin
+        if (permits[idx].status !== 'pending_area_head') {
+          result = { status: 409, body: { error: 'لا يمكن موافقة رئيس المنطقة إلا على تصاريح pending_area_head' } };
+          return;
+        }
+        // Optionally validate department match (skipped for superadmin bypass)
+        if (req.user.role === 'area_head' && req.user.department &&
+            permits[idx].department && req.user.department !== permits[idx].department) {
+          result = { status: 403, body: { error: 'رئيس المنطقة لا يملك صلاحية الموافقة على تصاريح قسم آخر' } };
+          return;
+        }
+        permits[idx].status              = 'pending_admin';
+        permits[idx].areaHeadReviewedAt  = now;
+        permits[idx].areaHeadReviewedBy  = sanitizeStr(reviewerName, 100);
+      } else if (action === 'area_reject') {
+        // Area head rejection: pending_area_head → rejected
+        if (permits[idx].status !== 'pending_area_head') {
+          result = { status: 409, body: { error: 'لا يمكن رفض إلا تصاريح pending_area_head' } };
+          return;
+        }
+        permits[idx].status     = 'rejected';
+        permits[idx].reviewedAt = now;
+        permits[idx].reviewedBy = sanitizeStr(reviewerName, 100);
+        permits[idx].reviewNote = sanitizeStr(reviewNote, 500);
+      } else if (action === 'approve') {
+        // Admin final approval: pending_admin → approved
+        if (permits[idx].status !== 'pending_admin') {
+          result = { status: 409, body: { error: 'الموافقة النهائية تتطلب حالة pending_admin' } };
           return;
         }
         permits[idx].status            = 'approved';
@@ -514,8 +544,9 @@ app.patch(
         permits[idx].safetyOfficerName = sanitizeStr(safetyOfficerName, 100);
         permits[idx].areaManagerName   = sanitizeStr(areaManagerName,   100);
       } else if (action === 'reject') {
-        if (permits[idx].status !== 'pending') {
-          result = { status: 409, body: { error: 'لا يمكن رفض إلا التصاريح قيد الانتظار' } };
+        // Admin rejection on pending_admin
+        if (permits[idx].status !== 'pending_admin' && permits[idx].status !== 'pending_area_head') {
+          result = { status: 409, body: { error: 'لا يمكن الرفض إلا على التصاريح قيد الانتظار' } };
           return;
         }
         permits[idx].status     = 'rejected';
@@ -557,6 +588,73 @@ app.patch(
 // ============================================================
 // 🔑 API ROUTES — AUTH
 // ============================================================
+// 🔑 API ROUTES — AUTH
+// ============================================================
+
+// ── PATCH /api/permits/:id/worker-close — إغلاق التصريح من قِبل الموظف
+// لا يتطلب JWT — التحقق من الملكية يتم عبر employeeId
+app.patch('/api/permits/:id/worker-close', async (req, res) => {
+  const permitId = req.params.id;
+  const { employeeId, closureType, closureReason } = req.body;
+
+  const VALID_CLOSURE = ['safe', 'incomplete', 'forced'];
+  if (!employeeId) {
+    return res.status(400).json({ error: 'الكود الوظيفي مطلوب للإغلاق' });
+  }
+  if (!closureType || !VALID_CLOSURE.includes(closureType)) {
+    return res.status(400).json({ error: 'نوع الإغلاق غير صالح. المتاح: safe | incomplete | forced' });
+  }
+
+  let result;
+  await enqueueWrite(async () => {
+    const storage = readStorage();
+    let permits = [];
+    if (storage['work-permits']) {
+      try { permits = JSON.parse(storage['work-permits']); } catch { permits = []; }
+    }
+
+    const idx = permits.findIndex(p => p.id === permitId);
+    if (idx === -1) {
+      result = { status: 404, body: { error: 'التصريح غير موجود' } };
+      return;
+    }
+
+    // Ownership check: only the worker who submitted can close it
+    if (!permits[idx].employeeId ||
+        permits[idx].employeeId.toLowerCase() !== String(employeeId).toLowerCase()) {
+      result = { status: 403, body: { error: 'غير مصرح لك بإغلاق هذا التصريح' } };
+      return;
+    }
+
+    // Only approved permits can be closed by workers
+    if (permits[idx].status !== 'approved') {
+      result = { status: 409, body: { error: 'يمكن إغلاق التصاريح الموافق عليها فقط' } };
+      return;
+    }
+
+    const now = new Date().toISOString();
+    permits[idx].status  = 'closed_' + closureType;
+    permits[idx].closure = {
+      type:     closureType,
+      reason:   sanitizeStr(closureReason, 300),
+      time:     now,
+      closedBy: sanitizeStr(String(employeeId), 50) + ' (worker)'
+    };
+
+    const newValue = JSON.stringify(permits);
+    storage['work-permits'] = newValue;
+    if (writeStorage(storage)) {
+      await syncExcelFromPermits(newValue);
+      result = { status: 200, body: { success: true, permit: permits[idx] } };
+    } else {
+      result = { status: 500, body: { error: 'فشل حفظ الإغلاق' } };
+    }
+  });
+
+  res.status(result.status).json(result.body);
+});
+
+// ============================================================
 
 // ── POST /api/auth/login — تسجيل الدخول (rate-limited)
 app.post('/api/auth/login', loginLimiter, async (req, res) => {
@@ -585,19 +683,20 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
     return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
   }
 
-  // إنشاء JWT Token
+  // Include department in token for area_head role-based permit filtering
   const tokenPayload = {
-    id:       user.id,
-    username: user.username,
-    role:     user.role,
-    name:     user.name
+    id:         user.id,
+    username:   user.username,
+    role:       user.role,
+    name:       user.name,
+    department: user.department || ''
   };
   const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: JWT_EXPIRES });
 
   res.json({
     success: true,
     token,
-    user: { id: user.id, username: user.username, role: user.role, name: user.name }
+    user: { id: user.id, username: user.username, role: user.role, name: user.name, department: user.department || '' }
   });
 });
 
@@ -627,13 +726,14 @@ app.get('/api/users',
     if (storage['app-users']) {
       try { users = JSON.parse(storage['app-users']); } catch { users = []; }
     }
-    // إرجاع البيانات بدون كلمات المرور
+    // Return data without passwords — include department for area_head users
     const safeUsers = users.map(u => ({
-      id:        u.id,
-      username:  u.username,
-      role:      u.role,
-      name:      u.name,
-      createdAt: u.createdAt
+      id:         u.id,
+      username:   u.username,
+      role:       u.role,
+      name:       u.name,
+      department: u.department || '',
+      createdAt:  u.createdAt
     }));
     res.json({ users: safeUsers });
   }
@@ -649,8 +749,12 @@ app.post('/api/users',
     if (!username || !password || !role || !name) {
       return res.status(400).json({ error: 'جميع الحقول مطلوبة' });
     }
-    if (!['admin', 'supervisor'].includes(role)) {
-      return res.status(400).json({ error: 'الدور غير صالح. الأدوار المتاحة: admin, supervisor' });
+    const VALID_ROLES = ['admin', 'supervisor', 'area_head'];
+    if (!VALID_ROLES.includes(role)) {
+      return res.status(400).json({ error: `الدور غير صالح. الأدوار المتاحة: ${VALID_ROLES.join(', ')}` });
+    }
+    if (role === 'area_head' && !req.body.department) {
+      return res.status(400).json({ error: 'يجب تحديد القسم لرئيس المنطقة' });
     }
     if (password.length < 6) {
       return res.status(400).json({ error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' });
@@ -671,12 +775,13 @@ app.post('/api/users',
 
       const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
       const newUser = {
-        id:        'user-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
-        username:  username.trim(),
-        password:  hashedPassword,
-        role:      role,
-        name:      name.trim(),
-        createdAt: new Date().toISOString()
+        id:         'user-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+        username:   username.trim(),
+        password:   hashedPassword,
+        role:       role,
+        name:       name.trim(),
+        department: role === 'area_head' ? (req.body.department || '').trim() : '',
+        createdAt:  new Date().toISOString()
       };
       users.push(newUser);
       storage['app-users'] = JSON.stringify(users);
