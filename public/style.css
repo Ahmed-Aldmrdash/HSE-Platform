@@ -625,5 +625,8 @@
   body[data-session="supervisor"] #viewMyHistory,
   body[data-session="supervisor"] #empBadgeArea { display: none !important; }
 
-  /* Unauthenticated state: hide main app entirely (overlay is shown instead) */
-  body[data-session="none"] #mainApp { display: none !important; }
+  /* NOTE: #mainApp visibility for the 'none' state is managed by JS
+     (applyRbacUI / showWorkerLoginOverlay / hideWorkerLoginOverlay)
+     rather than CSS, because goToAdminLogin() shows #mainApp while
+     sessionRole is still 'none' (pre-auth supervisor gate).
+     A CSS !important rule here would fight that JS transition. */

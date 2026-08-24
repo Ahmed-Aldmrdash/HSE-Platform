@@ -39,7 +39,27 @@ if (!fs.existsSync(DATA_DIR)) {
 // ── Middleware ────────────────────────────────────────────────
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// ── Cache-Busting: prevent browsers/CDNs caching app-shell files ──────────
+// Must come BEFORE express.static so the headers are set on every response.
+app.use((req, res, next) => {
+  const p = req.path;
+  if (
+    p === '/' ||
+    p.endsWith('.html') ||
+    p.endsWith('.js')  ||
+    p.endsWith('.css')
+  ) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma',  'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+  }
+  next();
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
+
 
 // ============================================================
 // 🔒 WRITE QUEUE — منع Race Conditions عند الكتابة المتزامنة

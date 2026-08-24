@@ -234,9 +234,25 @@ function setDisplay(id, visible) {
 function applyRbacUI() {
   const isWorker = sessionRole === 'worker';
   const isSup    = sessionRole === 'supervisor';
+  const isNone   = sessionRole === 'none';
 
   // Sync CSS safety-net attribute
   document.body.dataset.session = sessionRole;
+
+  // ── Main app container visibility ──────────────────────────────────
+  // Show mainApp only when a role is active.  When isNone the overlay
+  // is in charge; goToAdminLogin handles the transition manually so we
+  // do NOT touch mainApp here in that case — it is shown by
+  // hideWorkerLoginOverlay() and hidden by showWorkerLoginOverlay().
+  const mainApp = document.getElementById('mainApp');
+  if (isWorker || isSup) {
+    if (mainApp) mainApp.style.display = 'block';
+    const overlay = document.getElementById('workerLoginOverlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+  if (isNone) {
+    if (mainApp) mainApp.style.display = 'none';
+  }
 
   // Tab bar visibility
   setDisplay('tabWorker',    isWorker);
@@ -275,12 +291,14 @@ function genId(list){
 
 // ---------- tabs ----------
 function switchTab(which){
-  // ── RBAC Guard: block unauthorized tab access ─────────────────────
-  // This prevents DevTools/console from switching to restricted tabs.
+  // ── RBAC Guard: block CROSS-ROLE navigation only ───────────────────
+  // Workers cannot jump to supervisor tabs; supervisors cannot jump to
+  // worker tabs.  Pre-auth state ('none') is allowed to reach the
+  // supervisor login gate so goToAdminLogin() keeps working.
   const workerTabs = ['worker', 'myhistory'];
   const supTabs    = ['sup', 'users'];
-  if (workerTabs.includes(which) && sessionRole !== 'worker') return;
-  if (supTabs.includes(which)   && sessionRole !== 'supervisor') return;
+  if (workerTabs.includes(which) && sessionRole === 'supervisor') return;
+  if (supTabs.includes(which)   && sessionRole === 'worker') return;
   // ─────────────────────────────────────────────────────────────────
 
   document.getElementById('tabWorker').classList.toggle('active', which==='worker');
@@ -626,6 +644,11 @@ function showWlMsg(elId, msg, type){
 }
 
 function showDashboard(){
+  // Ensure the outer supervisor view container is visible (it starts
+  // display:none in HTML and may not have been opened via switchTab).
+  const viewSup = document.getElementById('viewSup');
+  if (viewSup) viewSup.style.display = 'block';
+
   document.getElementById('loginGate').innerHTML = '';
   document.getElementById('supDashboard').style.display = 'block';
   renderSupervisor();
@@ -1209,12 +1232,37 @@ function triggerInstall(){
   });
 }
 
-// ---------- register service worker (offline app-shell + installability) ----------
+// ── Register service worker + force update check on every load ───────────
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch((e) => console.error('SW register failed', e));
+    navigator.serviceWorker.register('/sw.js')
+      .then((reg) => {
+        // Immediately check for a new SW version so stale clients update
+        // without waiting for the next navigation event.
+        reg.update();
+
+        // When a new SW is waiting, reload all clients to activate it.
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          if (!newWorker) return;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              // New SW installed and waiting — post message to skip waiting
+              newWorker.postMessage({ type: 'SKIP_WAITING' });
+            }
+          });
+        });
+      })
+      .catch((e) => console.error('SW register failed', e));
+
+    // When the SW activates and claims this client, reload to get fresh assets
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) { refreshing = true; window.location.reload(); }
+    });
   });
 }
+
 
 // ===================================================================
 // إدارة المستخدمين - User Management (Super Admin only)
