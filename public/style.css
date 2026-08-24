@@ -603,3 +603,27 @@
   .phc-msg.rejected{background:rgba(200,20,33,0.07);color:var(--danger);}
   .phc-msg.muted{background:rgba(0,0,0,0.04);color:var(--muted);}
   .phc-submitted{font-size:11px;color:var(--muted);margin-top:6px;}
+
+  /* ===================================================================
+     🛡️ RBAC CSS Safety-Net
+     These rules enforce tab hiding at the CSS layer as a second line of
+     defence, even if JS fails or is partially bypassed via DevTools.
+     JS sets body[data-session] via applyRbacUI() on every role change.
+  =================================================================== */
+
+  /* Worker session: hide all supervisor-facing elements */
+  body[data-session="worker"] #tabSup,
+  body[data-session="worker"] #tabUsers,
+  body[data-session="worker"] #viewSup,
+  body[data-session="worker"] #viewUsers,
+  body[data-session="worker"] #userBadgeArea { display: none !important; }
+
+  /* Supervisor session: hide all worker-facing elements */
+  body[data-session="supervisor"] #tabWorker,
+  body[data-session="supervisor"] #tabMyHistory,
+  body[data-session="supervisor"] #viewWorker,
+  body[data-session="supervisor"] #viewMyHistory,
+  body[data-session="supervisor"] #empBadgeArea { display: none !important; }
+
+  /* Unauthenticated state: hide main app entirely (overlay is shown instead) */
+  body[data-session="none"] #mainApp { display: none !important; }

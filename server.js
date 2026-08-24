@@ -289,28 +289,69 @@ app.get('/api/storage/:key', (req, res) => {
 });
 
 // ── POST /api/storage/:key — حفظ قيمة
-// حماية: لا يُسمح بالكتابة على app-users أو users إلا للـ superadmin
+// حماية متعددة الطبقات:
+//   • app-users / users ← superadmin JWT فقط
+//   • work-permits ← worker submissions مسموح بها، لكن حقل status يُجبر على 'pending'
+//     لمنع تزوير الحالة. التغييرات الفعلية للحالة تمر عبر PATCH /api/permits/:id فقط.
 app.post('/api/storage/:key', (req, res, next) => {
   const key = req.params.key;
   const PROTECTED_KEYS = ['app-users', 'users'];
 
   if (PROTECTED_KEYS.includes(key)) {
-    // هذا المفتاح محمي — يجب Token صالح + دور superadmin
     return authenticateToken(req, res, () => {
       requireRole('superadmin')(req, res, next);
     });
   }
-  // المفاتيح الأخرى (work-permits, employees...) مسموح بها
   next();
 }, async (req, res) => {
-  const { value } = req.body;
-  const key       = req.params.key;
+  let { value } = req.body;
+  const key = req.params.key;
 
   if (value === undefined || value === null) {
     return res.status(400).json({ error: 'القيمة (value) مطلوبة في جسم الطلب' });
   }
 
-  // استخدام Write Queue لمنع Race Conditions
+  // ── Security: strip status forgery on work-permits writes ──────────
+  // Any direct write to the work-permits key that attempts to set a status
+  // other than 'pending' on any permit is sanitized here.
+  // Actual status changes MUST go through PATCH /api/permits/:id.
+  if (key === 'work-permits') {
+    try {
+      let permits = JSON.parse(value);
+      if (Array.isArray(permits)) {
+        // Load existing permits to compare and preserve authenticated statuses
+        const existing = readStorage();
+        let existingPermits = [];
+        if (existing['work-permits']) {
+          try { existingPermits = JSON.parse(existing['work-permits']); } catch { existingPermits = []; }
+        }
+        const existingMap = new Map(existingPermits.map(p => [p.id, p]));
+
+        permits = permits.map(p => {
+          const prev = existingMap.get(p.id);
+          if (prev) {
+            // Existing permit: preserve authenticated status and review fields
+            return {
+              ...p,
+              status:            prev.status,
+              reviewedBy:        prev.reviewedBy,
+              reviewedAt:        prev.reviewedAt,
+              safetyOfficerName: prev.safetyOfficerName,
+              areaManagerName:   prev.areaManagerName,
+              reviewNote:        prev.reviewNote,
+              closure:           prev.closure
+            };
+          }
+          // New permit: force status to pending regardless of what client sends
+          return { ...p, status: 'pending', reviewedBy: '', reviewedAt: '', reviewNote: '', closure: null };
+        });
+        value = JSON.stringify(permits);
+      }
+    } catch (e) {
+      console.error('work-permits sanitize error:', e.message);
+    }
+  }
+
   await enqueueWrite(async () => {
     const data = readStorage();
     data[key]  = value;
@@ -326,14 +367,121 @@ app.post('/api/storage/:key', (req, res, next) => {
   res.json({ success: true, key });
 });
 
-// ── GET /api/export-excel — تصدير ملف الإكسيل
-app.get('/api/export-excel', (req, res) => {
-  if (fs.existsSync(EXCEL_FILE)) {
-    res.download(EXCEL_FILE, 'سجل_تصاريح_العمل.xlsx');
-  } else {
-    res.status(404).send('لا يوجد سجل حالياً');
+// ── GET /api/export-excel — تصدير ملف الإكسيل (supervisors only)
+app.get('/api/export-excel',
+  authenticateToken,
+  requireRole('superadmin', 'admin', 'supervisor'),
+  (req, res) => {
+    if (fs.existsSync(EXCEL_FILE)) {
+      res.download(EXCEL_FILE, 'سجل_تصاريح_العمل.xlsx');
+    } else {
+      res.status(404).send('لا يوجد سجل حالياً');
+    }
   }
-});
+);
+
+// ============================================================
+// 🛡️ API ROUTES — PERMIT STATUS (Supervisor / Admin / SuperAdmin only)
+// ============================================================
+
+/**
+ * PATCH /api/permits/:id
+ * الإجراءات المدعومة: approve | reject | close
+ * محمي بـ JWT + RBAC (supervisor / admin / superadmin)
+ *
+ * Body (approve):
+ *   { action: 'approve', safetyOfficerName?, areaManagerName? }
+ * Body (reject):
+ *   { action: 'reject', reviewNote? }
+ * Body (close):
+ *   { action: 'close', closureType: 'safe'|'incomplete'|'forced', closureReason? }
+ */
+app.patch(
+  '/api/permits/:id',
+  authenticateToken,
+  requireRole('superadmin', 'admin', 'supervisor'),
+  async (req, res) => {
+    const permitId = req.params.id;
+    const { action, reviewNote, safetyOfficerName, areaManagerName, closureType, closureReason } = req.body;
+
+    const VALID_ACTIONS = ['approve', 'reject', 'close'];
+    if (!action || !VALID_ACTIONS.includes(action)) {
+      return res.status(400).json({ error: `الإجراء غير صالح. المتاح: ${VALID_ACTIONS.join(' | ')}` });
+    }
+    if (action === 'close') {
+      const VALID_CLOSURE = ['safe', 'incomplete', 'forced'];
+      if (!closureType || !VALID_CLOSURE.includes(closureType)) {
+        return res.status(400).json({ error: `نوع الإغلاق غير صالح. المتاح: ${VALID_CLOSURE.join(' | ')}` });
+      }
+    }
+
+    let result;
+    await enqueueWrite(async () => {
+      const storage = readStorage();
+      let permits = [];
+      if (storage['work-permits']) {
+        try { permits = JSON.parse(storage['work-permits']); } catch { permits = []; }
+      }
+
+      const idx = permits.findIndex(p => p.id === permitId);
+      if (idx === -1) {
+        result = { status: 404, body: { error: 'التصريح غير موجود' } };
+        return;
+      }
+
+      const now = new Date().toISOString();
+      const reviewerName = req.user.name || req.user.username;
+
+      if (action === 'approve') {
+        if (permits[idx].status !== 'pending') {
+          result = { status: 409, body: { error: 'لا يمكن الموافقة إلا على التصاريح قيد الانتظار' } };
+          return;
+        }
+        permits[idx].status            = 'approved';
+        permits[idx].reviewedAt        = now;
+        permits[idx].reviewedBy        = reviewerName;
+        permits[idx].safetyOfficerName = (safetyOfficerName || '').trim();
+        permits[idx].areaManagerName   = (areaManagerName   || '').trim();
+      } else if (action === 'reject') {
+        if (permits[idx].status !== 'pending') {
+          result = { status: 409, body: { error: 'لا يمكن رفض إلا التصاريح قيد الانتظار' } };
+          return;
+        }
+        permits[idx].status     = 'rejected';
+        permits[idx].reviewedAt = now;
+        permits[idx].reviewedBy = reviewerName;
+        permits[idx].reviewNote = (reviewNote || '').trim();
+      } else if (action === 'close') {
+        if (!permits[idx].status || !permits[idx].status.startsWith('approved')) {
+          // Allow closing only approved permits
+          // (reject closing of pending/rejected/already-closed unless superadmin)
+          if (req.user.role !== 'superadmin' && permits[idx].status !== 'approved') {
+            result = { status: 409, body: { error: 'لا يمكن إغلاق إلا التصاريح الموافق عليها' } };
+            return;
+          }
+        }
+        permits[idx].status  = 'closed_' + closureType;
+        permits[idx].closure = {
+          type:     closureType,
+          reason:   (closureReason || '').trim(),
+          time:     now,
+          closedBy: reviewerName
+        };
+      }
+
+      const newValue = JSON.stringify(permits);
+      storage['work-permits'] = newValue;
+      if (writeStorage(storage)) {
+        await syncExcelFromPermits(newValue);
+        result = { status: 200, body: { success: true, permit: permits[idx] } };
+      } else {
+        result = { status: 500, body: { error: 'فشل حفظ التغييرات' } };
+      }
+    });
+
+    res.status(result.status).json(result.body);
+  }
+);
 
 // ============================================================
 // 🔑 API ROUTES — AUTH

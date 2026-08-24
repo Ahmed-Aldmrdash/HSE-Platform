@@ -204,7 +204,6 @@ let currentUserRole = ''; // 'superadmin' | 'admin' | 'supervisor'
 let selectedType = 'general';
 let supervisorPollTimer = null;
 let lastPermitsRaw = '';
-// trackPollTimer / lastTrackPermitsRaw removed — track tab was deleted, tracking moved to myhistory tab
 let umPassTargetId = ''; // for password change modal
 
 // ---- Employee session ----
@@ -212,6 +211,47 @@ let currentEmployee = null; // { empCode, name, phone, department }
 let myHistoryFilter = 'الكل';
 let myHistoryPollTimer = null;
 let lastMyHistoryRaw = '';
+
+// ================================================================
+// === RBAC UI STATE MACHINE ===
+// 'none' | 'worker' | 'supervisor'
+// ================================================================
+let sessionRole = 'none';
+
+/**
+ * setDisplay — tiny helper to show/hide an element by ID
+ */
+function setDisplay(id, visible) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = visible ? '' : 'none';
+}
+
+/**
+ * applyRbacUI — the SINGLE source of truth for tab/view visibility.
+ * Call this after every login/logout transition.
+ * Also writes body[data-session] for CSS safety-net rules.
+ */
+function applyRbacUI() {
+  const isWorker = sessionRole === 'worker';
+  const isSup    = sessionRole === 'supervisor';
+
+  // Sync CSS safety-net attribute
+  document.body.dataset.session = sessionRole;
+
+  // Tab bar visibility
+  setDisplay('tabWorker',    isWorker);
+  setDisplay('tabMyHistory', isWorker);
+  setDisplay('tabSup',       isSup);
+  // Users tab: only superadmin sees it, and only in supervisor session
+  const tabUsers = document.getElementById('tabUsers');
+  if (tabUsers) tabUsers.style.display = (isSup && currentUserRole === 'superadmin') ? '' : 'none';
+
+  // Badge areas
+  const empArea  = document.getElementById('empBadgeArea');
+  const userArea = document.getElementById('userBadgeArea');
+  if (empArea)  empArea.style.display  = isWorker ? 'block' : 'none';
+  if (userArea) userArea.style.display = isSup    ? 'block' : 'none';
+}
 
 // ---------- storage helpers ----------
 async function loadPermits(){
@@ -235,6 +275,14 @@ function genId(list){
 
 // ---------- tabs ----------
 function switchTab(which){
+  // ── RBAC Guard: block unauthorized tab access ─────────────────────
+  // This prevents DevTools/console from switching to restricted tabs.
+  const workerTabs = ['worker', 'myhistory'];
+  const supTabs    = ['sup', 'users'];
+  if (workerTabs.includes(which) && sessionRole !== 'worker') return;
+  if (supTabs.includes(which)   && sessionRole !== 'supervisor') return;
+  // ─────────────────────────────────────────────────────────────────
+
   document.getElementById('tabWorker').classList.toggle('active', which==='worker');
   const tabMH = document.getElementById('tabMyHistory');
   if(tabMH) tabMH.classList.toggle('active', which==='myhistory');
@@ -249,12 +297,11 @@ function switchTab(which){
   const viewUsers = document.getElementById('viewUsers');
   if(viewUsers) viewUsers.style.display = which==='users' ? 'block':'none';
 
-  // stop supervisor polling if leaving supervisor view
+  // Stop polling when leaving the relevant view
   if(which !== 'sup' && supervisorPollTimer){
     clearInterval(supervisorPollTimer);
     supervisorPollTimer = null;
   }
-  // stop my-history polling if leaving that view
   if(which !== 'myhistory' && myHistoryPollTimer){
     clearInterval(myHistoryPollTimer);
     myHistoryPollTimer = null;
@@ -271,7 +318,6 @@ function switchTab(which){
   }
   if(which==='users'){
     if(isLoggedIn && currentUserRole==='superadmin'){ renderUsersPanel(); }
-    else if(isLoggedIn){ switchTab('sup'); }
     else { switchTab('sup'); }
   }
 }
@@ -322,14 +368,16 @@ async function attemptLogin(){
       return;
     }
     const data = await res.json();
-    // ─── حفظ الـ JWT Token ───────────────────────────────────
     if(data.token) saveToken(data.token);
-    // ────────────────────────────────────────────────────────
-    isLoggedIn = true;
+    isLoggedIn      = true;
     currentUsername = data.user.username;
     currentUserName = data.user.name || data.user.username;
     currentUserRole = data.user.role;
-    showUserBadge();
+    // ── Set RBAC session role and rebuild UI ──────────────────
+    sessionRole = 'supervisor';
+    applyRbacUI();
+    // Switch to supervisor view (guard allows 'sup' now)
+    switchTab('sup');
     showDashboard();
   } catch(e){
     document.getElementById('loginErr').classList.add('show');
@@ -343,42 +391,36 @@ function showUserBadge(){
   const roleLabels = { superadmin:'Super Admin', admin:'Admin', supervisor:'Supervisor' };
   pill.innerHTML = `<span class="role-dot ${currentUserRole}"></span><span>${escapeHtml(currentUserName)}</span><span class="role-label">${roleLabels[currentUserRole]||currentUserRole}</span>`;
   area.style.display = 'block';
-  // إخفاء بادج الموظف أثناء جلسة المشرف
-  const empArea = document.getElementById('empBadgeArea');
-  if(empArea) empArea.style.display = 'none';
-  // إظهار تبويب المستخدمين للـ superadmin فقط
-  const tabUsers = document.getElementById('tabUsers');
-  if(tabUsers) tabUsers.style.display = currentUserRole === 'superadmin' ? '' : 'none';
 }
 
 function logout(){
-  isLoggedIn = false;
+  // ── Reset supervisor session state ────────────────────────
+  isLoggedIn      = false;
   currentUsername = '';
   currentUserName = '';
   currentUserRole = '';
-  // ─── مسح الـ JWT Token ───────────────────────────────────
   clearToken();
-  // ────────────────────────────────────────────────────────
-  if(supervisorPollTimer){
-    clearInterval(supervisorPollTimer);
-    supervisorPollTimer = null;
-  }
-  if(myHistoryPollTimer){
-    clearInterval(myHistoryPollTimer);
-    myHistoryPollTimer = null;
-  }
-  const area = document.getElementById('userBadgeArea');
-  if(area) area.style.display = 'none';
-  const tabUsers = document.getElementById('tabUsers');
-  if(tabUsers) tabUsers.style.display = 'none';
-  // العودة لواجهة الموظف إذا كان مسجل دخول
-  if(currentEmployee){
-    showEmpBadge();
-    switchTab('worker');
-  } else {
-    switchTab('sup');
-    renderLoginGate();
-  }
+  if(supervisorPollTimer){ clearInterval(supervisorPollTimer); supervisorPollTimer = null; }
+  if(myHistoryPollTimer){  clearInterval(myHistoryPollTimer);  myHistoryPollTimer  = null; }
+
+  // ── Always return to unified worker login overlay (Option A) ──
+  sessionRole = 'none';
+  applyRbacUI();
+  // Reset all view states
+  document.getElementById('viewWorker').style.display    = 'none';
+  document.getElementById('viewSup').style.display       = 'none';
+  const viewMH    = document.getElementById('viewMyHistory');
+  const viewUsers = document.getElementById('viewUsers');
+  if(viewMH)    viewMH.style.display    = 'none';
+  if(viewUsers) viewUsers.style.display = 'none';
+  // Clear any active tab highlight
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  // If there was a worker session, clear it too
+  currentEmployee = null;
+  localStorage.removeItem('ep_currentEmployee');
+  // Show the unified entry point
+  showWorkerLoginOverlay();
+  resetWorkerLogin();
 }
 
 // ================================================================
@@ -426,15 +468,21 @@ function initEmployeeSession(){
     const saved = localStorage.getItem('ep_currentEmployee');
     if(saved){
       currentEmployee = JSON.parse(saved);
+      // Restore RBAC state before touching UI
+      sessionRole = 'worker';
+      applyRbacUI();
       hideWorkerLoginOverlay();
       showEmpBadge();
       renderForm();
+      switchTab('worker');
       return;
     }
   } catch(e){ /* ignore */ }
-  // لا توجد جلسة محفوظة → أظهر شاشة الدخول
+  // No saved session → show unified login overlay
+  sessionRole = 'none';
+  document.body.dataset.session = 'none';
   showWorkerLoginOverlay();
-  renderForm(); // تحضير النموذج في الخلفية
+  renderForm(); // prepare form in background
 }
 
 /** يعرض بادج الموظف في الهيدر مع زر تسجيل خروج */
@@ -457,12 +505,15 @@ function workerLogout(){
   currentEmployee = null;
   localStorage.removeItem('ep_currentEmployee');
   if(myHistoryPollTimer){ clearInterval(myHistoryPollTimer); myHistoryPollTimer = null; }
-  const area = document.getElementById('empBadgeArea');
-  if(area) area.style.display = 'none';
+  // Reset RBAC state and return to unified login
+  sessionRole = 'none';
+  applyRbacUI();
+  document.getElementById('viewWorker').style.display = 'none';
+  const viewMH = document.getElementById('viewMyHistory');
+  if(viewMH) viewMH.style.display = 'none';
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   showWorkerLoginOverlay();
   resetWorkerLogin();
-  // إذا كان المشرف مسجل دخول، اعرض بادجه
-  if(isLoggedIn) showUserBadge();
 }
 
 /**
@@ -540,9 +591,13 @@ function finishEmployeeLogin(emp){
   try{
     localStorage.setItem('ep_currentEmployee', JSON.stringify(emp));
   } catch(e){ /* ignore */ }
+  // ── Set RBAC session and rebuild UI before showing app ────
+  sessionRole = 'worker';
+  applyRbacUI();
   hideWorkerLoginOverlay();
   showEmpBadge();
   autoFillForm();
+  // switchTab guard now allows 'worker' since sessionRole === 'worker'
   switchTab('worker');
 }
 
@@ -1023,46 +1078,73 @@ function toggleNote(id){
 
 async function approvePermit(id){
   const safetyEl = document.getElementById('safety-'+id);
-  const areaEl = document.getElementById('area-'+id);
-  const list = await loadPermits();
-  const idx = list.findIndex(p=>p.id===id);
-  if(idx===-1) return;
-  list[idx].status = 'approved';
-  list[idx].reviewedAt = new Date().toISOString();
-  list[idx].reviewedBy = currentUsername || 'المشرف';
-  list[idx].safetyOfficerName = safetyEl ? safetyEl.value.trim() : '';
-  list[idx].areaManagerName = areaEl ? areaEl.value.trim() : '';
-  const ok = await savePermits(list);
-  if(ok){ permitsCache = list; renderList(); }
-  else alert('حصل خطأ، حاول تاني');
+  const areaEl   = document.getElementById('area-'+id);
+  try {
+    const res = await authFetch(`/api/permits/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action:            'approve',
+        safetyOfficerName: safetyEl ? safetyEl.value.trim() : '',
+        areaManagerName:   areaEl   ? areaEl.value.trim()   : ''
+      })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      // Update local cache from server response
+      const idx = permitsCache.findIndex(p => p.id === id);
+      if (idx !== -1 && data.permit) permitsCache[idx] = data.permit;
+      renderList();
+    } else {
+      alert(data.error || 'حصل خطأ في الموافقة، حاول تاني');
+    }
+  } catch(e) {
+    alert('حصل خطأ في الاتصال بالسيرفر');
+  }
 }
 
 async function rejectPermit(id){
   const noteEl = document.getElementById('notetext-'+id);
-  const note = noteEl ? noteEl.value.trim() : '';
-  const list = await loadPermits();
-  const idx = list.findIndex(p=>p.id===id);
-  if(idx===-1) return;
-  list[idx].status = 'rejected';
-  list[idx].reviewedAt = new Date().toISOString();
-  list[idx].reviewedBy = currentUsername || 'المشرف';
-  list[idx].reviewNote = note;
-  const ok = await savePermits(list);
-  if(ok){ permitsCache = list; renderList(); }
-  else alert('حصل خطأ، حاول تاني');
+  const note   = noteEl ? noteEl.value.trim() : '';
+  try {
+    const res = await authFetch(`/api/permits/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reject', reviewNote: note })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      const idx = permitsCache.findIndex(p => p.id === id);
+      if (idx !== -1 && data.permit) permitsCache[idx] = data.permit;
+      renderList();
+    } else {
+      alert(data.error || 'حصل خطأ في الرفض، حاول تاني');
+    }
+  } catch(e) {
+    alert('حصل خطأ في الاتصال بالسيرفر');
+  }
 }
 
 async function closePermit(id, type){
   const reasonEl = document.getElementById('closereason-'+id);
-  const reason = reasonEl ? reasonEl.value.trim() : '';
-  const list = await loadPermits();
-  const idx = list.findIndex(p=>p.id===id);
-  if(idx===-1) return;
-  list[idx].status = 'closed_'+type;
-  list[idx].closure = { type, reason, time: new Date().toISOString(), closedBy: currentUsername || 'المشرف' };
-  const ok = await savePermits(list);
-  if(ok){ permitsCache = list; renderList(); }
-  else alert('حصل خطأ، حاول تاني');
+  const reason   = reasonEl ? reasonEl.value.trim() : '';
+  try {
+    const res = await authFetch(`/api/permits/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'close', closureType: type, closureReason: reason })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      const idx = permitsCache.findIndex(p => p.id === id);
+      if (idx !== -1 && data.permit) permitsCache[idx] = data.permit;
+      renderList();
+    } else {
+      alert(data.error || 'حصل خطأ في الإغلاق، حاول تاني');
+    }
+  } catch(e) {
+    alert('حصل خطأ في الاتصال بالسيرفر');
+  }
 }
 
 function escapeHtml(str){
