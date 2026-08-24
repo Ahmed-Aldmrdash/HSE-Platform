@@ -393,18 +393,67 @@
 
   /* ===== User Badge in Header ===== */
   .user-badge-pill{
-    display:inline-flex;align-items:center;gap:6px;
-    background:var(--charcoal-2);border:1px solid rgba(0,0,0,0.10);
-    border-radius:20px;padding:5px 12px 5px 8px;font-size:12px;font-weight:700;
+    display:none; /* Disabled, replaced by inline dashboard chips */
   }
-  .user-badge-pill .role-dot{
-    width:8px;height:8px;border-radius:50%;flex-shrink:0;
+
+  /* ===== Dashboard User Profile Chip ===== */
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap; /* Important for small mobiles */
+    justify-content: flex-end;
   }
-  .role-dot.superadmin{background:#7c3aed;}
-  .role-dot.admin{background:var(--amber);}
-  .role-dot.supervisor{background:var(--success);}
-  .role-dot.area_head{background:#8e44ad;}
-  .role-label{font-family:'Oswald',sans-serif;font-size:10px;letter-spacing:1px;color:var(--muted);}
+  .user-profile-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 24px;
+    padding: 6px 14px 6px 6px;
+    font-size: clamp(12px, 3vw, 13px);
+    font-weight: 700;
+    color: #1e293b;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+  .chip-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+  .chip-avatar.superadmin { background: #991b1b; } /* Burgundy */
+  .chip-avatar.admin      { background: var(--amber); }
+  .chip-avatar.supervisor { background: #0284c7; } /* Blue */
+  .chip-avatar.area_head  { background: #6d28d9; } /* Purple */
+
+  .chip-info {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+  }
+  .chip-role {
+    font-size: 10px;
+    color: #64748b;
+    font-weight: 600;
+  }
+  .profile-dept-pill {
+    display: inline-block;
+    margin-right: 8px; /* Arabic layout */
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+  }
 
   /* ===== User Management Section ===== */
   .um-add-card{

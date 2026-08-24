@@ -1,9 +1,9 @@
-// Service worker — Work Permits PWA  v2.3.0
+// Service worker — Work Permits PWA  v2.3.1
 // Strategy: Network-first for app shell (JS/CSS/HTML) so updates land instantly.
 // API calls always bypass the SW entirely.
 // skipWaiting + clients.claim = zero wait for new SW to take control.
 
-const CACHE_NAME  = 'work-permits-shell-v2.3';
+const CACHE_NAME  = 'work-permits-shell-v2.3.1';
 const APP_SHELL   = [
   '/',
   '/index.html',

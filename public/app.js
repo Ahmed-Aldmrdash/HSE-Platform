@@ -389,9 +389,7 @@ function applyRbacUI() {
 
   // Badge areas
   const empArea  = document.getElementById('empBadgeArea');
-  const userArea = document.getElementById('userBadgeArea');
   if (empArea)  empArea.style.display  = isWorker ? 'block' : 'none';
-  if (userArea) userArea.style.display = isSup    ? 'block' : 'none';
 }
 
 // ---------- storage helpers ----------
@@ -529,12 +527,38 @@ async function attemptLogin(){
 }
 
 function showUserBadge(){
-  const area = document.getElementById('userBadgeArea');
-  const pill = document.getElementById('userBadgePill');
-  if(!area || !pill) return;
-  const roleLabels = { superadmin:'Super Admin', admin:'Admin', supervisor:'Supervisor', area_head:'Area Head' };
-  pill.innerHTML = `<span class="role-dot ${currentUserRole}"></span><span>${escapeHtml(currentUserName)}</span><span class="role-label">${roleLabels[currentUserRole]||currentUserRole}</span>`;
-  area.style.display = 'block';
+  const supArea = document.getElementById('supUserProfileChip');
+  const umArea  = document.getElementById('umUserProfileChip');
+  
+  const roleLabels = { 
+    superadmin: 'مدير النظام (Super Admin)', 
+    admin: 'أدمن (Admin)', 
+    supervisor: 'مشرف سلامة (Supervisor)', 
+    area_head: 'رئيس قسم / منطقة (Area Head)' 
+  };
+  
+  const initial = currentUserName ? currentUserName.charAt(0).toUpperCase() : 'U';
+  
+  let deptHtml = '';
+  if (currentUserRole === 'area_head' && currentUserDept) {
+    deptHtml = `<span class="profile-dept-pill">القسم: ${escapeHtml(currentUserDept)}</span>`;
+  }
+  
+  const chipHtml = `
+    <div class="user-profile-chip">
+      <div class="chip-avatar ${currentUserRole}">${initial}</div>
+      <div class="chip-info">
+        <span>${escapeHtml(currentUserName)}</span>
+        <div class="chip-role">
+          ${deptHtml}
+          <span>${roleLabels[currentUserRole] || currentUserRole}</span>
+        </div>
+      </div>
+    </div>
+  `;
+
+  if (supArea) supArea.innerHTML = chipHtml;
+  if (umArea)  umArea.innerHTML = chipHtml;
 }
 
 function logout(){

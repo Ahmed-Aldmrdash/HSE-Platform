@@ -15,7 +15,7 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=2.3.0">
+<link rel="stylesheet" href="style.css?v=2.3.1">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body data-session="none">
@@ -99,10 +99,6 @@
     <div id="empBadgeArea" style="display:none;margin-inline-start:auto;">
       <div class="emp-badge-pill" id="empBadgePill"></div>
     </div>
-    <!-- بادج المشرف الحالي -->
-    <div id="userBadgeArea" style="display:none;margin-inline-start:auto;text-align:left;">
-      <div class="user-badge-pill" id="userBadgePill"></div>
-    </div>
     <button id="installBtn" class="install-btn" style="display:none;" onclick="triggerInstall()">⬇ تثبيت التطبيق</button>
   </div>
 
@@ -134,7 +130,10 @@
     <div id="supDashboard" style="display:none;">
       <div class="sup-header-row">
         <h3>🛡️ لوحة المشرف</h3>
-        <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
+        <div class="header-actions">
+          <div class="user-profile-chip-container" id="supUserProfileChip"></div>
+          <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
+        </div>
       </div>
 
       <div class="toolbar">
@@ -152,7 +151,10 @@
   <div id="viewUsers" style="display:none;">
     <div class="sup-header-row" style="margin-bottom:16px;">
       <h3>👥 إدارة الحسابات والمستخدمين</h3>
-      <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
+      <div class="header-actions">
+        <div class="user-profile-chip-container" id="umUserProfileChip"></div>
+        <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
+      </div>
     </div>
 
     <!-- Add New User Form -->
@@ -225,7 +227,7 @@
 
 </div>
 
-<script src="app.js?v=2.3.0"></script>
+<script src="app.js?v=2.3.1"></script>
 </body>
 </html>
 
