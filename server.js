@@ -6,12 +6,13 @@
 
 require('dotenv').config();
 
-const express = require('express');
-const fs      = require('fs');
-const path    = require('path');
-const ExcelJS = require('exceljs');
-const bcrypt  = require('bcryptjs');
-const jwt     = require('jsonwebtoken');
+const express    = require('express');
+const fs         = require('fs');
+const path       = require('path');
+const ExcelJS    = require('exceljs');
+const bcrypt     = require('bcryptjs');
+const jwt        = require('jsonwebtoken');
+const rateLimit  = require('express-rate-limit');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -37,8 +38,28 @@ if (!fs.existsSync(DATA_DIR)) {
 }
 
 // ── Middleware ────────────────────────────────────────────────
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// Tighter payload limit — workers submit text only; 2 MB is generous
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
+
+// ── Rate Limiters ─────────────────────────────────────────────
+/** Auth: max 10 login attempts per 15 min per IP */
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'تجاوزت عدد محاولات تسجيل الدخول. حاول مجدداً بعد 15 دقيقة.' }
+});
+
+/** Permit submission: max 30 new permits per 15 min per IP */
+const submitLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'تجاوزت الحد المسموح لتقديم التصاريح. حاول مجدداً بعد 15 دقيقة.' }
+});
 
 // ── Cache-Busting: prevent browsers/CDNs caching app-shell files ──────────
 // Must come BEFORE express.static so the headers are set on every response.
@@ -96,6 +117,29 @@ function writeStorage(data) {
     console.error('Error writing storage.json:', err);
     return false;
   }
+}
+
+// ── Input Sanitization Helpers ────────────────────────────────
+/**
+ * Strips HTML/script tags and trims whitespace.
+ * Use on every string field before persisting to storage.
+ */
+function sanitizeStr(val, maxLen = 500) {
+  if (val === undefined || val === null) return '';
+  return String(val)
+    .replace(/[<>"'`]/g, '') // strip HTML meta-chars
+    .replace(/&/g, '&amp;')  // encode ampersand
+    .trim()
+    .slice(0, maxLen);
+}
+
+/**
+ * Clamps a numeric value to [min, max]; returns fallback on NaN.
+ */
+function clampInt(val, min, max, fallback) {
+  const n = parseInt(val, 10);
+  if (isNaN(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
 }
 
 // ── User Helpers ──────────────────────────────────────────────
@@ -308,12 +352,19 @@ app.get('/api/storage/:key', (req, res) => {
   }
 });
 
-// ── POST /api/storage/:key — حفظ قيمة
+// ── POST /api/storage/:key — حفظ قيمة (rate-limited on work-permits key)
 // حماية متعددة الطبقات:
 //   • app-users / users ← superadmin JWT فقط
-//   • work-permits ← worker submissions مسموح بها، لكن حقل status يُجبر على 'pending'
+//   • work-permits ← worker submissions مسموح بها + rate-limited، لكن حقل status يُجبر على 'pending'
 //     لمنع تزوير الحالة. التغييرات الفعلية للحالة تمر عبر PATCH /api/permits/:id فقط.
 app.post('/api/storage/:key', (req, res, next) => {
+  // Apply submit rate limit only for work-permits writes
+  if (req.params.key === 'work-permits') {
+    return submitLimiter(req, res, next);
+  }
+  next();
+}, (req, res, next) => {
+
   const key = req.params.key;
   const PROTECTED_KEYS = ['app-users', 'users'];
 
@@ -459,9 +510,9 @@ app.patch(
         }
         permits[idx].status            = 'approved';
         permits[idx].reviewedAt        = now;
-        permits[idx].reviewedBy        = reviewerName;
-        permits[idx].safetyOfficerName = (safetyOfficerName || '').trim();
-        permits[idx].areaManagerName   = (areaManagerName   || '').trim();
+        permits[idx].reviewedBy        = sanitizeStr(reviewerName, 100);
+        permits[idx].safetyOfficerName = sanitizeStr(safetyOfficerName, 100);
+        permits[idx].areaManagerName   = sanitizeStr(areaManagerName,   100);
       } else if (action === 'reject') {
         if (permits[idx].status !== 'pending') {
           result = { status: 409, body: { error: 'لا يمكن رفض إلا التصاريح قيد الانتظار' } };
@@ -469,8 +520,8 @@ app.patch(
         }
         permits[idx].status     = 'rejected';
         permits[idx].reviewedAt = now;
-        permits[idx].reviewedBy = reviewerName;
-        permits[idx].reviewNote = (reviewNote || '').trim();
+        permits[idx].reviewedBy = sanitizeStr(reviewerName, 100);
+        permits[idx].reviewNote = sanitizeStr(reviewNote, 500);
       } else if (action === 'close') {
         if (!permits[idx].status || !permits[idx].status.startsWith('approved')) {
           // Allow closing only approved permits
@@ -483,9 +534,9 @@ app.patch(
         permits[idx].status  = 'closed_' + closureType;
         permits[idx].closure = {
           type:     closureType,
-          reason:   (closureReason || '').trim(),
+          reason:   sanitizeStr(closureReason, 300),
           time:     now,
-          closedBy: reviewerName
+          closedBy: sanitizeStr(reviewerName, 100)
         };
       }
 
@@ -507,8 +558,8 @@ app.patch(
 // 🔑 API ROUTES — AUTH
 // ============================================================
 
-// ── POST /api/auth/login — تسجيل الدخول
-app.post('/api/auth/login', async (req, res) => {
+// ── POST /api/auth/login — تسجيل الدخول (rate-limited)
+app.post('/api/auth/login', loginLimiter, async (req, res) => {
   const { username, password } = req.body;
 
   if (!username || !password) {

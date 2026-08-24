@@ -254,7 +254,12 @@ function applyRbacUI() {
     if (mainApp) mainApp.style.display = 'none';
   }
 
-  // Tab bar visibility
+  // ── Tab navigation bar ───────────────────────────────────────────────
+  // Show the tab bar only when a role is active. When 'none', the gate
+  // screen (or overlay) needs no navigation bar.
+  setDisplay('mainTabs', isWorker || isSup);
+
+  // Individual tab visibility
   setDisplay('tabWorker',    isWorker);
   setDisplay('tabMyHistory', isWorker);
   setDisplay('tabSup',       isSup);
@@ -473,12 +478,10 @@ function resetWorkerLogin(){
 /** يذهب لتبويب المشرف من شاشة الموظف */
 function goToAdminLogin(){
   hideWorkerLoginOverlay();
-  // Explicitly hide worker-only tabs — CSS data-session="none" covers this
-  // too, but JS ensures instant hide with no dependency on paint order.
-  setDisplay('tabWorker',    false);
-  setDisplay('tabMyHistory', false);
-  setDisplay('tabUsers',     false);
-  // Show the supervisor view and render the login gate
+  // ── Hide the entire tab bar on the login gate ─────────────────────
+  // sessionRole is still 'none' here, so no tab should be visible.
+  // applyRbacUI() will restore the correct tabs once login succeeds.
+  setDisplay('mainTabs', false);
   switchTab('sup');
   renderLoginGate();
 }
