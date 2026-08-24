@@ -625,6 +625,12 @@
   body[data-session="supervisor"] #viewMyHistory,
   body[data-session="supervisor"] #empBadgeArea { display: none !important; }
 
+  /* Pre-auth / admin-gate (mainApp visible but no role set):
+     hide worker tabs so only the supervisor login gate is shown cleanly. */
+  body[data-session="none"] #tabWorker,
+  body[data-session="none"] #tabMyHistory,
+  body[data-session="none"] #tabUsers { display: none !important; }
+
   /* NOTE: #mainApp visibility for the 'none' state is managed by JS
      (applyRbacUI / showWorkerLoginOverlay / hideWorkerLoginOverlay)
      rather than CSS, because goToAdminLogin() shows #mainApp while

@@ -473,6 +473,12 @@ function resetWorkerLogin(){
 /** يذهب لتبويب المشرف من شاشة الموظف */
 function goToAdminLogin(){
   hideWorkerLoginOverlay();
+  // Explicitly hide worker-only tabs — CSS data-session="none" covers this
+  // too, but JS ensures instant hide with no dependency on paint order.
+  setDisplay('tabWorker',    false);
+  setDisplay('tabMyHistory', false);
+  setDisplay('tabUsers',     false);
+  // Show the supervisor view and render the login gate
   switchTab('sup');
   renderLoginGate();
 }
