@@ -470,7 +470,7 @@ app.get('/api/export-excel',
 app.patch(
   '/api/permits/:id',
   authenticateToken,
-  requireRole('superadmin', 'admin', 'supervisor'),
+  requireRole('superadmin', 'admin', 'supervisor', 'area_head'),
   async (req, res) => {
     const permitId = req.params.id;
     const { action, reviewNote, safetyOfficerName, areaManagerName, closureType, closureReason } = req.body;
