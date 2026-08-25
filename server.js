@@ -1586,7 +1586,7 @@ app.get('/api/employees/lookup/:code', (req, res) => {
 // ── GET /api/employees/export-excel — تصدير قاعدة الموظفين كـ xlsx
 app.get('/api/employees/export-excel',
   authenticateToken,
-  requireRole('superadmin', 'admin', 'supervisor'),
+  requireRole('superadmin', 'admin', 'supervisor', 'area_head', 'hse', 'issuer'),
   async (req, res) => {
     try {
       const employees = readEmployees();
@@ -1624,7 +1624,7 @@ app.get('/api/employees/export-excel',
 // ── POST /api/employees/import-excel — استيراد/دمج xlsx (base64)
 app.post('/api/employees/import-excel',
   authenticateToken,
-  requireRole('superadmin', 'admin', 'supervisor'),
+  requireRole('superadmin', 'admin', 'supervisor', 'area_head', 'hse', 'issuer'),
   async (req, res) => {
     const { fileData } = req.body;
     if (!fileData) return res.status(400).json({ error: 'fileData (base64) مطلوب' });
@@ -1670,7 +1670,7 @@ app.post('/api/employees/import-excel',
 // ── GET /api/employees — جلب كل الموظفين (محمي)
 app.get('/api/employees',
   authenticateToken,
-  requireRole('superadmin', 'admin', 'supervisor'),
+  requireRole('superadmin', 'admin', 'supervisor', 'area_head', 'hse', 'issuer'),
   (req, res) => res.json({ employees: readEmployees() })
 );
 
@@ -1679,7 +1679,7 @@ app.post('/api/employees', async (req, res, next) => {
   const authHeader = req.headers['authorization'];
   if (authHeader && authHeader.startsWith('Bearer ')) {
     return authenticateToken(req, res, () =>
-      requireRole('superadmin', 'admin', 'supervisor')(req, res, next)
+      requireRole('superadmin', 'admin', 'supervisor', 'area_head', 'hse', 'issuer')(req, res, next)
     );
   }
   return employeeLimiter(req, res, next);
@@ -1731,7 +1731,7 @@ app.post('/api/employees', async (req, res, next) => {
 // ── PUT /api/employees/:code — تعديل بيانات موظف (محمي)
 app.put('/api/employees/:code',
   authenticateToken,
-  requireRole('superadmin', 'admin', 'supervisor'),
+  requireRole('superadmin', 'admin', 'supervisor', 'area_head', 'hse', 'issuer'),
   async (req, res) => {
     const targetCode = normalizeEmpCode(req.params.code);
     const { name, phone, department, jobTitle, role } = req.body;

@@ -1934,7 +1934,7 @@ async function renderEmployeesPanel() {
     const res  = await authFetch('/api/employees');
     if (!res.ok) throw new Error('fetch failed');
     const data = await res.json();
-    _allEmployees = data.employees || [];
+    _allEmployees = Array.isArray(data) ? data : (data.employees || data.data || []);
     renderEmployeesTable(_allEmployees);
   } catch(e) {
     listEl.innerHTML = '<div class="empty" style="color:var(--danger);">فشل تحميل الموظفين</div>';
