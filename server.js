@@ -907,10 +907,20 @@ app.post('/api/storage/:key', (req, res, next) => {
           createNotification({
             targetRole: 'admin',
             type: 'permit',
-            title: 'طلب تصريح عمل جديد 📝',
-            message: `طلب تصريح جديد بواسطة ${p.workerName || 'موظف'} في قسم ${p.department || 'غير محدد'}`,
-            link: 'tabWorker'
+            title: 'تصريح جديد 📋',
+            message: `مقدم من ${p.workerName || 'موظف'} نوع ${p.typeLabel || 'غير محدد'} في ${p.location || 'غير محدد'}`,
+            link: 'tabPermits'
           });
+          
+          if (p.employeeId) {
+            createNotification({
+              targetEmpCode: p.employeeId,
+              type: 'permit',
+              title: 'استلام طلب تصريح ✅',
+              message: 'تم استلام طلب تصريحك بنجاح وهو قيد المراجعة',
+              link: 'tabMyHistory'
+            });
+          }
 
           const safeTools = Array.isArray(p.tools)
             ? p.tools.map(t => sanitizeStr(String(t), 100)).slice(0, 10)
@@ -1127,19 +1137,32 @@ app.patch(
       if (writeStorage(storage)) {
         await syncExcelFromPermits(newValue);
         
-        if (permits[idx].employeeId && action !== 'close') {
-          let statusText = permits[idx].status;
-          if (statusText === 'approved') statusText = 'تمت الموافقة النهائية 🟢';
-          else if (statusText === 'rejected') statusText = 'مرفوض 🔴';
-          else if (statusText === 'pending_admin') statusText = 'تمت موافقة رئيس المنطقة وبانتظار الإدارة 🟡';
-
-          createNotification({
-            targetEmpCode: permits[idx].employeeId,
-            type: 'permit',
-            title: 'تحديث حالة تصريح العمل 📝',
-            message: `تم تحديث حالة تصريحك (${permits[idx].id}) إلى: ${statusText}`,
-            link: 'tabMyHistory'
-          });
+        if (permits[idx].employeeId) {
+          if (action === 'approve' || action === 'area_approve') {
+            createNotification({
+              targetEmpCode: permits[idx].employeeId,
+              type: 'permit',
+              title: 'موافقة على التصريح 🎉',
+              message: `تمت الموافقة على تصريحك رقم ${permits[idx].id} ويمكنك بدء العمل`,
+              link: 'tabMyHistory'
+            });
+          } else if (action === 'reject' || action === 'area_reject') {
+            createNotification({
+              targetEmpCode: permits[idx].employeeId,
+              type: 'permit',
+              title: 'رفض التصريح ❌',
+              message: `تم رفض تصريحك رقم ${permits[idx].id} - السبب: ${reviewNote || 'غير محدد'}`,
+              link: 'tabMyHistory'
+            });
+          } else if (action === 'close') {
+            createNotification({
+              targetEmpCode: permits[idx].employeeId,
+              type: 'permit',
+              title: 'إغلاق التصريح 🔒',
+              message: `تم إنهاء وإغلاق التصريح رقم ${permits[idx].id}`,
+              link: 'tabMyHistory'
+            });
+          }
         }
         
         result = { status: 200, body: { success: true, permit: permits[idx] } };
@@ -1228,10 +1251,20 @@ app.post('/api/hazards', submitLimiter, async (req, res) => {
       createNotification({
         targetRole: 'admin',
         type: 'hazard',
-        title: 'بلاغ خطورة جديد ⚠️',
-        message: `تم الإبلاغ عن خطورة بواسطة ${newHazard.reporterName} في قسم ${newHazard.department}`,
+        title: 'بلاغ خطورة جديد 🚨',
+        message: `بلاغ خطورة جديد في ${newHazard.location || newHazard.area} - ${newHazard.description}`,
         link: 'tabSupHazard'
       });
+      
+      if (newHazard.empCode) {
+        createNotification({
+          targetEmpCode: newHazard.empCode,
+          type: 'hazard',
+          title: 'استلام البلاغ 📥',
+          message: 'تم تسجيل بلاغك بنجاح وجارٍ مراجعته من قِبل السلامة',
+          link: 'tabHazardWorker'
+        });
+      }
       
       result = { status: 201, body: { success: true, hazard: newHazard } };
     } else {
@@ -1343,8 +1376,8 @@ app.patch('/api/hazards/:id', authenticateToken, requireRole('superadmin', 'admi
         createNotification({
           targetEmpCode: hazards[idx].empCode,
           type: 'hazard',
-          title: 'تحديث حالة بلاغ خطورة 📋',
-          message: `تم تحديث حالة البلاغ الخاص بك (${hazards[idx].id}) إلى: ${status}`,
+          title: 'تحديث حالة البلاغ 🛠️',
+          message: `تم تحديث حالة بلاغك في ${hazards[idx].location || hazards[idx].area} إلى: ${status}`,
           link: 'tabMyHazards'
         });
       }
@@ -1497,6 +1530,23 @@ app.patch('/api/permits/:id/worker-close', async (req, res) => {
     storage['work-permits'] = newValue;
     if (writeStorage(storage)) {
       await syncExcelFromPermits(newValue);
+      
+      createNotification({
+        targetRole: 'admin',
+        type: 'permit',
+        title: 'إغلاق تصريح من العامل 🔒',
+        message: `تم إنهاء وإغلاق التصريح رقم ${permits[idx].id} من قِبل ${permits[idx].workerName || employeeId}`,
+        link: 'tabPermits'
+      });
+      
+      createNotification({
+        targetEmpCode: permits[idx].employeeId,
+        type: 'permit',
+        title: 'تأكيد إغلاق التصريح ✅',
+        message: 'تم إغلاق التصريح بسلامة',
+        link: 'tabMyHistory'
+      });
+      
       result = { status: 200, body: { success: true, permit: permits[idx] } };
     } else {
       result = { status: 500, body: { error: 'فشل حفظ الإغلاق' } };
@@ -2044,10 +2094,10 @@ app.post('/api/trainings', authenticateToken, requireRole('superadmin', 'admin',
       
       createNotification({
         targetRole: 'worker',
-        targetGroup: newTraining.targetGroup, // Will broadcast to all if not specified or 'الجميع' handled later
+        targetGroup: newTraining.targetGroup,
         type: 'training',
         title: 'محاضرة تدريبية جديدة 🎓',
-        message: `تم إنشاء محاضرة جديدة: ${newTraining.title} يوم ${newTraining.date}`,
+        message: `محاضرة جديدة: ${newTraining.title} في ${newTraining.location || 'غير محدد'} - الساعة ${newTraining.startTime}`,
         link: 'tabTrainingWorker'
       });
 
@@ -2068,6 +2118,15 @@ app.put('/api/trainings/:id/close', authenticateToken, requireRole('superadmin',
     
     trainings[idx].status = 'closed';
     if (writeTrainings(trainings)) {
+      
+      createNotification({
+        targetRole: 'admin',
+        type: 'training',
+        title: 'إغلاق محاضرة 🔒',
+        message: `تم إغلاق محاضرة ${trainings[idx].title} بإجمالي حضور ${trainings[idx].attendees.length}`,
+        link: 'tabTrainingAdmin'
+      });
+
       result = { status: 200, body: { success: true, training: trainings[idx] } };
     } else {
       result = { status: 500, body: { error: 'فشل إغلاق المحاضرة' } };
@@ -2122,9 +2181,17 @@ app.post('/api/trainings/:id/attend', attendLimiter, async (req, res) => {
       createNotification({
         targetRole: 'admin',
         type: 'training',
-        title: 'تسجيل حضور تدريب 🎓',
-        message: `تم تسجيل حضور ${emp.name} في محاضرة: ${trn.title}`,
+        title: 'تسجيل حضور تدريب 👤',
+        message: `سجّل ${emp.name} حضوره في الجلسة`,
         link: 'tabTrainingAdmin'
+      });
+      
+      createNotification({
+        targetEmpCode: nCode,
+        type: 'training',
+        title: 'تأكيد الحضور ✅',
+        message: `تم تسجيل وتأكيد حضورك في محاضرة ${trn.title}`,
+        link: 'tabTrainingWorker'
       });
 
       result = { status: 200, body: { success: true, message: 'تم تسجيل الحضور بنجاح' } };

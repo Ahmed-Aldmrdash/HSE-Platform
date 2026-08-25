@@ -3424,7 +3424,7 @@ function startNotificationPolling() {
   }
 
   fetchNotifications(); // Initial fetch
-  notifPollTimer = setInterval(fetchNotifications, 15000);
+  notifPollTimer = setInterval(fetchNotifications, 10000);
 }
 
 function stopNotificationPolling() {
