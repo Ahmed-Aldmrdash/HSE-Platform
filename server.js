@@ -31,7 +31,9 @@ if (!JWT_SECRET) {
 // ── Paths ─────────────────────────────────────────────────────
 const DATA_DIR  = path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'storage.json');
+const HAZARDS_FILE = path.join(DATA_DIR, 'hazard-reports.json');
 const EXCEL_FILE = path.join(DATA_DIR, 'permits_log.xlsx');
+const HAZARDS_EXCEL_FILE = path.join(DATA_DIR, 'hazards_log.xlsx');
 
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -143,6 +145,26 @@ function writeStorage(data) {
   }
 }
 
+function readHazards() {
+  if (!fs.existsSync(HAZARDS_FILE)) return [];
+  try {
+    return JSON.parse(fs.readFileSync(HAZARDS_FILE, 'utf8'));
+  } catch (err) {
+    console.error('Error reading hazard-reports.json:', err);
+    return [];
+  }
+}
+
+function writeHazards(data) {
+  try {
+    fs.writeFileSync(HAZARDS_FILE, JSON.stringify(data, null, 2), 'utf8');
+    return true;
+  } catch (err) {
+    console.error('Error writing hazard-reports.json:', err);
+    return false;
+  }
+}
+
 // ── Input Sanitization Helpers ────────────────────────────────
 /**
  * Strips HTML/script meta-characters and trims whitespace.
@@ -229,14 +251,68 @@ async function ensureDefaultSuperAdmin() {
     });
     storage['app-users'] = JSON.stringify(users);
     writeStorage(storage);
-    console.log('✅ Default superadmin account created: superadmin / admin123');
+    console.log('✅ Default superadmin account created.');
   }
 }
 
-// ── Startup sequence (async) ──────────────────────────────────
+// ── Backfill Hazard Timestamps ───────────────────────────────
+function backfillHazardTimestamps(hazard) {
+  const baseTime = hazard.submittedAt || hazard.createdAt || new Date().toISOString();
+  const updater = hazard.updatedBy || 'المدير العام';
+
+  // If report has been seen or touched, but seenAt is null:
+  if ((hazard.status !== 'open' || hazard.actionTaken) && !hazard.seenAt) {
+    hazard.seenAt = baseTime;
+    hazard.seenBy = hazard.seenBy || updater;
+  }
+
+  // If status is in_progress or resolved/closed:
+  if (['in_progress', 'resolved', 'closed'].includes(hazard.status)) {
+    if (!hazard.seenAt) {
+      hazard.seenAt = baseTime;
+      hazard.seenBy = hazard.seenBy || updater;
+    }
+    if (!hazard.inProgressAt) {
+      hazard.inProgressAt = hazard.seenAt || baseTime;
+      hazard.inProgressBy = hazard.inProgressBy || updater;
+    }
+  }
+
+  // If status is resolved/closed:
+  if (['resolved', 'closed'].includes(hazard.status)) {
+    if (!hazard.seenAt) {
+      hazard.seenAt = baseTime;
+      hazard.seenBy = hazard.seenBy || updater;
+    }
+    if (!hazard.inProgressAt) {
+      hazard.inProgressAt = hazard.seenAt || baseTime;
+      hazard.inProgressBy = hazard.inProgressBy || updater;
+    }
+    if (!hazard.resolvedAt) {
+      hazard.resolvedAt = hazard.inProgressAt || baseTime;
+      hazard.resolvedBy = hazard.resolvedBy || updater;
+    }
+  }
+
+  return hazard;
+}
+
+function runHazardBackfillOnStartup() {
+  let hazards = readHazards();
+  if (!hazards || hazards.length === 0) return;
+  const originalStr = JSON.stringify(hazards);
+  hazards = hazards.map(backfillHazardTimestamps);
+  if (JSON.stringify(hazards) !== originalStr) {
+    writeHazards(hazards);
+    console.log('✅ Backfilled missing timestamps for existing hazard records.');
+  }
+}
+
+// ── Startup Sequence ──────────────────────────────────────────
 (async () => {
   await ensureDefaultSuperAdmin();
   await migratePasswordsIfNeeded();
+  runHazardBackfillOnStartup();
   console.log('🔒 Security initialization complete.');
 })();
 
@@ -358,6 +434,74 @@ async function syncExcelFromPermits(permitsJsonString) {
     await workbook.xlsx.writeFile(EXCEL_FILE);
   } catch (err) {
     console.error('Excel sync error:', err);
+  }
+}
+
+async function syncHazardsExcelFromData(hazards) {
+  try {
+    if (!Array.isArray(hazards)) return;
+
+    let workbook = new ExcelJS.Workbook();
+    let worksheet;
+
+    if (fs.existsSync(HAZARDS_EXCEL_FILE)) {
+      try {
+        await workbook.xlsx.readFile(HAZARDS_EXCEL_FILE);
+        worksheet = workbook.getWorksheet('بلاغات الخطورة');
+      } catch (readErr) {
+        console.warn('Excel sync: could not read existing hazards file, creating fresh.', readErr.message);
+        workbook = new ExcelJS.Workbook();
+        worksheet = null;
+      }
+    }
+
+    if (!worksheet) {
+      worksheet = workbook.addWorksheet('بلاغات الخطورة');
+      worksheet.columns = [
+        { header: 'كود البلاغ',       key: 'id',               width: 18 },
+        { header: 'التاريخ',          key: 'date',             width: 15 },
+        { header: 'اسم المبلغ',       key: 'reporterName',     width: 20 },
+        { header: 'القسم',            key: 'department',       width: 15 },
+        { header: 'المنطقة',          key: 'area',             width: 20 },
+        { header: 'وصف الخطورة',      key: 'description',      width: 40 },
+        { header: 'الإصابة المحتملة', key: 'potentialInjury',  width: 30 },
+        { header: 'الحل المقترح',     key: 'proposedSolution', width: 30 },
+        { header: 'مستوى الخطورة',    key: 'riskLevel',        width: 15 },
+        { header: 'الحالة',           key: 'status',           width: 20 },
+        { header: 'الإجراء المتخذ وملاحظات المشرف',   key: 'actionTaken',      width: 40 }
+      ];
+    } else {
+      worksheet.spliceRows(2, worksheet.rowCount);
+    }
+
+    hazards.forEach(h => {
+      let riskStr = h.riskLevel === 'H' ? 'High 🔴' : h.riskLevel === 'M' ? 'Medium 🟡' : 'Low 🟢';
+      let statusStr = 'مفتوح 🔴';
+      if (h.status === 'notified') statusStr = 'تم الإبلاغ 📢';
+      if (h.status === 'in_progress') statusStr = 'قيد الإصلاح 🟡';
+      if (h.status === 'resolved' || h.status === 'closed') statusStr = 'تم الحل والإغلاق 🟢';
+      
+      let finalAction = h.actionTaken || '-';
+      if (h.updatedBy) finalAction += ` (بواسطة: ${h.updatedBy})`;
+
+      worksheet.addRow({
+        id:               h.id || '',
+        date:             h.date || '',
+        reporterName:     h.reporterName || '',
+        department:       h.department || '',
+        area:             h.area || '',
+        description:      h.description || '',
+        potentialInjury:  h.potentialInjury || '',
+        proposedSolution: h.proposedSolution || '',
+        riskLevel:        riskStr,
+        status:           statusStr,
+        actionTaken:      finalAction
+      });
+    });
+
+    await workbook.xlsx.writeFile(HAZARDS_EXCEL_FILE);
+  } catch (err) {
+    console.error('Hazards Excel sync error:', err);
   }
 }
 
@@ -673,6 +817,243 @@ app.patch(
 );
 
 // ============================================================
+// ⚠️ API ROUTES — HAZARD REPORTS
+// ============================================================
+
+app.post('/api/hazards', submitLimiter, async (req, res) => {
+  const payload = req.body;
+  if (!payload || !payload.reporterName || !payload.department || !payload.description) {
+    return res.status(400).json({ error: 'البيانات غير مكتملة' });
+  }
+
+  let result;
+  await enqueueWrite(async () => {
+    let hazards = readHazards();
+    
+    // Auto-generate ID: HZ-YYYY-XXXX
+    const year = new Date().getFullYear();
+    const maxN = hazards.reduce((mx, p) => {
+      if(!p.id) return mx;
+      const parts = p.id.split('-');
+      const num = parseInt(parts[parts.length - 1]) || 0;
+      return Math.max(mx, num);
+    }, 0);
+    const newId = `HZ-${year}-${String(maxN + 1).padStart(4,'0')}`;
+
+    const newHazard = {
+      id:               newId,
+      reporterName:     sanitizeStr(payload.reporterName, 100),
+      date:             sanitizeStr(payload.date, 20) || new Date().toISOString().split('T')[0],
+      department:       sanitizeStr(payload.department, 100),
+      area:             sanitizeStr(payload.area, 150),
+      description:      sanitizeStr(payload.description, 1000),
+      potentialInjury:  sanitizeStr(payload.potentialInjury, 300),
+      proposedSolution: sanitizeStr(payload.proposedSolution, 500),
+      likelihood:       clampInt(payload.likelihood, 1, 5, 1),
+      severity:         ['A','B','C','D','E'].includes(payload.severity) ? payload.severity : 'A',
+      riskLevel:        ['L', 'M', 'H'].includes(payload.riskLevel) ? payload.riskLevel : 'L',
+      status:           'open',
+      actionTaken:      '',
+      submittedAt:      new Date().toISOString()
+    };
+
+    hazards.push(newHazard);
+    if (writeHazards(hazards)) {
+      await syncHazardsExcelFromData(hazards);
+      result = { status: 201, body: { success: true, hazard: newHazard } };
+    } else {
+      result = { status: 500, body: { error: 'فشل حفظ البلاغ' } };
+    }
+  });
+  res.status(result.status).json(result.body);
+});
+
+app.get('/api/hazards', authenticateToken, requireRole('superadmin', 'admin', 'supervisor', 'area_head'), async (req, res) => {
+  let hazards = readHazards();
+  let changed = false;
+  const now = new Date().toISOString();
+  const readerName = sanitizeStr(req.user.name || req.user.username || 'المشرف', 100);
+
+  hazards.forEach(h => {
+    if (!h.seenAt) {
+      h.seenAt = now;
+      h.seenBy = readerName;
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    writeHazards(hazards);
+  }
+  
+  if (req.user.role === 'area_head' && req.user.department) {
+    hazards = hazards.filter(h => h.department === req.user.department);
+  }
+
+  res.json({ hazards });
+});
+
+app.get('/api/my-hazards/:name', (req, res) => {
+  const reporterName = req.params.name;
+  if (!reporterName) {
+    return res.status(400).json({ error: 'الاسم مطلوب' });
+  }
+  let hazards = readHazards();
+  const myHazards = hazards.filter(h => h.reporterName === reporterName);
+  res.json({ hazards: myHazards });
+});
+
+app.patch('/api/hazards/:id', authenticateToken, requireRole('superadmin', 'admin', 'supervisor', 'area_head'), async (req, res) => {
+  const hazardId = req.params.id;
+  const { status, actionTaken } = req.body;
+
+  const VALID_STATUSES = ['open', 'notified', 'in_progress', 'resolved', 'closed'];
+  if (!status || !VALID_STATUSES.includes(status)) {
+    return res.status(400).json({ error: 'حالة غير صالحة' });
+  }
+
+  let result;
+  await enqueueWrite(async () => {
+    let hazards = readHazards();
+    const idx = hazards.findIndex(h => h.id === hazardId);
+    if (idx === -1) {
+      result = { status: 404, body: { error: 'البلاغ غير موجود' } };
+      return;
+    }
+
+    if (req.user.role === 'area_head' && req.user.department && hazards[idx].department !== req.user.department) {
+       result = { status: 403, body: { error: 'ليس لديك صلاحية لتعديل هذا البلاغ' } };
+       return;
+    }
+
+    hazards[idx].status = status;
+    if (actionTaken !== undefined) {
+      hazards[idx].actionTaken = sanitizeStr(actionTaken, 1000);
+    }
+    // Update who changed it
+    const updater = sanitizeStr(req.user.name || req.user.username || 'المشرف', 100);
+    hazards[idx].updatedBy = updater;
+    
+    const now = new Date().toISOString();
+    
+    if (status === 'resolved' || status === 'closed') {
+      hazards[idx].resolvedAt = now;
+      hazards[idx].resolvedBy = updater;
+      if (!hazards[idx].inProgressAt) {
+        hazards[idx].inProgressAt = now;
+        hazards[idx].inProgressBy = updater;
+      }
+      if (!hazards[idx].seenAt) {
+        hazards[idx].seenAt = now;
+        hazards[idx].seenBy = updater;
+      }
+    } else if (status === 'in_progress') {
+      if (!hazards[idx].inProgressAt) {
+        hazards[idx].inProgressAt = now;
+        hazards[idx].inProgressBy = updater;
+      }
+      if (!hazards[idx].seenAt) {
+        hazards[idx].seenAt = now;
+        hazards[idx].seenBy = updater;
+      }
+    } else if (status === 'notified') {
+      if (!hazards[idx].seenAt) {
+        hazards[idx].seenAt = now;
+        hazards[idx].seenBy = updater;
+      }
+    }
+
+    if (writeHazards(hazards)) {
+      await syncHazardsExcelFromData(hazards);
+      result = { status: 200, body: { success: true, hazard: hazards[idx] } };
+    } else {
+      result = { status: 500, body: { error: 'فشل التحديث' } };
+    }
+  });
+
+  res.status(result.status).json(result.body);
+});
+
+app.get('/api/export-hazards', authenticateToken, requireRole('superadmin', 'admin', 'supervisor', 'area_head'), async (req, res) => {
+  try {
+    let hazards = readHazards();
+    
+    if (req.user && req.user.role === 'area_head' && req.user.department) {
+      hazards = hazards.filter(h => h.department === req.user.department);
+    }
+
+    if (!hazards || hazards.length === 0) {
+      return res.status(404).json({ error: 'لا توجد بيانات بلاغات حالياً للتصدير' });
+    }
+
+    // Ensure all historical records are backfilled before exporting
+    hazards = hazards.map(backfillHazardTimestamps);
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('بلاغات الخطورة');
+
+    const formatDateTime = (isoStr) => {
+      if (!isoStr) return '';
+      const d = new Date(isoStr);
+      return d.toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' });
+    };
+
+    worksheet.columns = [
+      { header: 'كود البلاغ',       key: 'id',               width: 18 },
+      { header: 'تاريخ البلاغ',     key: 'date',             width: 15 },
+      { header: 'وقت الإرسال الدقيق', key: 'submittedAt',      width: 20 },
+      { header: 'مقدم البلاغ',      key: 'reporterName',     width: 20 },
+      { header: 'القسم',            key: 'department',       width: 15 },
+      { header: 'المنطقة',          key: 'area',             width: 20 },
+      { header: 'وصف الخطورة',      key: 'description',      width: 40 },
+      { header: 'الإصابة المحتملة', key: 'potentialInjury',  width: 30 },
+      { header: 'الحل المقترح',     key: 'proposedSolution', width: 30 },
+      { header: 'مستوى الخطورة',    key: 'riskLevel',        width: 15 },
+      { header: 'الحالة الحالية',   key: 'status',           width: 20 },
+      { header: 'وقت مشاهدة المشرف للبلاغ', key: 'seenAt',    width: 30 },
+      { header: 'وقت بدء الإصلاح والمعالجة', key: 'inProgressAt', width: 30 },
+      { header: 'وقت الإغلاق والانتهاء', key: 'resolvedAt',     width: 30 },
+      { header: 'الإجراء المتخذ وملاحظات المشرف', key: 'actionTaken', width: 40 }
+    ];
+
+    hazards.forEach(h => {
+      let riskStr = h.riskLevel === 'H' ? 'High 🔴' : h.riskLevel === 'M' ? 'Medium 🟡' : 'Low 🟢';
+      let statusStr = 'مفتوح 🔴';
+      if (h.status === 'notified') statusStr = 'تم الإبلاغ 📢';
+      if (h.status === 'in_progress') statusStr = 'قيد الإصلاح 🟡';
+      if (h.status === 'resolved' || h.status === 'closed') statusStr = 'تم الحل والإغلاق 🟢';
+      
+      let finalAction = h.actionTaken ? `${h.actionTaken} (${h.updatedBy || 'المشرف'})` : 'لا يوجد';
+
+      worksheet.addRow({
+        id:               h.id || '',
+        date:             h.date || '',
+        submittedAt:      formatDateTime(h.submittedAt || h.createdAt),
+        reporterName:     h.reporterName || '',
+        department:       h.department || '',
+        area:             h.area || '',
+        description:      h.description || '',
+        potentialInjury:  h.potentialInjury || '',
+        proposedSolution: h.proposedSolution || '',
+        riskLevel:        riskStr,
+        status:           statusStr,
+        seenAt:           h.seenAt ? `${formatDateTime(h.seenAt)} (${h.seenBy || 'المشرف'})` : 'لم يُشاهد بعد',
+        inProgressAt:     h.inProgressAt ? `${formatDateTime(h.inProgressAt)} (${h.inProgressBy || 'الصيانة'})` : 'لم يبدأ بعد',
+        resolvedAt:       h.resolvedAt ? `${formatDateTime(h.resolvedAt)} (${h.resolvedBy || 'المشرف'})` : 'لم ينتهِ بعد',
+        actionTaken:      finalAction
+      });
+    });
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="Hazard_Reports_${Date.now()}.xlsx"`);
+
+    await workbook.xlsx.write(res);
+    return res.end();
+  } catch (error) {
+    console.error('Error exporting hazards:', error);
+    return res.status(500).json({ error: 'فشل تصدير البيانات' });
+  }
+});
 // 🔑 API ROUTES — AUTH
 // ============================================================
 // 🔑 API ROUTES — AUTH

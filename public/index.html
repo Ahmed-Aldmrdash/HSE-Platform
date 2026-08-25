@@ -103,15 +103,117 @@
   </div>
 
   <div class="tabs" id="mainTabs">
-    <div class="tab active" id="tabWorker" onclick="switchTab('worker')">📋 نموذج طلب</div>
+    <div class="tab active" id="tabWorker" onclick="switchTab('worker')">📝 تصاريح العمل</div>
+    <div class="tab" id="tabHazardWorker" onclick="switchTab('hazardWorker')">⚠️ الإبلاغ عن خطورة</div>
     <div class="tab" id="tabMyHistory" onclick="switchTab('myhistory')">📁 سجل تصاريحي</div>
+    <div class="tab" id="tabMyHazards" onclick="switchTab('myhazards')">📋 سجل بلاغاتي</div>
     <div class="tab" id="tabSup" onclick="switchTab('sup')">🛡️ لوحة المشرف</div>
+    <div class="tab" id="tabSupHazard" onclick="switchTab('supHazard')" style="display:none;">
+      ⚠️ بلاغات الخطورة <span id="hzSupBadge" class="badge-count" style="display:none;">0</span>
+    </div>
     <div class="tab" id="tabUsers" onclick="switchTab('users')" style="display:none;">👥 المستخدمون</div>
   </div>
 
   <!-- WORKER FORM VIEW -->
   <div id="viewWorker">
     <div id="formArea"></div>
+  </div>
+
+  <!-- HAZARD WORKER VIEW -->
+  <div id="viewHazardWorker" style="display:none;">
+    <div class="ticket">
+      <div class="ticket-head" style="background:var(--amber);">
+        <div>
+          <div class="ttype">⚠️ نموذج الإبلاغ عن الخطورة</div>
+          <div class="tnum">Hazard Report</div>
+        </div>
+      </div>
+      <div class="perf"></div>
+      <div class="ticket-body">
+        <div class="row2">
+          <div class="field">
+            <label>الاسم (Reporter Name) <span class="req-star">*</span></label>
+            <input id="hz_name" type="text" placeholder="الاسم الكامل">
+          </div>
+          <div class="field">
+            <label>التاريخ (Date) <span class="req-star">*</span></label>
+            <input id="hz_date" type="date">
+          </div>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label>القسم (Department) <span class="req-star">*</span></label>
+            <select id="hz_dept">
+              <option value="">-- اختر القسم --</option>
+              <option value="Administration">Administration</option>
+              <option value="all factory">all factory</option>
+              <option value="Maintenance">Maintenance</option>
+              <option value="outside">outside</option>
+              <option value="Production - Master Batch">Production - Master Batch</option>
+              <option value="Production - Special Compounds">Production - Special Compounds</option>
+              <option value="Quality Control">Quality Control</option>
+              <option value="R&D">R&D</option>
+              <option value="Warehouse">Warehouse</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>المنطقة (Area / Zone) <span class="req-star">*</span></label>
+            <input id="hz_area" type="text" placeholder="مثال: خط إنتاج 1، المخزن الرئيسي">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>نوع ووصف الخطورة (وضع أو تصرف غير آمن) <span class="req-star">*</span></label>
+          <textarea id="hz_desc" placeholder="اشرح بالتفصيل وضع الخطورة أو التصرف غير الآمن..."></textarea>
+        </div>
+
+        <div class="field">
+          <label>الإصابة المحتملة (Potential Injury) <span class="req-star">*</span></label>
+          <input id="hz_injury" type="text" placeholder="ما هي الإصابة التي قد تنتج عن هذه الخطورة؟">
+        </div>
+
+        <div class="field">
+          <label>الحل المقترح (Proposed Solution)</label>
+          <textarea id="hz_solution" placeholder="كيف يمكننا معالجة هذه الخطورة؟"></textarea>
+        </div>
+
+        <div class="section-title" style="color:var(--amber);">مصفوفة تقييم الخطورة (Risk Matrix Calculator)</div>
+        <div class="row2">
+          <div class="field">
+            <label>الاحتمالية (Likelihood) <span class="req-star">*</span></label>
+            <select id="hz_likelihood" onchange="calculateHazardRisk()">
+              <option value="1">1 - غير ممكن حدوثه</option>
+              <option value="2">2 - احتمالية ضئيلة للحدوث</option>
+              <option value="3">3 - احتمالية متوسطة للحدوث</option>
+              <option value="4">4 - احتمالية عالية للحدوث</option>
+              <option value="5">5 - أكيدة الحدوث</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>شدة الإصابة (Severity) <span class="req-star">*</span></label>
+            <select id="hz_severity" onchange="calculateHazardRisk()">
+              <option value="A">A - بسيط أو إسعاف أولي (1)</option>
+              <option value="B">B - علاج طبي (2)</option>
+              <option value="C">C - LTI < 30 days (3)</option>
+              <option value="D">D - LTI ≥ 30 days (4)</option>
+              <option value="E">E - وفاة (5)</option>
+            </select>
+          </div>
+        </div>
+        
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;background:#f9f9f9;padding:12px;border-radius:8px;">
+          <strong style="font-size:14px;color:var(--muted);">مستوى الخطورة:</strong>
+          <div id="hz_riskBadge" class="hz-risk-badge hz-low">Low (L) 🟢</div>
+        </div>
+
+        <button class="submit-btn" id="hz_submitBtn" onclick="submitHazardReport()">إرسال البلاغ ←</button>
+        <div id="hz_msg" class="wl-msg" style="margin-top:10px;text-align:center;"></div>
+        
+        <div class="hz-footer">
+          SE-04-F02 | VER.NO.: 1 | VER. DATE: 3/11/2024
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- MY HISTORY VIEW -->
@@ -122,6 +224,15 @@
     </div>
     <div class="my-history-filter-bar" id="myHistoryFilters"></div>
     <div id="myHistoryList"><div class="loading">جارِ التحميل…</div></div>
+  </div>
+
+  <!-- MY HAZARDS VIEW -->
+  <div id="viewMyHazards" style="display:none;">
+    <div class="my-history-header">
+      <div class="my-history-title">📋 سجل بلاغاتي</div>
+      <div class="my-history-sub" id="myHazardsSub"></div>
+    </div>
+    <div id="myHazardsList"><div class="loading">جارِ التحميل…</div></div>
   </div>
 
   <!-- SUPERVISOR VIEW -->
@@ -145,6 +256,28 @@
       </div>
       <div id="supList"><div class="loading">جارِ التحميل…</div></div>
     </div>
+  </div>
+
+  <!-- SUPERVISOR HAZARD VIEW -->
+  <div id="viewSupHazard" style="display:none;">
+    <div class="sup-header-row" style="margin-bottom:16px;">
+      <h3>⚠️ بلاغات الخطورة والشكاوى</h3>
+      <div class="header-actions">
+        <div class="user-profile-chip-container" id="hzUserProfileChip"></div>
+        <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
+      </div>
+    </div>
+    <div class="toolbar">
+      <div class="filters" id="hzFilters"></div>
+      <button class="export-btn" onclick="renderSupHazard(false)" style="margin-inline-start:auto; background:var(--primary); color:#fff; display:flex; align-items:center; gap:6px;">🔄 تحديث البيانات</button>
+    </div>
+    <div class="toolbar" id="hzDeptToolbar" style="display:none;">
+      <div class="filters" id="hzDeptFilters"></div>
+    </div>
+    <div class="toolbar">
+      <button class="export-btn" onclick="exportHazardsExcel()" style="margin-inline-start:auto;">📊 تصدير سجل البلاغات Excel</button>
+    </div>
+    <div id="hzList"><div class="loading">جارِ التحميل…</div></div>
   </div>
 
   <!-- USER MANAGEMENT VIEW (Super Admin only) -->

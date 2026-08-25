@@ -1,4 +1,13 @@
 // ============================================================
+// ⚠️ GLOBAL ERROR BOUNDARY
+// ============================================================
+window.onerror = function(msg, url, lineNo, columnNo, error) {
+  console.error('Unhandled error:', msg, url, lineNo, columnNo, error);
+  // Prevent white screen lockup by catching it early
+  return false;
+};
+
+// ============================================================
 // 🔑 JWT Token Management & Auth Fetch Helper
 // ============================================================
 
@@ -380,9 +389,12 @@ function applyRbacUI() {
   setDisplay('mainTabs', isWorker || isSup);
 
   // Individual tab visibility
-  setDisplay('tabWorker',    isWorker);
-  setDisplay('tabMyHistory', isWorker);
-  setDisplay('tabSup',       isSup);
+  setDisplay('tabWorker',       isWorker);
+  setDisplay('tabHazardWorker', isWorker);
+  setDisplay('tabMyHistory',    isWorker);
+  setDisplay('tabMyHazards',    isWorker);
+  setDisplay('tabSup',          isSup);
+  setDisplay('tabSupHazard',    isSup);
   // Users tab: only superadmin sees it, and only in supervisor session
   const tabUsers = document.getElementById('tabUsers');
   if (tabUsers) tabUsers.style.display = (isSup && currentUserRole === 'superadmin') ? '' : 'none';
@@ -418,23 +430,35 @@ function switchTab(which){
   // Workers cannot jump to supervisor tabs; supervisors cannot jump to
   // worker tabs.  Pre-auth state ('none') is allowed to reach the
   // supervisor login gate so goToAdminLogin() keeps working.
-  const workerTabs = ['worker', 'myhistory'];
-  const supTabs    = ['sup', 'users'];
+  const workerTabs = ['worker', 'hazardWorker', 'myhistory', 'myhazards'];
+  const supTabs    = ['sup', 'supHazard', 'users'];
   if (workerTabs.includes(which) && sessionRole === 'supervisor') return;
   if (supTabs.includes(which)   && sessionRole === 'worker') return;
   // ─────────────────────────────────────────────────────────────────
 
   document.getElementById('tabWorker').classList.toggle('active', which==='worker');
+  const tabHazardW = document.getElementById('tabHazardWorker');
+  if(tabHazardW) tabHazardW.classList.toggle('active', which==='hazardWorker');
   const tabMH = document.getElementById('tabMyHistory');
   if(tabMH) tabMH.classList.toggle('active', which==='myhistory');
+  const tabMyHaz = document.getElementById('tabMyHazards');
+  if(tabMyHaz) tabMyHaz.classList.toggle('active', which==='myhazards');
   document.getElementById('tabSup').classList.toggle('active', which==='sup');
+  const tabSupHazard = document.getElementById('tabSupHazard');
+  if(tabSupHazard) tabSupHazard.classList.toggle('active', which==='supHazard');
   const tabUsers = document.getElementById('tabUsers');
   if(tabUsers) tabUsers.classList.toggle('active', which==='users');
 
   document.getElementById('viewWorker').style.display = which==='worker' ? 'block':'none';
+  const viewHazardW = document.getElementById('viewHazardWorker');
+  if(viewHazardW) viewHazardW.style.display = which==='hazardWorker' ? 'block':'none';
   const viewMH = document.getElementById('viewMyHistory');
   if(viewMH) viewMH.style.display = which==='myhistory' ? 'block':'none';
+  const viewMyHazards = document.getElementById('viewMyHazards');
+  if(viewMyHazards) viewMyHazards.style.display = which==='myhazards' ? 'block':'none';
   document.getElementById('viewSup').style.display = which==='sup' ? 'block':'none';
+  const viewSupHazard = document.getElementById('viewSupHazard');
+  if(viewSupHazard) viewSupHazard.style.display = which==='supHazard' ? 'block':'none';
   const viewUsers = document.getElementById('viewUsers');
   if(viewUsers) viewUsers.style.display = which==='users' ? 'block':'none';
 
@@ -447,6 +471,10 @@ function switchTab(which){
     clearInterval(myHistoryPollTimer);
     myHistoryPollTimer = null;
   }
+  if(which !== 'myhazards' && window.myHazardsPollTimer){
+    clearInterval(window.myHazardsPollTimer);
+    window.myHazardsPollTimer = null;
+  }
 
   if(which==='sup'){
     if(isLoggedIn){ showDashboard(); } else { renderLoginGate(); }
@@ -457,9 +485,21 @@ function switchTab(which){
       myHistoryPollTimer = setInterval(pollMyHistory, 4000);
     }
   }
+  if(which==='myhazards'){
+    renderMyHazards();
+    if(!window.myHazardsPollTimer){
+      window.myHazardsPollTimer = setInterval(pollMyHazards, 4000);
+    }
+  }
+  if(which==='hazardWorker'){
+    initHazardWorker();
+  }
   if(which==='users'){
     if(isLoggedIn && currentUserRole==='superadmin'){ renderUsersPanel(); }
     else { switchTab('sup'); }
+  }
+  if(which==='supHazard'){
+    if(isLoggedIn){ renderSupHazard(); } else { switchTab('sup'); }
   }
 }
 
@@ -581,8 +621,14 @@ function logout(){
   document.getElementById('viewSup').style.display       = 'none';
   const viewMH    = document.getElementById('viewMyHistory');
   const viewUsers = document.getElementById('viewUsers');
+  const viewHazW  = document.getElementById('viewHazardWorker');
+  const viewHazS  = document.getElementById('viewSupHazard');
+  const viewMyHaz = document.getElementById('viewMyHazards');
   if(viewMH)    viewMH.style.display    = 'none';
   if(viewUsers) viewUsers.style.display = 'none';
+  if(viewHazW)  viewHazW.style.display  = 'none';
+  if(viewHazS)  viewHazS.style.display  = 'none';
+  if(viewMyHaz) viewMyHaz.style.display = 'none';
   // Clear any active tab highlight
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   // If there was a worker session, clear it too
@@ -685,6 +731,8 @@ function workerLogout(){
   document.getElementById('viewWorker').style.display = 'none';
   const viewMH = document.getElementById('viewMyHistory');
   if(viewMH) viewMH.style.display = 'none';
+  const viewMyHaz = document.getElementById('viewMyHazards');
+  if(viewMyHaz) viewMyHaz.style.display = 'none';
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   showWorkerLoginOverlay();
   resetWorkerLogin();
@@ -855,7 +903,10 @@ function renderForm(){
     buildSectionHtml(HSE_CHECKLIST.specialMaterial);
   const totalChkItems = chkGlobalIndex;
 
-  document.getElementById('formArea').innerHTML = `
+  const formArea = document.getElementById('formArea');
+  if (!formArea) return;
+
+  formArea.innerHTML = `
     <div class="type-picker">
       <div class="type-picker-label">نوع التصريح <span class="req-star">*</span></div>
       <div class="filters">${typeChips()}</div>
@@ -1856,5 +1907,565 @@ async function pollMyHistory(){
   const raw = res && res.value ? res.value : '[]';
   if(raw !== lastMyHistoryRaw){
     renderMyHistory(true);
+  }
+}
+
+// ============================================================
+// ⚠️ HAZARD REPORTING SYSTEM
+// ============================================================
+
+async function renderMyHazards(isSilent = false) {
+  if (!currentEmployee) {
+    const list = document.getElementById('myHazardsList');
+    if (list) list.innerHTML = `<div class="empty"><div class="icon">🔒</div>سجّل دخولك أولاً لعرض سجل بلاغاتك</div>`;
+    return;
+  }
+
+  const subEl = document.getElementById('myHazardsSub');
+  if (subEl) subEl.textContent = `${escapeHtml(currentEmployee.name)} · ${escapeHtml(currentEmployee.empCode)}`;
+
+  const listEl = document.getElementById('myHazardsList');
+  if (!isSilent && listEl) listEl.innerHTML = '<div class="loading">جارِ تحميل بلاغاتك…</div>';
+
+  try {
+    const res = await fetch(`/api/my-hazards/${encodeURIComponent(currentEmployee.name)}`);
+    if (!res.ok) throw new Error('Failed to fetch');
+    const data = await res.json();
+    const myHazards = data.hazards || [];
+    window.lastMyHazardsData = JSON.stringify(myHazards);
+    
+    if (myHazards.length === 0) {
+      if (listEl) listEl.innerHTML = `<div class="empty"><div class="icon">📂</div>لا توجد بلاغات مسجلة</div>`;
+      return;
+    }
+
+    let html = '';
+    myHazards.reverse().forEach(h => {
+      let statusStr = 'مفتوح 🔴';
+      let statusClass = 'hz-high';
+      let pendingDesc = 'بانتظار مراجعة المشرف';
+      
+      if (h.status === 'notified') {
+        statusStr = 'تم الإبلاغ 📢';
+        statusClass = 'hz-medium';
+        pendingDesc = 'تم إبلاغ القسم المعني والمتخصصين';
+      } else if (h.status === 'in_progress') {
+        statusStr = 'قيد المعالجة والإصلاح 🟡';
+        statusClass = 'hz-medium';
+        pendingDesc = 'جاري العمل على حل المشكلة';
+      } else if (h.status === 'resolved' || h.status === 'closed') {
+        statusStr = 'تم الحل وإغلاق البلاغ 🟢';
+        statusClass = 'hz-low';
+        pendingDesc = 'تمت المعالجة بنجاح';
+      }
+      
+      let riskStr = h.riskLevel === 'H' ? 'High 🔴' : h.riskLevel === 'M' ? 'Medium 🟡' : 'Low 🟢';
+      let riskClass = h.riskLevel === 'H' ? 'hz-high' : h.riskLevel === 'M' ? 'hz-medium' : 'hz-low';
+
+      html += `
+        <div class="sup-card" style="margin-bottom:12px;">
+          <div class="sup-top">
+            <div>
+              <div class="hz-status-badge ${statusClass}">${statusStr}</div>
+            </div>
+            <div class="tnum">${h.id}</div>
+          </div>
+          <div class="meta-grid">
+            <div><span>التاريخ</span>${h.date}</div>
+            <div><span>القسم</span>${h.department}</div>
+            <div><span>المنطقة</span>${h.area}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;margin:12px 0;">
+            <span style="font-size:12px; font-weight:bold;">مستوى الخطورة:</span>
+            <div class="hz-risk-badge ${riskClass}" style="margin:0; padding:4px 8px; font-size:11.5px;">${riskStr}</div>
+          </div>
+          <div class="desc"><strong>وصف الخطورة:</strong><br>${escapeHtml(h.description)}</div>
+          <div class="phc-msg" style="margin-top:10px; font-size:12px; color:var(--muted);">${pendingDesc}</div>
+          ${h.actionTaken ? `<div class="note-box show" style="margin-top:10px; background-color: #f8f9fa; border-left: 4px solid var(--primary); padding: 10px; border-radius: 4px;">
+            <strong>🛠️ الإجراء المتخذ من المشرف (${escapeHtml(h.updatedBy || 'إدارة السلامة')}):</strong><br>
+            ${escapeHtml(h.actionTaken)}
+          </div>` : ''}
+          <div class="hazard-timeline">
+            <div class="timeline-step done">
+              <span class="step-icon">📝</span>
+              <div class="step-info">
+                <strong>وقت الإرسال:</strong>
+                <span>${formatDateTime(h.submittedAt || h.createdAt)}</span>
+              </div>
+            </div>
+            <div class="timeline-step ${h.seenAt ? 'done' : 'pending'}">
+              <span class="step-icon">👁️</span>
+              <div class="step-info">
+                <strong>وقت المشاهدة من المشرف:</strong>
+                <span>${h.seenAt ? `${formatDateTime(h.seenAt)} (${escapeHtml(h.seenBy || 'المشرف')})` : 'لم تتم المشاهدة بعد'}</span>
+              </div>
+            </div>
+            <div class="timeline-step ${h.inProgressAt ? 'done' : 'pending'}">
+              <span class="step-icon">⚙️</span>
+              <div class="step-info">
+                <strong>وقت بدء المعالجة:</strong>
+                <span>${h.inProgressAt ? `${formatDateTime(h.inProgressAt)} (${escapeHtml(h.inProgressBy || 'الصيانة')})` : 'بانتظار البدء'}</span>
+              </div>
+            </div>
+            <div class="timeline-step ${h.resolvedAt ? 'done' : 'pending'}">
+              <span class="step-icon">✅</span>
+              <div class="step-info">
+                <strong>وقت الانتهاء والإغلاق:</strong>
+                <span>${h.resolvedAt ? `${formatDateTime(h.resolvedAt)} (${escapeHtml(h.resolvedBy || 'المشرف')})` : 'لم ينتهِ بعد'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+    if (listEl) listEl.innerHTML = html;
+  } catch (e) {
+    if (listEl) listEl.innerHTML = '<div class="empty">خطأ في جلب البيانات</div>';
+  }
+}
+
+// pollMyHazards logic merged into silentRefreshHazards
+
+function initHazardWorker() {
+  if (currentEmployee) {
+    const elName = document.getElementById('hz_name');
+    if (elName && !elName.value) elName.value = currentEmployee.name;
+    const elDept = document.getElementById('hz_dept');
+    if (elDept && !elDept.value) elDept.value = currentEmployee.department || '';
+  }
+  const elDate = document.getElementById('hz_date');
+  if (elDate && !elDate.value) {
+    const today = new Date().toISOString().split('T')[0];
+    elDate.value = today;
+  }
+  calculateHazardRisk();
+}
+
+function calculateHazardRisk() {
+  const likelihoodEl = document.getElementById('hz_likelihood');
+  const severityEl = document.getElementById('hz_severity');
+  if (!likelihoodEl || !severityEl) return;
+
+  const l = parseInt(likelihoodEl.value, 10) || 1;
+  const sMap = { 'A': 1, 'B': 2, 'C': 3, 'D': 4, 'E': 5 };
+  const sVal = severityEl.value;
+  const s = sMap[sVal] || 1;
+  
+  const score = l * s;
+  let level = 'L';
+  let badgeClass = 'hz-low';
+  let text = 'Low (L) 🟢';
+
+  if (score >= 10 && score <= 14) { 
+      level = 'M';
+      badgeClass = 'hz-medium';
+      text = 'Medium (M) 🟡';
+  } else if (score >= 15) {
+      level = 'H';
+      badgeClass = 'hz-high';
+      text = 'High (H) 🔴';
+  } else if (score >= 5 && score < 15) {
+      level = 'M';
+      badgeClass = 'hz-medium';
+      text = 'Medium (M) 🟡';
+  } else {
+      level = 'L';
+      badgeClass = 'hz-low';
+      text = 'Low (L) 🟢';
+  }
+
+  const badge = document.getElementById('hz_riskBadge');
+  if (badge) {
+    badge.className = `hz-risk-badge ${badgeClass}`;
+    badge.textContent = text;
+    badge.dataset.level = level;
+  }
+}
+
+async function submitHazardReport() {
+  const reporterName = document.getElementById('hz_name').value.trim();
+  const date = document.getElementById('hz_date').value;
+  const department = document.getElementById('hz_dept').value;
+  const area = document.getElementById('hz_area').value.trim();
+  const description = document.getElementById('hz_desc').value.trim();
+  const potentialInjury = document.getElementById('hz_injury').value.trim();
+  const proposedSolution = document.getElementById('hz_solution').value.trim();
+  const likelihood = document.getElementById('hz_likelihood').value;
+  const severity = document.getElementById('hz_severity').value;
+  
+  const riskBadge = document.getElementById('hz_riskBadge');
+  const riskLevel = riskBadge ? riskBadge.dataset.level : 'L';
+
+  if (!reporterName || !date || !department || !area || !description || !potentialInjury) {
+    showToast('يرجى ملء جميع الحقول المطلوبة', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('hz_submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'جارِ الإرسال...';
+
+  try {
+    const res = await fetch('/api/hazards', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        reporterName, date, department, area, description, potentialInjury, proposedSolution,
+        likelihood, severity, riskLevel
+      })
+    });
+    
+    if (res.ok) {
+      const msgEl = document.getElementById('hz_msg');
+      if (msgEl) {
+        msgEl.className = 'wl-msg success';
+        msgEl.textContent = 'تم إرسال البلاغ بنجاح! شكراً لتعاونك.';
+        setTimeout(() => msgEl.textContent = '', 5000);
+      }
+      showToast('تم إرسال البلاغ بنجاح! شكراً لتعاونك.', 'success');
+      // Reset form
+      document.getElementById('hz_area').value = '';
+      document.getElementById('hz_desc').value = '';
+      document.getElementById('hz_injury').value = '';
+      document.getElementById('hz_solution').value = '';
+      document.getElementById('hz_likelihood').value = '1';
+      document.getElementById('hz_severity').value = 'A';
+      calculateHazardRisk();
+    } else {
+      const data = await res.json();
+      showToast(data.error || 'حدث خطأ أثناء الإرسال', 'error');
+    }
+  } catch (err) {
+    showToast('خطأ في الاتصال بالخادم', 'error');
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'إرسال البلاغ ←';
+}
+
+// Supervisor Hazard Functions
+let currentHzStatusFilter = 'الكل';
+let currentHzDeptFilter = 'الكل';
+
+function formatDateTime(isoStr) {
+  if (!isoStr) return '';
+  const d = new Date(isoStr);
+  return d.toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+function getHazardCardHtml(h) {
+  let riskStr = h.riskLevel === 'H' ? 'High 🔴' : h.riskLevel === 'M' ? 'Medium 🟡' : 'Low 🟢';
+  let riskClass = h.riskLevel === 'H' ? 'hz-high' : h.riskLevel === 'M' ? 'hz-medium' : 'hz-low';
+  
+  let statusStr = 'مفتوح 🔴';
+  let statusClass = 'hz-status-open';
+  if (h.status === 'notified') { statusStr = 'تم الإبلاغ 📢'; statusClass = 'hz-status-in_progress'; }
+  if (h.status === 'in_progress') { statusStr = 'قيد الإصلاح 🟡'; statusClass = 'hz-status-in_progress'; }
+  if (h.status === 'resolved' || h.status === 'closed') { statusStr = 'تم الحل والإغلاق 🟢'; statusClass = 'hz-status-resolved'; }
+
+  let actionHtml = '';
+  if (h.status !== 'resolved' && h.status !== 'closed') {
+    actionHtml = `
+      <div class="note-box show" style="margin-top:12px;">
+        <label style="font-size:12px; font-weight:bold; display:block; margin-bottom:4px;">الإجراء المتخذ / ملاحظات الصيانة والسلامة:</label>
+        <textarea id="hz_action_${h.id}" placeholder="اكتب الإجراء الذي تم اتخاذه..."></textarea>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button onclick="updateHazardStatus('${h.id}', 'notified')" class="act-btn approve" style="background:#17a2b8; color:#fff;">📢 تم الإبلاغ</button>
+          <button onclick="updateHazardStatus('${h.id}', 'in_progress')" class="act-btn approve" style="background:#ffc107; color:#000;">🟡 قيد الإصلاح</button>
+          <button onclick="updateHazardStatus('${h.id}', 'resolved')" class="act-btn approve" style="background:#28a745; color:#fff;">🟢 تم الحل والإغلاق</button>
+        </div>
+      </div>
+    `;
+  } else {
+    if (h.actionTaken) {
+      actionHtml = `<div class="desc" style="margin-top:10px;">
+        <strong>الإجراء المتخذ:</strong><br>${escapeHtml(h.actionTaken)}
+        ${h.updatedBy ? `<br><br><span style="font-size:11px;color:var(--muted);">بواسطة: ${escapeHtml(h.updatedBy)}</span>` : ''}
+      </div>`;
+    }
+  }
+
+  const timelineHtml = `
+    <div class="hazard-timeline">
+      <div class="timeline-step done">
+        <span class="step-icon">📝</span>
+        <div class="step-info">
+          <strong>وقت الإرسال:</strong>
+          <span>${formatDateTime(h.submittedAt || h.createdAt)}</span>
+        </div>
+      </div>
+
+      <div class="timeline-step ${h.seenAt ? 'done' : 'pending'}">
+        <span class="step-icon">👁️</span>
+        <div class="step-info">
+          <strong>وقت المشاهدة من المشرف:</strong>
+          <span>${h.seenAt ? `${formatDateTime(h.seenAt)} (${h.seenBy || 'المشرف'})` : 'لم تتم المشاهدة بعد'}</span>
+        </div>
+      </div>
+
+      <div class="timeline-step ${h.inProgressAt ? 'done' : 'pending'}">
+        <span class="step-icon">⚙️</span>
+        <div class="step-info">
+          <strong>وقت بدء المعالجة:</strong>
+          <span>${h.inProgressAt ? `${formatDateTime(h.inProgressAt)} (${h.inProgressBy || 'الصيانة'})` : 'بانتظار البدء'}</span>
+        </div>
+      </div>
+
+      <div class="timeline-step ${h.resolvedAt ? 'done' : 'pending'}">
+        <span class="step-icon">✅</span>
+        <div class="step-info">
+          <strong>وقت الانتهاء والإغلاق:</strong>
+          <span>${h.resolvedAt ? `${formatDateTime(h.resolvedAt)} (${h.resolvedBy || 'المشرف'})` : 'لم ينتهِ بعد'}</span>
+        </div>
+      </div>
+    </div>
+  `;
+
+  return `
+    <div class="sup-card" id="hz_card_${h.id}">
+      <div class="sup-top">
+        <div>
+          <div class="hz-status-badge ${statusClass}">${statusStr}</div>
+          <div class="worker">${escapeHtml(h.reporterName)}</div>
+        </div>
+        <div class="tnum">${h.id}</div>
+      </div>
+      <div class="meta-grid">
+        <div><span>التاريخ</span>${h.date}</div>
+        <div><span>القسم</span>${h.department}</div>
+        <div><span>المنطقة</span>${h.area}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;margin:12px 0;">
+        <span style="font-size:12px; font-weight:bold;">مستوى الخطورة:</span>
+        <div class="hz-risk-badge ${riskClass}" style="margin:0; padding:4px 8px; font-size:11.5px;">${riskStr}</div>
+      </div>
+      <div class="desc"><strong>وصف الخطورة:</strong><br>${escapeHtml(h.description)}</div>
+      <div class="desc"><strong>الإصابة المحتملة:</strong><br>${escapeHtml(h.potentialInjury)}</div>
+      ${h.proposedSolution ? `<div class="desc"><strong>الحل المقترح:</strong><br>${escapeHtml(h.proposedSolution)}</div>` : ''}
+      ${actionHtml}
+      ${timelineHtml}
+    </div>
+  `;
+}
+
+async function renderSupHazard(isSilent = false) {
+  if (!isSilent) document.getElementById('hzList').innerHTML = '<div class="loading">جارِ التحميل…</div>';
+  
+  const hzArea = document.getElementById('hzUserProfileChip');
+  if (hzArea && document.getElementById('supUserProfileChip')) {
+    hzArea.innerHTML = document.getElementById('supUserProfileChip').innerHTML;
+  }
+
+  renderHzFilters();
+
+  try {
+    const res = await authFetch('/api/hazards');
+    if (!res.ok) throw new Error('Failed to fetch');
+    const data = await res.json();
+    let hazards = data.hazards || [];
+
+    const openCount = hazards.filter(h => h.status === 'open').length;
+    const badgeEl = document.getElementById('hzSupBadge');
+    if (badgeEl) {
+      if (openCount > 0) {
+        badgeEl.textContent = openCount;
+        badgeEl.style.display = 'inline-block';
+      } else {
+        badgeEl.style.display = 'none';
+      }
+    }
+
+    // Apply filters
+    if (currentHzStatusFilter !== 'الكل') {
+       if (currentHzStatusFilter === 'مفتوح 🔴') hazards = hazards.filter(h => h.status === 'open');
+       else if (currentHzStatusFilter === 'تم الإبلاغ 📢') hazards = hazards.filter(h => h.status === 'notified');
+       else if (currentHzStatusFilter === 'قيد الإصلاح 🟡') hazards = hazards.filter(h => h.status === 'in_progress');
+       else if (currentHzStatusFilter === 'تم الحل والإغلاق 🟢') hazards = hazards.filter(h => h.status === 'resolved' || h.status === 'closed');
+    }
+    if (currentHzDeptFilter !== 'الكل') {
+       hazards = hazards.filter(h => h.department === currentHzDeptFilter);
+    }
+
+    hazards.sort((a,b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+
+    const listEl = document.getElementById('hzList');
+    if (hazards.length === 0) {
+      listEl.innerHTML = '<div class="empty"><div class="icon">⚠️</div>لا توجد بلاغات حالياً</div>';
+      return;
+    }
+    let html = '';
+    hazards.forEach(h => {
+      html += getHazardCardHtml(h);
+    });
+    listEl.innerHTML = html;
+
+  } catch(e) {
+    document.getElementById('hzList').innerHTML = '<div class="empty">خطأ في جلب البيانات</div>';
+  }
+}
+
+function renderHzFilters() {
+  const fArea = document.getElementById('hzFilters');
+  const dArea = document.getElementById('hzDeptFilters');
+  const dToolbar = document.getElementById('hzDeptToolbar');
+
+  const statuses = ['الكل', 'مفتوح 🔴', 'تم الإبلاغ 📢', 'قيد الإصلاح 🟡', 'تم الحل والإغلاق 🟢'];
+  fArea.innerHTML = statuses.map(s => 
+    `<div class="chip ${currentHzStatusFilter===s?'active':''}" onclick="setHzFilter('${s}')">${s}</div>`
+  ).join('');
+
+  if (currentUserRole !== 'area_head') {
+    dToolbar.style.display = 'flex';
+    const depts = ['الكل', ...DEPARTMENTS];
+    dArea.innerHTML = depts.map(d => 
+      `<div class="chip ${currentHzDeptFilter===d?'active':''}" onclick="setHzDeptFilter('${d}')">${d}</div>`
+    ).join('');
+  } else {
+    dToolbar.style.display = 'none';
+  }
+}
+
+function setHzFilter(f) {
+  currentHzStatusFilter = f;
+  renderSupHazard();
+}
+function setHzDeptFilter(d) {
+  currentHzDeptFilter = d;
+  renderSupHazard();
+}
+
+async function updateHazardStatus(id, newStatus) {
+  const actionArea = document.getElementById(`hz_action_${id}`);
+  let actionTaken = '';
+  if (actionArea) actionTaken = actionArea.value.trim();
+
+  if (newStatus === 'resolved' && !actionTaken) {
+    showToast('يجب كتابة الإجراء التصحيحي قبل إغلاق البلاغ', 'error');
+    return;
+  }
+
+  try {
+    const res = await authFetch(`/api/hazards/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus, actionTaken })
+    });
+    
+    if (res.ok) {
+      showToast('تم تحديث البلاغ بنجاح', 'success');
+      const data = await res.json();
+      if (data.hazard) {
+        const card = document.getElementById(`hz_card_${id}`);
+        if (card) {
+          card.outerHTML = getHazardCardHtml(data.hazard);
+        }
+      }
+    } else {
+      const data = await res.json();
+      showToast(data.error || 'فشل التحديث', 'error');
+    }
+  } catch(e) {
+    showToast('خطأ في الاتصال بالخادم', 'error');
+  }
+}
+
+async function exportHazardsExcel() {
+  try {
+    const res = await authFetch('/api/export-hazards');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(err.error || 'لا توجد بيانات للتصدير', 'error');
+      return;
+    }
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `سجل_بلاغات_الخطورة_${new Date().toISOString().split('T')[0]}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+    showToast('تم تحميل سجل الإكسيل بنجاح 📊', 'success');
+  } catch (e) {
+    showToast('خطأ في الاتصال أثناء التصدير', 'error');
+  }
+}
+
+// ============================================================
+// 🚀 INITIALIZATION
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  try {
+    if (typeof initTabs === 'function') initTabs();
+    if (typeof initHazardModule === 'function') initHazardModule();
+    initEmployeeSession();
+    startHazardPolling();
+  } catch (e) {
+    console.error("Initialization error:", e);
+  }
+});
+
+function startHazardPolling() {
+  if (window._hazardPollInterval) clearInterval(window._hazardPollInterval);
+  window._hazardPollInterval = setInterval(async () => {
+    if (currentSessionType === 'supervisor') {
+      await updateHazardBadgeCount();
+    }
+    
+    const isEditing = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
+    if (!isEditing) {
+      await silentRefreshHazards();
+    }
+  }, 5000);
+}
+
+async function updateHazardBadgeCount() {
+  if (!currentAdminToken || currentSessionType !== 'supervisor') return;
+  try {
+    const res = await fetch('/api/hazards', { headers: { 'Authorization': `Bearer ${currentAdminToken}` }});
+    if (!res.ok) return;
+    const data = await res.json();
+    const hazards = data.hazards || [];
+    
+    const openCount = hazards.filter(h => h.status === 'open').length;
+    const badgeEl = document.getElementById('hzSupBadge');
+    if (badgeEl) {
+      if (openCount > 0) {
+        badgeEl.textContent = openCount;
+        badgeEl.style.display = 'inline-block';
+      } else {
+        badgeEl.style.display = 'none';
+      }
+    }
+  } catch(e) {}
+}
+
+async function silentRefreshHazards() {
+  const viewSup = document.getElementById('viewSupHazard');
+  const viewMy = document.getElementById('viewMyHazards');
+
+  if (viewSup && viewSup.style.display !== 'none' && currentSessionType === 'supervisor' && currentAdminToken) {
+    try {
+      const res = await fetch('/api/hazards', { headers: { 'Authorization': `Bearer ${currentAdminToken}` }});
+      if (!res.ok) return;
+      const data = await res.json();
+      const raw = JSON.stringify(data.hazards || []);
+      if (raw !== window.lastSupHazardsData) {
+        window.lastSupHazardsData = raw;
+        renderSupHazard(true);
+      }
+    } catch(e) {}
+  } else if (viewMy && viewMy.style.display !== 'none' && currentEmployee) {
+    try {
+      const res = await fetch(`/api/my-hazards/${encodeURIComponent(currentEmployee.name)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const raw = JSON.stringify(data.hazards || []);
+      if (raw !== window.lastMyHazardsData) {
+        window.lastMyHazardsData = raw;
+        renderMyHazards(true);
+      }
+    } catch(e) {}
   }
 }
