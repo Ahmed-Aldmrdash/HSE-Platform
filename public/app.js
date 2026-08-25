@@ -3424,7 +3424,11 @@ function startNotificationPolling() {
   }
 
   fetchNotifications(); // Initial fetch
-  notifPollTimer = setInterval(fetchNotifications, 10000);
+  notifPollTimer = setInterval(fetchNotifications, 5000); // Poll every 5s instead of 10s
+  
+  // Also fetch immediately when user returns to the tab to bypass background throttling
+  window.removeEventListener('focus', fetchNotifications);
+  window.addEventListener('focus', fetchNotifications);
 }
 
 function stopNotificationPolling() {
@@ -3437,7 +3441,7 @@ function stopNotificationPolling() {
 async function fetchNotifications() {
   // Determine identifier
   let params = new URLSearchParams();
-  const token = localStorage.getItem('ep_token');
+  const token = getToken();
   if (token && sessionRole !== 'worker' && sessionRole !== 'none') {
     params.append('role', sessionRole);
   } else if (currentEmployee && currentEmployee.empCode) {
@@ -3463,8 +3467,8 @@ function setNotifFilter(type) {
   currentNotifFilter = type;
   
   // Update active pill UI
-  document.querySelectorAll('.notif-filter').forEach(btn => btn.classList.remove('active'));
-  const targetBtn = Array.from(document.querySelectorAll('.notif-filter')).find(b => b.getAttribute('onclick').includes(`'${type}'`));
+  document.querySelectorAll('.notif-pill').forEach(btn => btn.classList.remove('active'));
+  const targetBtn = Array.from(document.querySelectorAll('.notif-pill')).find(b => b.getAttribute('onclick').includes(`'${type}'`));
   if (targetBtn) targetBtn.classList.add('active');
   
   renderNotifications();
@@ -3498,7 +3502,7 @@ function renderNotifications() {
 
   // Identifier for read status
   let identifier = 'unknown';
-  const token = localStorage.getItem('ep_token');
+  const token = getToken();
   if (token && sessionRole !== 'worker' && sessionRole !== 'none') {
     identifier = sessionRole;
   } else if (currentEmployee && currentEmployee.empCode) {
@@ -3526,6 +3530,9 @@ function renderNotifications() {
           handleNotificationClick(n.id, n.link);
         };
       }
+      
+      // Also show an immediate in-app Toast alert
+      showInAppToast(n.title, n.message, () => handleNotificationClick(n.id, n.link));
     }
 
     if (currentNotifFilter === 'all') return true;
@@ -3615,9 +3622,53 @@ async function markReadAPI(id) {
   }
 }
 
-function playNotificationChime() {
-  const chime = document.getElementById('notifChime');
-  if (chime) {
-    chime.play().catch(e => { /* Autoplay block fallback */ });
+}
+
+/**
+ * Shows an immediate visual Toast notification in the app
+ */
+function showInAppToast(title, message, onClickCallback) {
+  const toast = document.createElement('div');
+  toast.className = 'notif-toast';
+  toast.innerHTML = `
+    <div class="toast-icon">🔔</div>
+    <div class="toast-content">
+      <strong>${escapeHtml(title)}</strong>
+      <p>${escapeHtml(message)}</p>
+    </div>
+  `;
+  
+  if (onClickCallback) {
+    toast.style.cursor = 'pointer';
+    toast.onclick = () => {
+      onClickCallback();
+      toast.remove();
+    };
   }
+  
+  document.body.appendChild(toast);
+  
+  // Play a simple beep sound using Web Audio API
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.1);
+    gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+    osc.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.5);
+  } catch (e) { /* ignore */ }
+
+  // Auto remove after 5 seconds
+  setTimeout(() => {
+    if (document.body.contains(toast)) {
+      toast.style.animation = 'slideOutRight 0.3s forwards';
+      setTimeout(() => toast.remove(), 300);
+    }
+  }, 5000);
 }

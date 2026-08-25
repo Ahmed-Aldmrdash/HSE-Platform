@@ -226,5 +226,23 @@
     "submittedAt": "2026-08-25T16:29:44.510Z",
     "seenAt": "2026-08-25T16:35:49.616Z",
     "seenBy": "المدير العام"
+  },
+  {
+    "id": "HZ-2026-0012",
+    "reporterName": "احمد محمد فتحي الدمرداش",
+    "empCode": "",
+    "date": "2026-08-25",
+    "department": "Quality Control",
+    "area": "صس",
+    "description": "ص",
+    "potentialInjury": "ض23قص",
+    "proposedSolution": "",
+    "likelihood": 1,
+    "severity": "A",
+    "riskLevel": "L",
+    "status": "open",
+    "actionTaken": "",
+    "photoUrl": "",
+    "submittedAt": "2026-08-25T20:36:28.113Z"
   }
 ]

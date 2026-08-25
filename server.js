@@ -2319,7 +2319,10 @@ app.get('/api/notifications', (req, res) => {
   let userNotifs = notifications.filter(n => {
     if (n.targetRole === 'all') return true;
     if (n.targetEmpCode && empCode && normalizeEmpCode(n.targetEmpCode) === normalizeEmpCode(empCode)) return true;
-    if (n.targetRole && role && n.targetRole === role) return true;
+    if (n.targetRole && role) {
+      if (n.targetRole === 'admin' && ['superadmin', 'admin', 'supervisor', 'area_head'].includes(role)) return true;
+      if (n.targetRole === role) return true;
+    }
     return false;
   });
 
@@ -2343,7 +2346,10 @@ app.post('/api/notifications/mark-read', (req, res) => {
         let canRead = false;
         if (n.targetRole === 'all') canRead = true;
         if (n.targetEmpCode && empCode && normalizeEmpCode(n.targetEmpCode) === normalizeEmpCode(empCode)) canRead = true;
-        if (n.targetRole && role && n.targetRole === role) canRead = true;
+        if (n.targetRole && role) {
+          if (n.targetRole === 'admin' && ['superadmin', 'admin', 'supervisor', 'area_head'].includes(role)) canRead = true;
+          if (n.targetRole === role) canRead = true;
+        }
         
         if (canRead) {
           n.readBy.push(identifier);
