@@ -41,6 +41,7 @@ const EMPLOYEES_EXCEL_EXPORT = path.join(DATA_DIR, 'employees_export.xlsx');
 
 const TRAINING_TOPICS_FILE = path.join(DATA_DIR, 'training-topics.json');
 const TRAININGS_FILE = path.join(DATA_DIR, 'trainings.json');
+const NOTIFICATIONS_FILE = path.join(DATA_DIR, 'notifications.json');
 
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -265,6 +266,58 @@ function writeTrainings(data) {
     console.error('Error writing trainings.json:', err);
     return false;
   }
+}
+
+// ── Notifications Storage Helpers ─────────────────────────────
+
+function readNotifications() {
+  if (!fs.existsSync(NOTIFICATIONS_FILE)) return [];
+  try {
+    return JSON.parse(fs.readFileSync(NOTIFICATIONS_FILE, 'utf8'));
+  } catch (err) {
+    console.error('Error reading notifications.json:', err);
+    return [];
+  }
+}
+
+function writeNotifications(data) {
+  try {
+    fs.writeFileSync(NOTIFICATIONS_FILE, JSON.stringify(data, null, 2), 'utf8');
+    return true;
+  } catch (err) {
+    console.error('Error writing notifications.json:', err);
+    return false;
+  }
+}
+
+/**
+ * Creates a notification and appends it to the storage safely using enqueueWrite.
+ * @param {Object} options - { targetRole, targetEmpCode, targetGroup, type, title, message, link }
+ */
+function createNotification({ targetRole, targetEmpCode, targetGroup, type, title, message, link }) {
+  enqueueWrite(async () => {
+    const notifications = readNotifications();
+    const newNotif = {
+      id: `NT-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      targetRole: targetRole || null,
+      targetEmpCode: targetEmpCode ? normalizeEmpCode(targetEmpCode) : null,
+      targetGroup: targetGroup || null,
+      type: type || 'system',
+      title: sanitizeStr(title, 200),
+      message: sanitizeStr(message, 1000),
+      link: link || '',
+      readBy: [],
+      createdAt: new Date().toISOString()
+    };
+    notifications.push(newNotif);
+    
+    // Keep only the last 1000 notifications to prevent file bloat
+    if (notifications.length > 1000) {
+      notifications.splice(0, notifications.length - 1000);
+    }
+    
+    writeNotifications(notifications);
+  });
 }
 
 /**
@@ -850,6 +903,15 @@ app.post('/api/storage/:key', (req, res, next) => {
             };
           }
           // New permit: sanitize free-text fields, force status to pending_area_head
+          
+          createNotification({
+            targetRole: 'admin',
+            type: 'permit',
+            title: 'طلب تصريح عمل جديد 📝',
+            message: `طلب تصريح جديد بواسطة ${p.workerName || 'موظف'} في قسم ${p.department || 'غير محدد'}`,
+            link: 'tabWorker'
+          });
+
           const safeTools = Array.isArray(p.tools)
             ? p.tools.map(t => sanitizeStr(String(t), 100)).slice(0, 10)
             : sanitizeStr(String(p.tools || ''), 300);
@@ -1064,6 +1126,22 @@ app.patch(
       storage['work-permits'] = newValue;
       if (writeStorage(storage)) {
         await syncExcelFromPermits(newValue);
+        
+        if (permits[idx].employeeId && action !== 'close') {
+          let statusText = permits[idx].status;
+          if (statusText === 'approved') statusText = 'تمت الموافقة النهائية 🟢';
+          else if (statusText === 'rejected') statusText = 'مرفوض 🔴';
+          else if (statusText === 'pending_admin') statusText = 'تمت موافقة رئيس المنطقة وبانتظار الإدارة 🟡';
+
+          createNotification({
+            targetEmpCode: permits[idx].employeeId,
+            type: 'permit',
+            title: 'تحديث حالة تصريح العمل 📝',
+            message: `تم تحديث حالة تصريحك (${permits[idx].id}) إلى: ${statusText}`,
+            link: 'tabMyHistory'
+          });
+        }
+        
         result = { status: 200, body: { success: true, permit: permits[idx] } };
       } else {
         result = { status: 500, body: { error: 'فشل حفظ التغييرات' } };
@@ -1146,6 +1224,15 @@ app.post('/api/hazards', submitLimiter, async (req, res) => {
     hazards.push(newHazard);
     if (writeHazards(hazards)) {
       await syncHazardsExcelFromData(hazards);
+      
+      createNotification({
+        targetRole: 'admin',
+        type: 'hazard',
+        title: 'بلاغ خطورة جديد ⚠️',
+        message: `تم الإبلاغ عن خطورة بواسطة ${newHazard.reporterName} في قسم ${newHazard.department}`,
+        link: 'tabSupHazard'
+      });
+      
       result = { status: 201, body: { success: true, hazard: newHazard } };
     } else {
       result = { status: 500, body: { error: 'فشل حفظ البلاغ' } };
@@ -1251,6 +1338,17 @@ app.patch('/api/hazards/:id', authenticateToken, requireRole('superadmin', 'admi
 
     if (writeHazards(hazards)) {
       await syncHazardsExcelFromData(hazards);
+      
+      if (hazards[idx].empCode) {
+        createNotification({
+          targetEmpCode: hazards[idx].empCode,
+          type: 'hazard',
+          title: 'تحديث حالة بلاغ خطورة 📋',
+          message: `تم تحديث حالة البلاغ الخاص بك (${hazards[idx].id}) إلى: ${status}`,
+          link: 'tabMyHazards'
+        });
+      }
+
       result = { status: 200, body: { success: true, hazard: hazards[idx] } };
     } else {
       result = { status: 500, body: { error: 'فشل التحديث' } };
@@ -1943,6 +2041,16 @@ app.post('/api/trainings', authenticateToken, requireRole('superadmin', 'admin',
     };
     trainings.push(newTraining);
     if (writeTrainings(trainings)) {
+      
+      createNotification({
+        targetRole: 'worker',
+        targetGroup: newTraining.targetGroup, // Will broadcast to all if not specified or 'الجميع' handled later
+        type: 'training',
+        title: 'محاضرة تدريبية جديدة 🎓',
+        message: `تم إنشاء محاضرة جديدة: ${newTraining.title} يوم ${newTraining.date}`,
+        link: 'tabTrainingWorker'
+      });
+
       result = { status: 201, body: { success: true, training: newTraining } };
     } else {
       result = { status: 500, body: { error: 'فشل حفظ المحاضرة' } };
@@ -2010,6 +2118,15 @@ app.post('/api/trainings/:id/attend', attendLimiter, async (req, res) => {
     });
 
     if (writeTrainings(trainings)) {
+      
+      createNotification({
+        targetRole: 'admin',
+        type: 'training',
+        title: 'تسجيل حضور تدريب 🎓',
+        message: `تم تسجيل حضور ${emp.name} في محاضرة: ${trn.title}`,
+        link: 'tabTrainingAdmin'
+      });
+
       result = { status: 200, body: { success: true, message: 'تم تسجيل الحضور بنجاح' } };
     } else {
       result = { status: 500, body: { error: 'حدث خطأ أثناء التسجيل' } };
@@ -2122,6 +2239,109 @@ app.get('/api/trainings/stats/employees', authenticateToken, requireRole('supera
 
   res.json({ stats: statsList, totalTrainings });
 });
+
+// ============================================================
+// 🔔 API ROUTES — NOTIFICATION CENTER
+// ============================================================
+
+app.get('/api/notifications', (req, res) => {
+  const { role, empCode } = req.query;
+  const notifications = readNotifications();
+  
+  // Filter notifications based on role or empCode
+  let userNotifs = notifications.filter(n => {
+    if (n.targetRole === 'all') return true;
+    if (n.targetEmpCode && empCode && normalizeEmpCode(n.targetEmpCode) === normalizeEmpCode(empCode)) return true;
+    if (n.targetRole && role && n.targetRole === role) return true;
+    return false;
+  });
+
+  // Sort newest first
+  userNotifs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  
+  res.json({ notifications: userNotifs });
+});
+
+app.post('/api/notifications/mark-read', (req, res) => {
+  const { id, empCode, role } = req.body;
+  const identifier = empCode || role || 'unknown';
+  
+  enqueueWrite(async () => {
+    const notifications = readNotifications();
+    let changed = false;
+    
+    notifications.forEach(n => {
+      if ((id === 'all' || n.id === id) && !n.readBy.includes(identifier)) {
+        // Simple permission check logic matches the get route
+        let canRead = false;
+        if (n.targetRole === 'all') canRead = true;
+        if (n.targetEmpCode && empCode && normalizeEmpCode(n.targetEmpCode) === normalizeEmpCode(empCode)) canRead = true;
+        if (n.targetRole && role && n.targetRole === role) canRead = true;
+        
+        if (canRead) {
+          n.readBy.push(identifier);
+          changed = true;
+        }
+      }
+    });
+    
+    if (changed) writeNotifications(notifications);
+  });
+  
+  res.json({ success: true });
+});
+
+app.delete('/api/notifications/:id', authenticateToken, requireRole('superadmin', 'admin'), (req, res) => {
+  enqueueWrite(async () => {
+    const notifications = readNotifications();
+    const filtered = notifications.filter(n => n.id !== req.params.id);
+    if (filtered.length !== notifications.length) {
+      writeNotifications(filtered);
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ error: 'Not found' });
+    }
+  });
+});
+
+// ── ⏰ BACKGROUND SCHEDULER: 10-Min Pre-Training Alerts ──────
+let preTrainingNotifiedSessions = new Set(); // Keep track in memory
+
+function checkPreTrainingAlerts() {
+  try {
+    const trainings = readTrainings();
+    const now = new Date();
+    
+    trainings.forEach(trn => {
+      if (trn.status === 'active' || trn.status === 'scheduled' || !trn.status) { // if status is missing assume scheduled
+        // Attempt to construct session start Date
+        const [hours, minutes] = (trn.startTime || '00:00').split(':');
+        const sessionStart = new Date(trn.date);
+        sessionStart.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+        
+        const diffMs = sessionStart - now;
+        const diffMins = Math.floor(diffMs / 60000);
+        
+        // Between 0 and 10 minutes from now, and haven't notified yet
+        if (diffMins > 0 && diffMins <= 10 && !preTrainingNotifiedSessions.has(trn.id)) {
+          preTrainingNotifiedSessions.add(trn.id);
+          createNotification({
+            targetRole: 'worker',
+            targetGroup: trn.targetGroup,
+            type: 'training',
+            title: '⏰ تذكير: بدء محاضرة التدريب',
+            message: `محاضرة ${trn.title} ستبدأ خلال 10 دقائق في ${trn.location || 'الموقع المحدد'}. يرجى التوجه وتجهيز الـ PIN.`,
+            link: 'tabTrainingWorker'
+          });
+          console.log(`[Scheduler] 10-min alert triggered for training: ${trn.id}`);
+        }
+      }
+    });
+  } catch(e) {
+    console.error('Error in checkPreTrainingAlerts:', e);
+  }
+}
+setInterval(checkPreTrainingAlerts, 60000); // Check every 60 seconds
 
 // ── 404 fallback ──────────────────────────────────────────────
 app.use((req, res) => {

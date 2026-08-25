@@ -609,6 +609,7 @@ async function attemptLogin(){
     sessionRole = 'supervisor';
     showUserBadge();
     applyRbacUI();
+    startNotificationPolling();
     // Switch to supervisor view (guard allows 'sup' now)
     switchTab('sup');
     showDashboard();
@@ -668,6 +669,8 @@ function logout(){
   if(window.myHazardsPollTimer){ clearInterval(window.myHazardsPollTimer); window.myHazardsPollTimer = null; }
   if(window.trnAdminPollTimer){ clearInterval(window.trnAdminPollTimer); window.trnAdminPollTimer = null; }
   if(window.trnWorkerPollTimer){ clearInterval(window.trnWorkerPollTimer); window.trnWorkerPollTimer = null; }
+  
+  stopNotificationPolling();
 
   // ── Always return to unified worker login overlay (Option A) ──
   sessionRole = 'none';
@@ -759,6 +762,7 @@ function initEmployeeSession(){
       hideWorkerLoginOverlay();
       showEmpBadge();
       renderForm();
+      startNotificationPolling();
       switchTab('worker');
       return;
     }
@@ -792,6 +796,9 @@ function workerLogout(){
   if(myHistoryPollTimer){ clearInterval(myHistoryPollTimer); myHistoryPollTimer = null; }
   if(window.myHazardsPollTimer){ clearInterval(window.myHazardsPollTimer); window.myHazardsPollTimer = null; }
   if(window.trnWorkerPollTimer){ clearInterval(window.trnWorkerPollTimer); window.trnWorkerPollTimer = null; }
+  
+  stopNotificationPolling();
+  
   // Reset RBAC state and return to unified login
   sessionRole = 'none';
   applyRbacUI();
@@ -916,6 +923,7 @@ function finishEmployeeLogin(emp){
   hideWorkerLoginOverlay();
   showEmpBadge();
   autoFillForm();
+  startNotificationPolling();
   // switchTab guard now allows 'worker' since sessionRole === 'worker'
   switchTab('worker');
 }
@@ -3388,4 +3396,168 @@ function zoomInLightbox() {
 function zoomOutLightbox() {
   currentLightboxZoom = Math.max(0.25, currentLightboxZoom - 0.25);
   document.getElementById('lightboxImg').style.transform = `scale(${currentLightboxZoom})`;
+}
+
+// ============================================================
+// 🔔 SMART IN-APP NOTIFICATION CENTER
+// ============================================================
+let notifPollTimer = null;
+let unreadNotifsIds = new Set();
+let isNotifDrawerOpen = false;
+
+function toggleNotifDrawer() {
+  const drawer = document.getElementById('notifDrawer');
+  if(!drawer) return;
+  isNotifDrawerOpen = !isNotifDrawerOpen;
+  drawer.style.display = isNotifDrawerOpen ? 'block' : 'none';
+}
+
+function startNotificationPolling() {
+  if (notifPollTimer) clearInterval(notifPollTimer);
+  fetchNotifications(); // Initial fetch
+  notifPollTimer = setInterval(fetchNotifications, 15000);
+}
+
+function stopNotificationPolling() {
+  if (notifPollTimer) {
+    clearInterval(notifPollTimer);
+    notifPollTimer = null;
+  }
+}
+
+async function fetchNotifications() {
+  // Determine identifier
+  let params = new URLSearchParams();
+  const token = localStorage.getItem('ep_token');
+  if (token && sessionRole !== 'worker' && sessionRole !== 'none') {
+    params.append('role', sessionRole);
+  } else if (currentEmployee && currentEmployee.empCode) {
+    params.append('role', 'worker');
+    params.append('empCode', currentEmployee.empCode);
+  } else {
+    return; // Not logged in
+  }
+
+  try {
+    const res = await fetch(`/api/notifications?${params.toString()}`);
+    if (res.ok) {
+      const data = await res.json();
+      renderNotifications(data.notifications || []);
+    }
+  } catch(e) {
+    console.error('Error fetching notifications:', e);
+  }
+}
+
+function renderNotifications(notifications) {
+  const listEl = document.getElementById('notifList');
+  const badgeEl = document.getElementById('notifBadge');
+  const container = document.getElementById('notifContainer');
+  if (!listEl || !badgeEl || !container) return;
+
+  container.style.display = 'block';
+
+  // Identifier for read status
+  let identifier = 'unknown';
+  const token = localStorage.getItem('ep_token');
+  if (token && sessionRole !== 'worker' && sessionRole !== 'none') {
+    identifier = sessionRole;
+  } else if (currentEmployee && currentEmployee.empCode) {
+    identifier = currentEmployee.empCode;
+  }
+
+  let unreadCount = 0;
+  let newUnreadFound = false;
+
+  const html = notifications.map(n => {
+    const isUnread = !n.readBy.includes(identifier);
+    if (isUnread) {
+      unreadCount++;
+      if (!unreadNotifsIds.has(n.id)) {
+        unreadNotifsIds.add(n.id);
+        newUnreadFound = true;
+      }
+    }
+    
+    // Type-based styling
+    let typeClass = 'type-system';
+    if (n.type === 'hazard') typeClass = 'type-hazard';
+    if (n.type === 'permit') typeClass = 'type-permit';
+    if (n.type === 'training') typeClass = 'type-training';
+
+    return `
+      <div class="notif-item ${isUnread ? 'unread' : ''} ${typeClass}" onclick="handleNotificationClick('${n.id}', '${n.link}')">
+        <div class="notif-content">
+          <div class="notif-title">${escapeHtml(n.title)}</div>
+          <div class="notif-msg">${escapeHtml(n.message)}</div>
+          <div class="notif-time">${new Date(n.createdAt).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'})}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  if (notifications.length === 0) {
+    listEl.innerHTML = '<div class="notif-empty">لا توجد إشعارات حالياً</div>';
+  } else {
+    listEl.innerHTML = html;
+  }
+
+  if (unreadCount > 0) {
+    badgeEl.textContent = unreadCount;
+    badgeEl.style.display = 'inline-block';
+    if (newUnreadFound) {
+      playNotificationChime();
+      showToast('يوجد إشعار جديد 🔔', 'info');
+    }
+  } else {
+    badgeEl.style.display = 'none';
+  }
+}
+
+async function handleNotificationClick(id, link) {
+  // Mark read
+  await markReadAPI(id);
+  
+  if (isNotifDrawerOpen) toggleNotifDrawer();
+  
+  // Navigate
+  if (link) {
+    switchTab(link);
+  }
+  
+  fetchNotifications();
+}
+
+async function markAllNotificationsAsRead() {
+  await markReadAPI('all');
+  unreadNotifsIds.clear();
+  fetchNotifications();
+  if (isNotifDrawerOpen) toggleNotifDrawer();
+}
+
+async function markReadAPI(id) {
+  let body = { id };
+  const token = localStorage.getItem('ep_token');
+  if (token && sessionRole !== 'worker' && sessionRole !== 'none') {
+    body.role = sessionRole;
+  } else if (currentEmployee && currentEmployee.empCode) {
+    body.empCode = currentEmployee.empCode;
+  }
+  
+  try {
+    await fetch('/api/notifications/mark-read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+  } catch(e) {
+    console.error('Error marking notification read:', e);
+  }
+}
+
+function playNotificationChime() {
+  const chime = document.getElementById('notifChime');
+  if (chime) {
+    chime.play().catch(e => { /* Autoplay block fallback */ });
+  }
 }

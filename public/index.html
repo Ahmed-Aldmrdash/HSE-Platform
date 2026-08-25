@@ -75,8 +75,28 @@
     <div id="empBadgeArea" style="display:none;margin-inline-start:auto;">
       <div class="emp-badge-pill" id="empBadgePill"></div>
     </div>
+    
+    <!-- Notification Bell -->
+    <div class="notif-container" id="notifContainer" style="display:none;margin-inline-start:auto;margin-inline-end:8px;position:relative;">
+      <button class="notif-bell-btn" id="notifBellBtn" onclick="toggleNotifDrawer()">
+        🔔
+        <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+      </button>
+      <div class="notif-drawer" id="notifDrawer" style="display:none;">
+        <div class="notif-header">
+          <h3>الإشعارات</h3>
+          <button class="mark-all-btn" onclick="markAllNotificationsAsRead()">تحديد الكل كمقروء</button>
+        </div>
+        <div class="notif-list" id="notifList">
+          <div class="notif-empty">لا توجد إشعارات حالياً</div>
+        </div>
+      </div>
+    </div>
+
     <button id="installBtn" class="install-btn" style="display:none;" onclick="triggerInstall()">⬇ تثبيت التطبيق</button>
   </div>
+  
+  <audio id="notifChime" src="data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU5LjI3LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWgAAAAAP/7UATAAABcZgAD+AAAf/UIAIAAI/qAAEAAH/7UATAAABX1gAEGAAAR/AIAcAAgAAHgEA//tQBNgAAGJWAATYAAB4AAAwAAgAAAAAP/7UATQAABlZgAEGAAAR/AIAcAAgAAHgEA//tQBOAAAGY2AATYAAB4AAAwAAgAAAAAP/7UATwAABi1gAD+AAAf/UIAIAAI/qAAEAAH/7UATAAABX1gAEGAAAR/AIAcAAgAAHgEA" style="display:none;"></audio>
 
   <div class="tabs" id="mainTabs">
     <div class="tab active" id="tabWorker" onclick="switchTab('worker')">📝 تصاريح العمل</div>
