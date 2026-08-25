@@ -76,27 +76,26 @@
       <div class="emp-badge-pill" id="empBadgePill"></div>
     </div>
     
-    <!-- Notification Bell -->
-    <div class="notif-container" id="notifContainer" style="display:none;margin-inline-start:auto;margin-inline-end:8px;position:relative;">
-      <button class="notif-bell-btn" id="notifBellBtn" onclick="toggleNotifDrawer()">
+    <!-- NOTIFICATION BELL & DROPDOWN CONTAINER -->
+    <div id="notifContainer" class="notif-wrapper" style="position: relative; display: inline-flex; align-items: center; margin-inline: 10px; display: none;">
+      <button type="button" id="btnNotifBell" class="notif-bell-btn" onclick="toggleNotifDrawer()" title="الإشعارات">
         🔔
-        <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+        <span id="notifBadge" class="notif-badge" style="display: none;">0</span>
       </button>
-      <div class="notif-drawer" id="notifDrawer" style="display:none;">
+      
+      <div id="notifDropdown" class="notif-drawer" style="display: none;">
         <div class="notif-header">
-          <h3>الإشعارات</h3>
-          <button class="mark-all-btn" onclick="markAllNotificationsAsRead()">تحديد الكل كمقروء</button>
+          <h3 style="margin: 0; font-size: 1.1rem; font-weight: bold;">الإشعارات</h3>
+          <button type="button" class="btn-mark-all" onclick="markAllNotificationsAsRead()">تحديد الكل كمقروء</button>
         </div>
         <div class="notif-filters">
-          <button class="notif-filter active" onclick="setNotifFilter('all')">الكل</button>
-          <button class="notif-filter" onclick="setNotifFilter('unread')">غير المقروءة</button>
-          <button class="notif-filter" onclick="setNotifFilter('permit')">التصاريح</button>
-          <button class="notif-filter" onclick="setNotifFilter('hazard')">البلاغات</button>
-          <button class="notif-filter" onclick="setNotifFilter('training')">التدريب</button>
+          <button type="button" class="notif-pill active" onclick="setNotifFilter('all')">الكل</button>
+          <button type="button" class="notif-pill" onclick="setNotifFilter('unread')">غير المقروءة</button>
+          <button type="button" class="notif-pill" onclick="setNotifFilter('permit')">التصاريح</button>
+          <button type="button" class="notif-pill" onclick="setNotifFilter('hazard')">البلاغات</button>
+          <button type="button" class="notif-pill" onclick="setNotifFilter('training')">التدريب</button>
         </div>
-        <div class="notif-list" id="notifList">
-          <div class="notif-empty">لا توجد إشعارات حالياً</div>
-        </div>
+        <div id="notifList" class="notif-list"></div>
       </div>
     </div>
 

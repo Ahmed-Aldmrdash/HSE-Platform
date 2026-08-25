@@ -3409,10 +3409,10 @@ let currentNotifications = [];
 let currentNotifFilter = 'all';
 
 function toggleNotifDrawer() {
-  const drawer = document.getElementById('notifDrawer');
+  const drawer = document.getElementById('notifDropdown');
   if(!drawer) return;
   isNotifDrawerOpen = !isNotifDrawerOpen;
-  drawer.style.display = isNotifDrawerOpen ? 'block' : 'none';
+  drawer.style.display = isNotifDrawerOpen ? 'flex' : 'none';
 }
 
 function startNotificationPolling() {
@@ -3494,7 +3494,7 @@ function renderNotifications() {
   const container = document.getElementById('notifContainer');
   if (!listEl || !badgeEl || !container) return;
 
-  container.style.display = 'block';
+  container.style.display = 'inline-flex';
 
   // Identifier for read status
   let identifier = 'unknown';
@@ -3545,13 +3545,13 @@ function renderNotifications() {
 
     return `
       <div class="notif-item ${isUnread ? 'unread' : ''} ${typeClass}" onclick="handleNotificationClick('${n.id}', '${n.link}')">
-        <div class="unread-dot"></div>
-        <div class="notif-icon-box">${iconEmoji}</div>
-        <div class="notif-content">
+        <div class="notif-icon">${iconEmoji}</div>
+        <div class="notif-body">
           <div class="notif-title">${escapeHtml(n.title)}</div>
           <div class="notif-msg">${escapeHtml(n.message)}</div>
           <div class="notif-time">${timeAgo(n.createdAt)}</div>
         </div>
+        <div class="unread-dot" style="${isUnread ? 'display:block;' : 'display:none;'}"></div>
       </div>
     `;
   }).join('');
