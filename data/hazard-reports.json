@@ -188,5 +188,43 @@
     "resolvedBy": "المدير العام",
     "inProgressAt": "2026-08-25T11:03:50.140Z",
     "inProgressBy": "المدير العام"
+  },
+  {
+    "id": "HZ-2026-0010",
+    "reporterName": "احمد محمد فتحي الدمرداش",
+    "date": "2026-08-25",
+    "department": "Quality Control",
+    "area": "ق",
+    "description": "ص",
+    "potentialInjury": "3ضصف4",
+    "proposedSolution": "",
+    "likelihood": 1,
+    "severity": "A",
+    "riskLevel": "L",
+    "status": "open",
+    "actionTaken": "",
+    "photoUrl": "/uploads/hazards/HZ-2026-0010-1787675294672.jpg",
+    "submittedAt": "2026-08-25T16:28:14.673Z",
+    "seenAt": "2026-08-25T16:35:49.616Z",
+    "seenBy": "المدير العام"
+  },
+  {
+    "id": "HZ-2026-0011",
+    "reporterName": "احمد محمد فتحي الدمرداش",
+    "date": "2026-08-25",
+    "department": "Quality Control",
+    "area": "5",
+    "description": "45",
+    "potentialInjury": "5451",
+    "proposedSolution": "",
+    "likelihood": 1,
+    "severity": "A",
+    "riskLevel": "L",
+    "status": "open",
+    "actionTaken": "",
+    "photoUrl": "/uploads/hazards/HZ-2026-0011-1787675384509.jpg",
+    "submittedAt": "2026-08-25T16:29:44.510Z",
+    "seenAt": "2026-08-25T16:35:49.616Z",
+    "seenBy": "المدير العام"
   }
 ]

@@ -30,6 +30,7 @@ if (!JWT_SECRET) {
 
 // ── Paths ─────────────────────────────────────────────────────
 const DATA_DIR  = path.join(__dirname, 'data');
+const UPLOADS_DIR = path.join(__dirname, 'public', 'uploads', 'hazards');
 const DATA_FILE = path.join(DATA_DIR, 'storage.json');
 const HAZARDS_FILE = path.join(DATA_DIR, 'hazard-reports.json');
 const EXCEL_FILE = path.join(DATA_DIR, 'permits_log.xlsx');
@@ -40,6 +41,9 @@ const EMPLOYEES_EXCEL_EXPORT = path.join(DATA_DIR, 'employees_export.xlsx');
 
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 
 // ── Security Headers Middleware ───────────────────────────────
@@ -59,8 +63,8 @@ app.use((req, res, next) => {
 
 // ── Middleware ────────────────────────────────────────────────
 // Tighter payload limit — workers submit text only; 2 MB is generous
-app.use(express.json({ limit: '2mb' }));
-app.use(express.urlencoded({ extended: true, limit: '2mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // ── Rate Limiters ─────────────────────────────────────────────
 /** Auth: max 10 login attempts per 15 min per IP */
@@ -1010,6 +1014,7 @@ app.patch(
 
 app.post('/api/hazards', submitLimiter, async (req, res) => {
   const payload = req.body;
+  console.log('[POST /api/hazards] Received hazard report from:', payload.reporterName || 'Unknown');
   if (!payload || !payload.reporterName || !payload.department || !payload.description) {
     return res.status(400).json({ error: 'البيانات غير مكتملة' });
   }
@@ -1028,9 +1033,24 @@ app.post('/api/hazards', submitLimiter, async (req, res) => {
     }, 0);
     const newId = `HZ-${year}-${String(maxN + 1).padStart(4,'0')}`;
 
+    let photoUrl = '';
+    if (payload.photo) {
+      try {
+        const base64Data = payload.photo.replace(/^data:image\/\w+;base64,/, '');
+        const buffer = Buffer.from(base64Data, 'base64');
+        const filename = `${newId}-${Date.now()}.jpg`;
+        const filepath = path.join(UPLOADS_DIR, filename);
+        fs.writeFileSync(filepath, buffer);
+        photoUrl = `/uploads/hazards/${filename}`;
+      } catch (err) {
+        console.error('Error saving hazard photo:', err);
+      }
+    }
+
     const newHazard = {
       id:               newId,
       reporterName:     sanitizeStr(payload.reporterName, 100),
+      empCode:          normalizeEmpCode(payload.empCode),
       date:             sanitizeStr(payload.date, 20) || new Date().toISOString().split('T')[0],
       department:       sanitizeStr(payload.department, 100),
       area:             sanitizeStr(payload.area, 150),
@@ -1042,6 +1062,7 @@ app.post('/api/hazards', submitLimiter, async (req, res) => {
       riskLevel:        ['L', 'M', 'H'].includes(payload.riskLevel) ? payload.riskLevel : 'L',
       status:           'open',
       actionTaken:      '',
+      photoUrl:         photoUrl,
       submittedAt:      new Date().toISOString()
     };
 

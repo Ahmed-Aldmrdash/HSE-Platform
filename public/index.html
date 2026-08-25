@@ -193,6 +193,22 @@
           <div id="hz_riskBadge" class="hz-risk-badge hz-low">Low (L) 🟢</div>
         </div>
 
+        <!-- 📸 Hazard Photo Capture -->
+        <div class="field hazard-photo-section">
+          <input type="file" id="hz_photoInput" accept="image/*" capture="environment" style="display:none;" onchange="handleHazardPhotoSelect(event)">
+          <button type="button" class="emp-dir-btn secondary" style="width:100%; justify-content:center; padding:12px; margin-bottom:8px;" onclick="document.getElementById('hz_photoInput').click()">
+            📷 التقاط / إرفاق صورة للمشكلة
+          </button>
+          
+          <div id="hz_photoPreviewBox" class="hz-photo-preview-box" style="display:none;">
+            <img id="hz_photoPreviewImg" src="" alt="Live Preview">
+            <div class="hz-photo-actions">
+              <button type="button" class="act-btn approve" onclick="confirmHazardPhoto()">✅ اعتماد الصورة</button>
+              <button type="button" class="act-btn reject" onclick="removeHazardPhoto()">🔄 إعادة التقاط / حذف</button>
+            </div>
+          </div>
+        </div>
+
         <button class="submit-btn" id="hz_submitBtn" onclick="submitHazardReport()">إرسال البلاغ ←</button>
         <div id="hz_msg" class="wl-msg" style="margin-top:10px;text-align:center;"></div>
         
@@ -431,6 +447,19 @@
     </div>
   </div>
 
+</div>
+
+<!-- 🖼️ Full-Screen Image Lightbox Modal -->
+<div id="lightboxModal" class="lightbox-overlay" style="display:none;">
+  <div class="lightbox-toolbar">
+    <button class="lightbox-btn" onclick="zoomOutLightbox()">➖</button>
+    <button class="lightbox-btn" onclick="zoomInLightbox()">➕</button>
+    <button class="lightbox-btn" id="lightboxDownloadBtn" onclick="downloadLightboxImage()">⬇️ تحميل</button>
+    <button class="lightbox-btn close" onclick="closeLightbox()">✖ إغلاق</button>
+  </div>
+  <div class="lightbox-content-area" id="lightboxContentArea">
+    <img id="lightboxImg" src="" alt="Full Screen Hazard Image" style="transform: scale(1); transition: transform 0.2s ease;">
+  </div>
 </div>
 
 <script src="app.js?v=2.4.0"></script>

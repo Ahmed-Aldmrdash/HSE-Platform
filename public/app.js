@@ -2351,6 +2351,7 @@ async function renderMyHazards(isSilent = false) {
             <div class="hz-risk-badge ${riskClass}" style="margin:0; padding:4px 8px; font-size:11.5px;">${riskStr}</div>
           </div>
           <div class="desc"><strong>وصف الخطورة:</strong><br>${escapeHtml(h.description)}</div>
+          ${h.photoUrl ? `<div style="margin-top:8px;"><div class="hz-photo-badge" onclick="openLightbox('${h.photoUrl}')">🖼️ عرض الصورة</div></div>` : ''}
           <div class="phc-msg" style="margin-top:10px; font-size:12px; color:var(--muted);">${pendingDesc}</div>
           ${h.actionTaken ? `<div class="note-box show" style="margin-top:10px; background-color: #f8f9fa; border-left: 4px solid var(--primary); padding: 10px; border-radius: 4px;">
             <strong>🛠️ الإجراء المتخذ من المشرف (${escapeHtml(h.updatedBy || 'إدارة السلامة')}):</strong><br>
@@ -2491,6 +2492,45 @@ function calculateHazardRisk() {
   }
 }
 
+let currentHazardPhotoBase64 = null;
+function handleHazardPhotoSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      const MAX_WIDTH = 1200;
+      let width = img.width;
+      let height = img.height;
+      if (width > MAX_WIDTH) {
+        height = Math.round(height * MAX_WIDTH / width);
+        width = MAX_WIDTH;
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+      document.getElementById('hz_photoPreviewImg').src = compressedDataUrl;
+      document.getElementById('hz_photoPreviewBox').style.display = 'block';
+      currentHazardPhotoBase64 = compressedDataUrl;
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function confirmHazardPhoto() {
+  showToast('تم اعتماد الصورة بنجاح ✅', 'success');
+}
+function removeHazardPhoto() {
+  currentHazardPhotoBase64 = null;
+  document.getElementById('hz_photoPreviewImg').src = '';
+  document.getElementById('hz_photoPreviewBox').style.display = 'none';
+  document.getElementById('hz_photoInput').value = '';
+}
+
 async function submitHazardReport() {
   const reporterName = document.getElementById('hz_name').value.trim();
   const date = document.getElementById('hz_date').value;
@@ -2502,6 +2542,9 @@ async function submitHazardReport() {
   const likelihood = document.getElementById('hz_likelihood').value;
   const severity = document.getElementById('hz_severity').value;
   
+  const empCodeInput = document.getElementById('hz_empCode');
+  const empCode = empCodeInput ? empCodeInput.value.trim() : '';
+
   const riskBadge = document.getElementById('hz_riskBadge');
   const riskLevel = riskBadge ? riskBadge.dataset.level : 'L';
 
@@ -2515,16 +2558,26 @@ async function submitHazardReport() {
   btn.textContent = 'جارِ الإرسال...';
 
   try {
+    const payload = {
+      reporterName, empCode, date, department, area, description, potentialInjury, proposedSolution,
+      likelihood, severity, riskLevel
+    };
+    if (currentHazardPhotoBase64) {
+      payload.photo = currentHazardPhotoBase64;
+    }
+    
+    console.log('[submitHazardReport] Sending payload:', payload);
+
     const res = await fetch('/api/hazards', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        reporterName, date, department, area, description, potentialInjury, proposedSolution,
-        likelihood, severity, riskLevel
-      })
+      body: JSON.stringify(payload)
     });
     
     if (res.ok) {
+      const result = await res.json();
+      console.log('[submitHazardReport] Server response success:', result);
+      
       const msgEl = document.getElementById('hz_msg');
       if (msgEl) {
         msgEl.className = 'wl-msg success';
@@ -2540,6 +2593,7 @@ async function submitHazardReport() {
       document.getElementById('hz_likelihood').value = '1';
       document.getElementById('hz_severity').value = 'A';
       calculateHazardRisk();
+      removeHazardPhoto();
     } else {
       const data = await res.json();
       showToast(data.error || 'حدث خطأ أثناء الإرسال', 'error');
@@ -2651,6 +2705,7 @@ function getHazardCardHtml(h) {
       <div class="desc"><strong>وصف الخطورة:</strong><br>${escapeHtml(h.description)}</div>
       <div class="desc"><strong>الإصابة المحتملة:</strong><br>${escapeHtml(h.potentialInjury)}</div>
       ${h.proposedSolution ? `<div class="desc"><strong>الحل المقترح:</strong><br>${escapeHtml(h.proposedSolution)}</div>` : ''}
+      ${h.photoUrl ? `<div style="margin-top:8px;"><div class="hz-photo-badge" onclick="openLightbox('${h.photoUrl}')">🖼️ عرض الصورة</div></div>` : ''}
       ${actionHtml}
       ${timelineHtml}
     </div>
@@ -2877,4 +2932,45 @@ async function silentRefreshHazards() {
       }
     } catch(e) {}
   }
+}
+
+// ============================================================
+// 🖼️ LIGHTBOX LOGIC
+// ============================================================
+let currentLightboxZoom = 1;
+
+function openLightbox(url) {
+  const modal = document.getElementById('lightboxModal');
+  const img = document.getElementById('lightboxImg');
+  const dlBtn = document.getElementById('lightboxDownloadBtn');
+  
+  img.src = url;
+  currentLightboxZoom = 1;
+  img.style.transform = `scale(${currentLightboxZoom})`;
+  
+  dlBtn.onclick = () => {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = url.split('/').pop() || 'hazard_photo.jpg';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+  
+  modal.style.display = 'flex';
+}
+
+function closeLightbox() {
+  document.getElementById('lightboxModal').style.display = 'none';
+  document.getElementById('lightboxImg').src = '';
+}
+
+function zoomInLightbox() {
+  currentLightboxZoom += 0.25;
+  document.getElementById('lightboxImg').style.transform = `scale(${currentLightboxZoom})`;
+}
+
+function zoomOutLightbox() {
+  currentLightboxZoom = Math.max(0.25, currentLightboxZoom - 0.25);
+  document.getElementById('lightboxImg').style.transform = `scale(${currentLightboxZoom})`;
 }
