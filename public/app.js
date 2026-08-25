@@ -3622,8 +3622,6 @@ async function markReadAPI(id) {
   }
 }
 
-}
-
 /**
  * Shows an immediate visual Toast notification in the app
  */

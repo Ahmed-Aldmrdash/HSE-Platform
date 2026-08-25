@@ -240,9 +240,14 @@
     "likelihood": 1,
     "severity": "A",
     "riskLevel": "L",
-    "status": "open",
+    "status": "in_progress",
     "actionTaken": "",
     "photoUrl": "",
-    "submittedAt": "2026-08-25T20:36:28.113Z"
+    "submittedAt": "2026-08-25T20:36:28.113Z",
+    "seenAt": "2026-08-25T20:58:40.879Z",
+    "seenBy": "المدير العام",
+    "updatedBy": "المدير العام",
+    "inProgressAt": "2026-08-25T20:59:05.111Z",
+    "inProgressBy": "المدير العام"
   }
 ]
