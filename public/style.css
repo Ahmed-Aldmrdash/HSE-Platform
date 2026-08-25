@@ -16,6 +16,7 @@
   html{
     overflow-x:hidden;
     -webkit-text-size-adjust:100%; /* prevent iOS font scaling on rotation */
+    text-size-adjust:100%; /* standard property for modern browsers */
   }
   body{
     margin:0;padding:0;overflow-x:hidden;
@@ -789,6 +790,7 @@
     font-weight: 700;
     cursor: pointer;
     transition: all .12s;
+    -webkit-user-select: none; /* Safari/iOS support */
     user-select: none;
     justify-content: center;
     text-align: center;
@@ -882,6 +884,8 @@
   body[data-session="worker"] #viewEmployees,
   body[data-session="worker"] #tabSupHazard,
   body[data-session="worker"] #viewSupHazard,
+  body[data-session="worker"] #tabTrainingAdmin,
+  body[data-session="worker"] #viewTrainingAdmin,
   body[data-session="worker"] #userBadgeArea { display: none !important; }
 
   /* Supervisor session: hide all worker-facing elements */
@@ -893,6 +897,8 @@
   body[data-session="supervisor"] #viewMyHazards,
   body[data-session="supervisor"] #tabHazardWorker,
   body[data-session="supervisor"] #viewHazardWorker,
+  body[data-session="supervisor"] #tabTrainingWorker,
+  body[data-session="supervisor"] #viewTrainingWorker,
   body[data-session="supervisor"] #empBadgeArea { display: none !important; }
 
   .badge-count {
@@ -972,6 +978,11 @@
   .emp-role-badge.supervisor { background: rgba(2,132,199,0.1);   color: #0284c7;         border: 1px solid rgba(2,132,199,0.3); }
   .emp-role-badge.area_head  { background: rgba(109,40,217,0.1);  color: #6d28d9;         border: 1px solid rgba(109,40,217,0.3); }
   .emp-role-badge.contractor { background: rgba(180,83,9,0.1);    color: #b45309;         border: 1px solid rgba(180,83,9,0.3); }
+
+  /* Training Percentage Badges */
+  .emp-role-badge.badge-green  { background: rgba(31,122,61,0.1);   color: var(--success);  border: 1px solid rgba(31,122,61,0.3); font-family: monospace; font-size:12px; }
+  .emp-role-badge.badge-yellow { background: rgba(255,193,7,0.15);  color: #856404;         border: 1px solid rgba(255,193,7,0.3); font-family: monospace; font-size:12px; }
+  .emp-role-badge.badge-red    { background: rgba(220,53,69,0.1);   color: #dc3545;         border: 1px solid rgba(220,53,69,0.3); font-family: monospace; font-size:12px; }
 
   /* Wider table container for the directory */
   .emp-dir-table th:nth-child(2),
@@ -1087,6 +1098,7 @@
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0, 0, 0, 0.9);
+  -webkit-backdrop-filter: blur(5px); /* Safari/iOS support */
   backdrop-filter: blur(5px);
   z-index: 99999;
   display: flex;

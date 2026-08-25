@@ -39,11 +39,36 @@ const EMPLOYEES_FILE = path.join(DATA_DIR, 'employees.json');
 const EMPLOYEES_XLSX_INPUT = path.join(DATA_DIR, 'employees.xlsx');
 const EMPLOYEES_EXCEL_EXPORT = path.join(DATA_DIR, 'employees_export.xlsx');
 
+const TRAINING_TOPICS_FILE = path.join(DATA_DIR, 'training-topics.json');
+const TRAININGS_FILE = path.join(DATA_DIR, 'trainings.json');
+
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
+
+// ── Initialize Training Topics ───────────────────────────────
+const INITIAL_TOPICS = [
+  "فصل وعزل الطاقة LOTO",
+  "القيادة الامنة للفوركليفت",
+  "مخاطر المواد الكيماوية",
+  "المخاطر الكهربية",
+  "مخاطر القطع واللحام",
+  "سلامة الماكينات وحواجز الحماية",
+  "مخاطر العمل علي ارتفاع",
+  "الاسعافات الاولية",
+  "مهمات الوقاية الشخصية PPE",
+  "خطة الطوارئ والاخلاء",
+  "مخاطر الاماكن المغلقة",
+  "مكافحة الحرائق واستخدام الطفايات"
+];
+if (!fs.existsSync(TRAINING_TOPICS_FILE)) {
+  fs.writeFileSync(TRAINING_TOPICS_FILE, JSON.stringify(INITIAL_TOPICS, null, 2), 'utf8');
+}
+if (!fs.existsSync(TRAININGS_FILE)) {
+  fs.writeFileSync(TRAININGS_FILE, JSON.stringify([], null, 2), 'utf8');
 }
 
 // ── Security Headers Middleware ───────────────────────────────
@@ -197,6 +222,38 @@ function writeEmployees(data) {
     return true;
   } catch (err) {
     console.error('Error writing employees.json:', err);
+    return false;
+  }
+}
+
+// ── Training Storage Helpers ──────────────────────────────
+
+function readTrainingTopics() {
+  if (!fs.existsSync(TRAINING_TOPICS_FILE)) return [];
+  try {
+    return JSON.parse(fs.readFileSync(TRAINING_TOPICS_FILE, 'utf8'));
+  } catch (err) {
+    console.error('Error reading training-topics.json:', err);
+    return [];
+  }
+}
+
+function readTrainings() {
+  if (!fs.existsSync(TRAININGS_FILE)) return [];
+  try {
+    return JSON.parse(fs.readFileSync(TRAININGS_FILE, 'utf8'));
+  } catch (err) {
+    console.error('Error reading trainings.json:', err);
+    return [];
+  }
+}
+
+function writeTrainings(data) {
+  try {
+    fs.writeFileSync(TRAININGS_FILE, JSON.stringify(data, null, 2), 'utf8');
+    return true;
+  } catch (err) {
+    console.error('Error writing trainings.json:', err);
     return false;
   }
 }
@@ -1787,6 +1844,260 @@ app.delete('/api/employees/:code',
     res.status(result.status).json(result.body);
   }
 );
+
+// ============================================================
+// 🎓 API ROUTES — HSE TRAINING MODULE
+// ============================================================
+
+app.get('/api/trainings/topics', (req, res) => {
+  res.json({ topics: readTrainingTopics() });
+});
+
+app.get('/api/trainings', authenticateToken, (req, res) => {
+  res.json({ trainings: readTrainings() });
+});
+
+// Worker Dashboard Endpoint (No JWT required)
+app.get('/api/trainings/worker/:empCode', (req, res) => {
+  const code = normalizeEmpCode(req.params.empCode);
+  const trainings = readTrainings();
+  
+  const activeSession = trainings.find(t => t.status === 'active');
+  const myHistory = [];
+  let totalClosed = 0;
+  let myAttended = 0;
+  
+  trainings.forEach(trn => {
+    if (trn.status === 'closed') totalClosed++;
+    const me = trn.attendees.find(a => normalizeEmpCode(a.empCode) === code);
+    if (me) {
+      if (trn.status === 'closed' && me.verified) myAttended++;
+      myHistory.push({
+        date: trn.date,
+        title: trn.title,
+        status: me.verified ? '✅ مؤكد' : '⏳ قيد المراجعة',
+        verified: me.verified
+      });
+    }
+  });
+  
+  // Filter out attendees list from activeSession to protect privacy before sending to worker
+  let safeActiveSession = null;
+  if (activeSession) {
+    safeActiveSession = { ...activeSession };
+    // Only send if the worker themselves attended
+    const meAttended = activeSession.attendees.find(a => normalizeEmpCode(a.empCode) === code);
+    safeActiveSession.attendees = meAttended ? [meAttended] : [];
+  }
+
+  res.json({ 
+    activeSession: safeActiveSession, 
+    myHistory, 
+    totalClosed, 
+    myAttended 
+  });
+});
+
+app.post('/api/trainings', authenticateToken, requireRole('superadmin', 'admin', 'supervisor', 'area_head'), async (req, res) => {
+  const { title, targetGroup, location, date, startTime, endTime, sessionPin } = req.body;
+  if (!title || !date || !startTime || !endTime || !sessionPin) {
+    return res.status(400).json({ error: 'البيانات الأساسية مطلوبة' });
+  }
+
+  let result;
+  await enqueueWrite(async () => {
+    const trainings = readTrainings();
+    const newId = `TRN-${Date.now()}`;
+    const newTraining = {
+      id: newId,
+      title: sanitizeStr(title, 200),
+      targetGroup: sanitizeStr(targetGroup || '', 200),
+      location: sanitizeStr(location || '', 200),
+      date: sanitizeStr(date, 20),
+      startTime: sanitizeStr(startTime, 10),
+      endTime: sanitizeStr(endTime, 10),
+      sessionPin: sanitizeStr(sessionPin, 10),
+      status: 'active',
+      attendees: [],
+      createdAt: new Date().toISOString()
+    };
+    trainings.push(newTraining);
+    if (writeTrainings(trainings)) {
+      result = { status: 201, body: { success: true, training: newTraining } };
+    } else {
+      result = { status: 500, body: { error: 'فشل حفظ المحاضرة' } };
+    }
+  });
+  res.status(result.status).json(result.body);
+});
+
+app.put('/api/trainings/:id/close', authenticateToken, requireRole('superadmin', 'admin', 'supervisor', 'area_head'), async (req, res) => {
+  let result;
+  await enqueueWrite(async () => {
+    const trainings = readTrainings();
+    const idx = trainings.findIndex(t => t.id === req.params.id);
+    if (idx === -1) return result = { status: 404, body: { error: 'المحاضرة غير موجودة' } };
+    
+    trainings[idx].status = 'closed';
+    if (writeTrainings(trainings)) {
+      result = { status: 200, body: { success: true, training: trainings[idx] } };
+    } else {
+      result = { status: 500, body: { error: 'فشل إغلاق المحاضرة' } };
+    }
+  });
+  res.status(result.status).json(result.body);
+});
+
+app.post('/api/trainings/:id/attend', async (req, res) => {
+  const { empCode, pin } = req.body;
+  if (!empCode || !pin) return res.status(400).json({ error: 'الكود ورمز الجلسة مطلوبان' });
+
+  let result;
+  await enqueueWrite(async () => {
+    const trainings = readTrainings();
+    const idx = trainings.findIndex(t => t.id === req.params.id);
+    if (idx === -1) return result = { status: 404, body: { error: 'المحاضرة غير موجودة' } };
+    
+    const trn = trainings[idx];
+    if (trn.status !== 'active') {
+      return result = { status: 400, body: { error: 'المحاضرة مغلقة حالياً' } };
+    }
+    if (trn.sessionPin !== String(pin).trim()) {
+      return result = { status: 400, body: { error: 'رمز الجلسة غير صحيح' } };
+    }
+
+    const nCode = normalizeEmpCode(empCode);
+    if (trn.attendees.find(a => a.empCode === nCode)) {
+      return result = { status: 400, body: { error: 'تم تسجيل حضورك بالفعل في هذه المحاضرة' } };
+    }
+
+    const employees = readEmployees();
+    const emp = employees.find(e => normalizeEmpCode(e.code || e.empCode) === nCode);
+    if (!emp) {
+      return result = { status: 404, body: { error: 'الكود الوظيفي غير مسجل في النظام' } };
+    }
+
+    trn.attendees.push({
+      empCode: nCode,
+      name: emp.name,
+      department: emp.department,
+      attendedAt: new Date().toISOString(),
+      verified: true
+    });
+
+    if (writeTrainings(trainings)) {
+      result = { status: 200, body: { success: true, message: 'تم تسجيل الحضور بنجاح' } };
+    } else {
+      result = { status: 500, body: { error: 'حدث خطأ أثناء التسجيل' } };
+    }
+  });
+  res.status(result.status).json(result.body);
+});
+
+app.put('/api/trainings/:id/verify-attendee', authenticateToken, requireRole('superadmin', 'admin', 'supervisor', 'area_head'), async (req, res) => {
+  const { empCode, verified } = req.body;
+  let result;
+  await enqueueWrite(async () => {
+    const trainings = readTrainings();
+    const idx = trainings.findIndex(t => t.id === req.params.id);
+    if (idx === -1) return result = { status: 404, body: { error: 'المحاضرة غير موجودة' } };
+    
+    const trn = trainings[idx];
+    const nCode = normalizeEmpCode(empCode);
+    
+    if (verified === false) {
+      trn.attendees = trn.attendees.filter(a => a.empCode !== nCode);
+    } else {
+      const att = trn.attendees.find(a => a.empCode === nCode);
+      if (att) att.verified = true;
+    }
+
+    if (writeTrainings(trainings)) {
+      result = { status: 200, body: { success: true, attendees: trn.attendees } };
+    } else {
+      result = { status: 500, body: { error: 'فشل تحديث الحضور' } };
+    }
+  });
+  res.status(result.status).json(result.body);
+});
+
+app.get('/api/trainings/:id/export-excel', authenticateToken, requireRole('superadmin', 'admin', 'supervisor', 'area_head'), async (req, res) => {
+  try {
+    const trainings = readTrainings();
+    const trn = trainings.find(t => t.id === req.params.id);
+    if (!trn) return res.status(404).json({ error: 'المحاضرة غير موجودة' });
+
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('سجل الحضور');
+    ws.columns = [
+      { header: 'الكود الوظيفي', key: 'empCode', width: 15 },
+      { header: 'الاسم', key: 'name', width: 30 },
+      { header: 'القسم', key: 'department', width: 25 },
+      { header: 'وقت الحضور', key: 'attendedAt', width: 25 },
+      { header: 'حالة التأكيد', key: 'verified', width: 15 },
+    ];
+
+    trn.attendees.forEach(a => {
+      ws.addRow({
+        empCode: a.empCode,
+        name: a.name,
+        department: a.department || 'غير محدد',
+        attendedAt: new Date(a.attendedAt).toLocaleString('ar-EG'),
+        verified: a.verified ? 'مؤكد' : 'غير مؤكد'
+      });
+    });
+
+    ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD51E27' } };
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="Training_${trn.id}.xlsx"`);
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error('Export training error:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'فشل تصدير الكشف' });
+  }
+});
+
+app.get('/api/trainings/stats/employees', authenticateToken, requireRole('superadmin', 'admin', 'supervisor', 'area_head'), (req, res) => {
+  const employees = readEmployees();
+  const trainings = readTrainings();
+  const totalTrainings = trainings.length;
+
+  const statsMap = new Map();
+  employees.forEach(e => {
+    const code = normalizeEmpCode(e.code || e.empCode);
+    if (!statsMap.has(code)) {
+      statsMap.set(code, {
+        empCode: code,
+        name: e.name || 'غير معروف',
+        department: e.department || 'غير محدد',
+        attendedCount: 0,
+        totalTrainings: totalTrainings,
+        percentage: 0
+      });
+    }
+  });
+
+  trainings.forEach(trn => {
+    trn.attendees.forEach(att => {
+      if (att.verified) {
+        const code = normalizeEmpCode(att.empCode);
+        if (statsMap.has(code)) {
+          statsMap.get(code).attendedCount++;
+        }
+      }
+    });
+  });
+
+  const statsList = Array.from(statsMap.values()).map(stat => {
+    stat.percentage = totalTrainings > 0 ? Math.round((stat.attendedCount / totalTrainings) * 100) : 0;
+    return stat;
+  });
+
+  res.json({ stats: statsList, totalTrainings });
+});
 
 // ── 404 fallback ──────────────────────────────────────────────
 app.use((req, res) => {

@@ -1,0 +1,23 @@
+[
+  {
+    "id": "TRN-1787681017417",
+    "title": "مهمات الوقاية الشخصية PPE",
+    "targetGroup": "الجميع",
+    "location": "قاعة التدريب",
+    "date": "2026-08-25",
+    "startTime": "11:00",
+    "endTime": "11:30",
+    "sessionPin": "7568",
+    "status": "closed",
+    "attendees": [
+      {
+        "empCode": "1",
+        "name": "احمد محمد فتحي الدمرداش",
+        "department": "Quality Control",
+        "attendedAt": "2026-08-25T18:09:58.033Z",
+        "verified": true
+      }
+    ],
+    "createdAt": "2026-08-25T18:03:37.418Z"
+  }
+]

@@ -89,6 +89,8 @@
     </div>
     <div class="tab" id="tabUsers" onclick="switchTab('users')" style="display:none;">👥 المستخدمون</div>
     <div class="tab" id="tabEmployees" onclick="switchTab('employees')" style="display:none;">🗂️ الموظفين</div>
+    <div class="tab" id="tabTrainingWorker" onclick="switchTab('trainingWorker')">🎓 التدريب والتوعية</div>
+    <div class="tab" id="tabTrainingAdmin" onclick="switchTab('trainingAdmin')" style="display:none;">🎓 إدارة المحاضرات</div>
   </div>
 
   <!-- WORKER FORM VIEW -->
@@ -447,6 +449,82 @@
     </div>
   </div>
 
+</div>
+
+</div>
+
+<!-- 🎓 TRAINING WORKER VIEW -->
+<div id="viewTrainingWorker" style="display:none; padding:12px;">
+  <!-- Hero Stats Card -->
+  <div class="stat-card" style="margin-bottom:16px;">
+    <h3>📊 نسبة حضوري</h3>
+    <div style="font-size:14px; margin-bottom:8px;" id="trnWorkerStatText">جاري تحميل الإحصائيات...</div>
+    <div class="trn-progress-wrap" style="background:var(--paper-line); height:12px; border-radius:6px; overflow:hidden;">
+      <div class="trn-progress-bar" id="trnWorkerProgressBar" style="width:0%; height:100%; background:var(--amber); transition:width 0.4s;"></div>
+    </div>
+  </div>
+
+  <!-- Active Session Check-in Box -->
+  <div id="trnWorkerActiveSessionArea" style="margin-bottom:16px;"></div>
+
+  <!-- History Table -->
+  <h3 class="section-title">سجل حضوري السابق</h3>
+  <div id="trnWorkerHistoryList"></div>
+</div>
+
+<!-- 🎓 TRAINING ADMIN VIEW -->
+<div id="viewTrainingAdmin" style="display:none; padding:12px;">
+  <!-- Create Session Form -->
+  <div class="ticket" style="margin-bottom:24px;">
+    <div class="ticket-head" style="background:var(--amber);">
+      <div><div class="ttype">➕ إنشاء محاضرة جديدة</div></div>
+    </div>
+    <div class="ticket-body">
+      <div class="row2">
+        <div class="field">
+          <label>موضوع المحاضرة <span class="req-star">*</span></label>
+          <select id="trn_topic"></select>
+        </div>
+        <div class="field">
+          <label>الفئة المستهدفة</label>
+          <input type="text" id="trn_targetGroup" placeholder="مثال: عمال الانتاج, الجميع...">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>التاريخ <span class="req-star">*</span></label>
+          <input type="date" id="trn_date">
+        </div>
+        <div class="field">
+          <label>مكان الانعقاد</label>
+          <input type="text" id="trn_location" placeholder="مثال: قاعة التدريب الرئيسية">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>وقت البدء <span class="req-star">*</span></label>
+          <input type="time" id="trn_startTime">
+        </div>
+        <div class="field">
+          <label>وقت الانتهاء <span class="req-star">*</span></label>
+          <input type="time" id="trn_endTime">
+        </div>
+      </div>
+      <button class="submit-btn" onclick="createTrainingSession()">إنشاء المحاضرة وبدء التسجيل</button>
+      <div id="trn_createMsg" class="wl-msg" style="margin-top:8px;"></div>
+    </div>
+  </div>
+
+  <!-- Live Session Management -->
+  <h3 class="section-title">📡 إدارة الجلسات الحية</h3>
+  <div id="trnAdminLiveSessions"></div>
+
+  <!-- Global Employee Attendance Matrix -->
+  <h3 class="section-title" style="margin-top:24px;">🗂️ سجل الحضور العام للموظفين</h3>
+  <div class="field">
+    <input type="text" id="trnAdminSearch" placeholder="بحث بالاسم أو الكود الوظيفي..." oninput="filterTrnGlobalMatrix()" style="margin-bottom:12px;">
+  </div>
+  <div id="trnAdminGlobalMatrix"></div>
 </div>
 
 <!-- 🖼️ Full-Screen Image Lightbox Modal -->

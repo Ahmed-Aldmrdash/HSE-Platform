@@ -410,6 +410,10 @@ function applyRbacUI() {
   // Employees tab: all supervisor-session roles
   const tabEmployees = document.getElementById('tabEmployees');
   if (tabEmployees) tabEmployees.style.display = isSup ? '' : 'none';
+  
+  // Training Tabs
+  setDisplay('tabTrainingWorker', isWorker);
+  setDisplay('tabTrainingAdmin', isSup);
 
   // Badge areas
   const empArea  = document.getElementById('empBadgeArea');
@@ -442,8 +446,8 @@ function switchTab(which){
   // Workers cannot jump to supervisor tabs; supervisors cannot jump to
   // worker tabs.  Pre-auth state ('none') is allowed to reach the
   // supervisor login gate so goToAdminLogin() keeps working.
-  const workerTabs = ['worker', 'hazardWorker', 'myhistory', 'myhazards'];
-  const supTabs    = ['sup', 'supHazard', 'users', 'employees'];
+  const workerTabs = ['worker', 'hazardWorker', 'myhistory', 'myhazards', 'trainingWorker'];
+  const supTabs    = ['sup', 'supHazard', 'users', 'employees', 'trainingAdmin'];
   if (workerTabs.includes(which) && sessionRole === 'supervisor') return;
   if (supTabs.includes(which)   && sessionRole === 'worker') return;
   // ─────────────────────────────────────────────────────────────────
@@ -462,6 +466,10 @@ function switchTab(which){
   if(tabUsers) tabUsers.classList.toggle('active', which==='users');
   const tabEmp = document.getElementById('tabEmployees');
   if(tabEmp) tabEmp.classList.toggle('active', which==='employees');
+  const tabTrnW = document.getElementById('tabTrainingWorker');
+  if(tabTrnW) tabTrnW.classList.toggle('active', which==='trainingWorker');
+  const tabTrnA = document.getElementById('tabTrainingAdmin');
+  if(tabTrnA) tabTrnA.classList.toggle('active', which==='trainingAdmin');
 
   document.getElementById('viewWorker').style.display = which==='worker' ? 'block':'none';
   const viewHazardW = document.getElementById('viewHazardWorker');
@@ -477,6 +485,10 @@ function switchTab(which){
   if(viewUsers) viewUsers.style.display = which==='users' ? 'block':'none';
   const viewEmp = document.getElementById('viewEmployees');
   if(viewEmp) viewEmp.style.display = which==='employees' ? 'block':'none';
+  const viewTrnW = document.getElementById('viewTrainingWorker');
+  if(viewTrnW) viewTrnW.style.display = which==='trainingWorker' ? 'block':'none';
+  const viewTrnA = document.getElementById('viewTrainingAdmin');
+  if(viewTrnA) viewTrnA.style.display = which==='trainingAdmin' ? 'block':'none';
 
   // Stop polling when leaving the relevant view
   if(which !== 'sup' && supervisorPollTimer){
@@ -490,6 +502,14 @@ function switchTab(which){
   if(which !== 'myhazards' && window.myHazardsPollTimer){
     clearInterval(window.myHazardsPollTimer);
     window.myHazardsPollTimer = null;
+  }
+  if(which !== 'trainingAdmin' && window.trnAdminPollTimer){
+    clearInterval(window.trnAdminPollTimer);
+    window.trnAdminPollTimer = null;
+  }
+  if(which !== 'trainingWorker' && window.trnWorkerPollTimer){
+    clearInterval(window.trnWorkerPollTimer);
+    window.trnWorkerPollTimer = null;
   }
 
   if(which==='sup'){
@@ -519,6 +539,17 @@ function switchTab(which){
   }
   if(which==='employees'){
     if(isLoggedIn){ renderEmployeesPanel(); } else { switchTab('sup'); }
+  }
+  if(which==='trainingWorker'){
+    if(currentEmployee){
+      loadWorkerTraining();
+      if(!window.trnWorkerPollTimer){
+        window.trnWorkerPollTimer = setInterval(() => loadWorkerTraining(true), 10000);
+      }
+    }
+  }
+  if(which==='trainingAdmin'){
+    if(isLoggedIn){ loadAdminTraining(); } else { switchTab('sup'); }
   }
 }
 
@@ -2931,6 +2962,385 @@ async function silentRefreshHazards() {
         renderMyHazards(true);
       }
     } catch(e) {}
+  }
+}
+
+// ============================================================
+// 🎓 TRAINING MODULE (WORKER & ADMIN)
+// ============================================================
+
+window.trnAdminPollTimer = null;
+window.trnWorkerPollTimer = null;
+let _allAdminTrainings = [];
+let _adminGlobalMatrix = [];
+
+async function loadWorkerTraining(isSilent = false) {
+  if (!currentEmployee) return;
+  
+  // Update UI headers
+  const textEl = document.getElementById('trnWorkerStatText');
+  const barEl = document.getElementById('trnWorkerProgressBar');
+  const activeArea = document.getElementById('trnWorkerActiveSessionArea');
+  const historyList = document.getElementById('trnWorkerHistoryList');
+
+  try {
+    const res = await fetch(`/api/trainings/worker/${encodeURIComponent(currentEmployee.empCode)}`);
+    const data = await res.json();
+    
+    const activeSession = data.activeSession;
+    const myHistory = data.myHistory || [];
+    const totalClosed = data.totalClosed || 0;
+    const myAttended = data.myAttended || 0;
+
+    // Update KPIs
+    const pct = totalClosed > 0 ? Math.round((myAttended / totalClosed) * 100) : 0;
+    textEl.textContent = `🎯 حضرت ${myAttended} من إجمالي ${totalClosed} محاضرة مغلقة (نسبة الحضور: ${pct}%)`;
+    barEl.style.width = `${pct}%`;
+    barEl.style.background = pct >= 80 ? 'var(--success)' : (pct >= 50 ? '#f39c12' : 'var(--danger)');
+
+    // Active Session
+    if (activeSession) {
+      const alreadyAttended = activeSession.attendees.find(a => normalizeEmpCode(a.empCode) === normalizeEmpCode(currentEmployee.empCode));
+      if (alreadyAttended) {
+        activeArea.innerHTML = `
+          <div class="ticket" style="border-left: 5px solid var(--success);">
+            <div class="ticket-body" style="text-align:center;">
+              <h3 style="color:var(--success); margin:0 0 8px 0;">✅ تم تسجيل حضورك بنجاح</h3>
+              <p style="margin:0; font-size:14px;">محاضرة: <strong>${escapeHtml(activeSession.title)}</strong></p>
+            </div>
+          </div>`;
+      } else {
+        activeArea.innerHTML = `
+          <div class="ticket" style="border-left: 5px solid var(--amber);">
+            <div class="ticket-body">
+              <h3 style="margin:0 0 4px 0; color:var(--amber);">📡 محاضرة جارية الآن</h3>
+              <p style="margin:0 0 12px 0; font-size:14px; font-weight:700;">${escapeHtml(activeSession.title)} | ${escapeHtml(activeSession.location)}</p>
+              <div style="display:flex; gap:8px;">
+                <input type="text" id="trnWorkerPin" placeholder="أدخل رمز الجلسة (PIN)" style="flex:1; text-align:center; font-family:monospace; font-size:18px; font-weight:bold; letter-spacing:4px;" maxlength="4">
+                <button class="submit-btn" style="flex:1;" onclick="submitAttendance('${activeSession.id}')">✅ تسجيل حضوري</button>
+              </div>
+              <div id="trnWorkerMsg" class="wl-msg" style="margin-top:8px;"></div>
+            </div>
+          </div>`;
+      }
+    } else {
+      activeArea.innerHTML = `
+        <div class="ticket">
+          <div class="ticket-body" style="text-align:center; color:var(--muted); font-size:14px;">
+            لا توجد محاضرات جارية في الوقت الحالي.
+          </div>
+        </div>`;
+    }
+
+    // History
+    if (myHistory.length === 0) {
+      historyList.innerHTML = '<div class="empty">لم تسجل حضور في أي محاضرة حتى الآن.</div>';
+    } else {
+      historyList.innerHTML = `
+        <table class="um-table">
+          <thead><tr><th>التاريخ</th><th>الموضوع</th><th>الحالة</th></tr></thead>
+          <tbody>
+            ${myHistory.map(h => `
+              <tr>
+                <td style="font-size:12px; color:var(--muted);">${escapeHtml(h.date)}</td>
+                <td style="font-weight:700; font-size:13px;">${escapeHtml(h.title)}</td>
+                <td style="font-size:12px; font-weight:700; color:${h.verified ? 'var(--success)' : 'var(--amber)'};">${h.status}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>`;
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function submitAttendance(sessionId) {
+  const pin = document.getElementById('trnWorkerPin').value;
+  const msgEl = document.getElementById('trnWorkerMsg');
+  if (!pin || pin.length !== 4) {
+    msgEl.textContent = 'الرجاء إدخال الرمز المكون من 4 أرقام';
+    msgEl.className = 'um-msg error show';
+    return;
+  }
+  
+  try {
+    const res = await fetch(`/api/trainings/${sessionId}/attend`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ empCode: currentEmployee.empCode, pin: pin })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      msgEl.textContent = '✅ تم تسجيل حضورك';
+      msgEl.className = 'um-msg success show';
+      setTimeout(loadWorkerTraining, 1500);
+    } else {
+      msgEl.textContent = data.error || 'رمز غير صحيح';
+      msgEl.className = 'um-msg error show';
+    }
+  } catch (e) {
+    msgEl.textContent = 'خطأ في الاتصال';
+    msgEl.className = 'um-msg error show';
+  }
+}
+
+async function loadAdminTraining(isSilent = false) {
+  if (!isLoggedIn) return;
+  
+  if (!isSilent) {
+    if (window.trnAdminPollTimer) {
+      clearInterval(window.trnAdminPollTimer);
+      window.trnAdminPollTimer = null;
+    }
+  }
+
+  // Load topics if not loaded
+  const topicSel = document.getElementById('trn_topic');
+  if (topicSel.options.length <= 1 && !isSilent) {
+    try {
+      const tres = await authFetch('/api/trainings/topics');
+      const tdata = await tres.json();
+      topicSel.innerHTML = '<option value="">-- اختر الموضوع --</option>' + (tdata.topics || []).map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+    } catch(e){
+      console.error(e);
+    }
+  }
+
+  try {
+    // 1. Fetch live sessions first for immediate render
+    const trnRes = await authFetch('/api/trainings');
+    if (trnRes.ok) {
+      const tdata = await trnRes.json();
+      const raw = JSON.stringify(tdata.trainings);
+      if (raw !== JSON.stringify(_allAdminTrainings)) {
+        _allAdminTrainings = tdata.trainings || [];
+        renderAdminLiveSessions(_allAdminTrainings);
+      }
+    }
+    
+    // 2. Fetch heavy stats array asynchronously without blocking the await
+    if (!isSilent) {
+      const matrixEl = document.getElementById('trnAdminGlobalMatrix');
+      if (matrixEl) matrixEl.innerHTML = '<div class="loading">جاري تحميل سجل الموظفين (يرجى الانتظار)...</div>';
+      authFetch('/api/trainings/stats/employees')
+        .then(async (statsRes) => {
+          if (statsRes.ok) {
+            const sdata = await statsRes.json();
+            _adminGlobalMatrix = sdata.stats || [];
+            filterTrnGlobalMatrix();
+          }
+        })
+        .catch(e => {
+          console.error('Stats fetch error:', e);
+          if (matrixEl) matrixEl.innerHTML = '<div class="empty">فشل تحميل سجل الحضور.</div>';
+        });
+    }
+    
+    // 3. Set polling interval safely
+    if (!window.trnAdminPollTimer && !isSilent) {
+      window.trnAdminPollTimer = setInterval(() => loadAdminTraining(true), 5000);
+    }
+  } catch (e) {
+    console.error('loadAdminTraining Error:', e);
+  }
+}
+
+function renderAdminLiveSessions(trainings) {
+  const liveEl = document.getElementById('trnAdminLiveSessions');
+  const activeSessions = trainings.filter(t => t.status === 'active');
+  const closedSessions = trainings.filter(t => t.status === 'closed').sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+  
+  let html = '';
+  if (activeSessions.length > 0) {
+    activeSessions.forEach(trn => {
+      html += `
+      <div class="ticket" style="border-left: 5px solid var(--amber); margin-bottom: 16px;">
+        <div class="ticket-body">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+              <h3 style="margin:0 0 4px 0;">${escapeHtml(trn.title)}</h3>
+              <p style="margin:0; font-size:13px; color:var(--muted);">${escapeHtml(trn.location)} | المستهدف: ${escapeHtml(trn.targetGroup)}</p>
+            </div>
+            <div style="background:var(--amber); color:#fff; padding:8px 16px; border-radius:8px; text-align:center;">
+              <div style="font-size:12px; opacity:0.9;">رمز الجلسة (PIN)</div>
+              <div style="font-size:24px; font-family:monospace; font-weight:900; letter-spacing:4px;">${escapeHtml(trn.sessionPin)}</div>
+            </div>
+          </div>
+          
+          <h4 style="margin:16px 0 8px 0; padding-top:16px; border-top:1px solid var(--paper-line);">📋 الحضور (${trn.attendees.length})</h4>
+          <table class="um-table" style="margin-bottom:16px;">
+            <thead><tr><th>الكود</th><th>الاسم</th><th>القسم</th><th>الوقت</th><th>التحقق</th></tr></thead>
+            <tbody>
+              ${trn.attendees.map(a => `
+                <tr>
+                  <td style="font-family:monospace; font-weight:bold;">${escapeHtml(a.empCode)}</td>
+                  <td>${escapeHtml(a.name)}</td>
+                  <td>${escapeHtml(a.department)}</td>
+                  <td style="font-size:12px; color:var(--muted);">${new Date(a.attendedAt).toLocaleTimeString('ar-EG')}</td>
+                  <td>
+                    <button class="um-btn ${a.verified ? 'del' : 'pass'}" onclick="toggleTrnVerification('${trn.id}', '${a.empCode}', ${!a.verified})" style="padding:4px 8px; font-size:11px;">
+                      ${a.verified ? '❌ إلغاء' : '✅ تأكيد'}
+                    </button>
+                  </td>
+                </tr>
+              `).join('')}
+              ${trn.attendees.length === 0 ? '<tr><td colspan="5" style="text-align:center; color:var(--muted);">لا يوجد حضور حتى الآن. رمز الجلسة ظاهر للعمال.</td></tr>' : ''}
+            </tbody>
+          </table>
+          
+          <div style="display:flex; gap:8px;">
+            <button class="submit-btn" style="flex:1; background:var(--danger);" onclick="closeTrainingSession('${trn.id}')">🛑 إنهاء وإغلاق المحاضرة</button>
+            <button class="um-btn" style="flex:1;" onclick="exportTrainingExcel('${trn.id}')">📥 تصدير Excel</button>
+          </div>
+        </div>
+      </div>`;
+    });
+  } else {
+    html += '<div class="empty">لا توجد محاضرات جارية. يمكنك إنشاء محاضرة جديدة.</div>';
+  }
+  
+  if (closedSessions.length > 0) {
+    html += '<h4 style="margin-top:24px;">المحاضرات السابقة</h4>';
+    closedSessions.slice(0, 5).forEach(trn => {
+      html += `
+      <div class="ticket" style="margin-bottom:8px;">
+        <div class="ticket-body" style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-weight:700;">${escapeHtml(trn.title)}</div>
+            <div style="font-size:12px; color:var(--muted);">${escapeHtml(trn.date)} | حضور: ${trn.attendees.filter(a=>a.verified).length}</div>
+          </div>
+          <button class="um-btn" onclick="exportTrainingExcel('${trn.id}')" style="padding:6px 12px; font-size:12px;">📥 Excel</button>
+        </div>
+      </div>`;
+    });
+  }
+  
+  liveEl.innerHTML = html;
+}
+
+function filterTrnGlobalMatrix() {
+  const q = (document.getElementById('trnAdminSearch')?.value || '').toLowerCase().trim();
+  const listEl = document.getElementById('trnAdminGlobalMatrix');
+  
+  const filtered = _adminGlobalMatrix.filter(e => 
+    (e.empCode || '').toLowerCase().includes(q) ||
+    (e.name || '').toLowerCase().includes(q)
+  );
+  
+  if (filtered.length === 0) {
+    listEl.innerHTML = '<div class="empty">لا توجد نتائج مطابقة</div>';
+    return;
+  }
+  
+  listEl.innerHTML = `
+    <table class="um-table">
+      <thead>
+        <tr><th>الكود</th><th>الاسم</th><th>القسم</th><th>الحضور</th><th>النسبة %</th></tr>
+      </thead>
+      <tbody>
+        ${filtered.map(e => {
+          let badgeClass = e.percentage >= 80 ? 'badge-green' : (e.percentage >= 50 ? 'badge-yellow' : 'badge-red');
+          return `
+          <tr>
+            <td style="font-family:monospace; font-weight:bold;">${escapeHtml(e.empCode)}</td>
+            <td style="font-weight:700; font-size:13px;">${escapeHtml(e.name)}</td>
+            <td style="font-size:12px;">${escapeHtml(e.department)}</td>
+            <td style="font-size:13px; font-weight:bold;">${e.attendedCount} / ${e.totalTrainings}</td>
+            <td><span class="emp-role-badge ${badgeClass}">${e.percentage}%</span></td>
+          </tr>
+          `;
+        }).join('')}
+      </tbody>
+    </table>
+    <div style="font-size:11px; color:var(--muted); margin-top:8px;">عرض ${filtered.length} من إجمالي ${_adminGlobalMatrix.length} موظف</div>
+  `;
+}
+
+async function createTrainingSession() {
+  const title = document.getElementById('trn_topic').value;
+  const tgroup = document.getElementById('trn_targetGroup').value;
+  const date = document.getElementById('trn_date').value;
+  const loc = document.getElementById('trn_location').value;
+  const stime = document.getElementById('trn_startTime').value;
+  const etime = document.getElementById('trn_endTime').value;
+  const msgEl = document.getElementById('trn_createMsg');
+  
+  if (!title || !date || !stime || !etime) {
+    msgEl.textContent = 'الرجاء ملء جميع الحقول المطلوبة (*)';
+    msgEl.className = 'wl-msg error show';
+    return;
+  }
+  
+  const pin = Math.floor(1000 + Math.random() * 9000).toString();
+  
+  try {
+    const res = await authFetch('/api/trainings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title, targetGroup: tgroup, date, location: loc, startTime: stime, endTime: etime, sessionPin: pin
+      })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      msgEl.textContent = '✅ تم إنشاء المحاضرة بنجاح';
+      msgEl.className = 'wl-msg success show';
+      document.getElementById('trn_topic').value = '';
+      document.getElementById('trn_targetGroup').value = '';
+      document.getElementById('trn_location').value = '';
+      setTimeout(() => {
+        msgEl.className = 'wl-msg';
+        loadAdminTraining(true);
+      }, 1500);
+    } else {
+      msgEl.textContent = data.error || 'فشل الإنشاء';
+      msgEl.className = 'wl-msg error show';
+    }
+  } catch(e) {
+    msgEl.textContent = 'خطأ اتصال';
+    msgEl.className = 'wl-msg error show';
+  }
+}
+
+async function closeTrainingSession(id) {
+  if (!confirm('هل أنت متأكد من إنهاء وإغلاق المحاضرة؟ (لن يتمكن العمال من تسجيل الحضور بعد ذلك)')) return;
+  try {
+    const res = await authFetch(`/api/trainings/${id}/close`, { method: 'PUT' });
+    if (res.ok) loadAdminTraining(true);
+  } catch(e) {}
+}
+
+async function toggleTrnVerification(id, empCode, verified) {
+  try {
+    const res = await authFetch(`/api/trainings/${id}/verify-attendee`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ empCode, verified })
+    });
+    if (res.ok) loadAdminTraining(true);
+  } catch(e) {}
+}
+
+async function exportTrainingExcel(sessionId) {
+  try {
+    const token = typeof getToken === 'function' ? getToken() : localStorage.getItem('ep_token');
+    const res = await fetch(`/api/trainings/${sessionId}/export-excel`, {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    });
+    if (!res.ok) throw new Error('فشل تصدير الملف');
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `كشف_حضور_${sessionId}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error(err);
+    alert('حدث خطأ أثناء تصدير ملف الإكسيل');
   }
 }
 
