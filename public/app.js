@@ -3405,6 +3405,9 @@ let notifPollTimer = null;
 let unreadNotifsIds = new Set();
 let isNotifDrawerOpen = false;
 
+let currentNotifications = [];
+let currentNotifFilter = 'all';
+
 function toggleNotifDrawer() {
   const drawer = document.getElementById('notifDrawer');
   if(!drawer) return;
@@ -3414,6 +3417,12 @@ function toggleNotifDrawer() {
 
 function startNotificationPolling() {
   if (notifPollTimer) clearInterval(notifPollTimer);
+  
+  // Request Native Notification Permission
+  if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
+    Notification.requestPermission();
+  }
+
   fetchNotifications(); // Initial fetch
   notifPollTimer = setInterval(fetchNotifications, 15000);
 }
@@ -3442,14 +3451,44 @@ async function fetchNotifications() {
     const res = await fetch(`/api/notifications?${params.toString()}`);
     if (res.ok) {
       const data = await res.json();
-      renderNotifications(data.notifications || []);
+      currentNotifications = data.notifications || [];
+      renderNotifications();
     }
   } catch(e) {
     console.error('Error fetching notifications:', e);
   }
 }
 
-function renderNotifications(notifications) {
+function setNotifFilter(type) {
+  currentNotifFilter = type;
+  
+  // Update active pill UI
+  document.querySelectorAll('.notif-filter').forEach(btn => btn.classList.remove('active'));
+  const targetBtn = Array.from(document.querySelectorAll('.notif-filter')).find(b => b.getAttribute('onclick').includes(`'${type}'`));
+  if (targetBtn) targetBtn.classList.add('active');
+  
+  renderNotifications();
+}
+
+function timeAgo(isoString) {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  const seconds = Math.floor((new Date() - date) / 1000);
+  
+  let interval = seconds / 31536000;
+  if (interval > 1) return Math.floor(interval) + " سنة";
+  interval = seconds / 2592000;
+  if (interval > 1) return Math.floor(interval) + " شهر";
+  interval = seconds / 86400;
+  if (interval > 1) return Math.floor(interval) + " يوم";
+  interval = seconds / 3600;
+  if (interval >= 1) return "منذ " + Math.floor(interval) + " ساعة";
+  interval = seconds / 60;
+  if (interval >= 1) return "منذ " + Math.floor(interval) + " دقيقة";
+  return "الآن";
+}
+
+function renderNotifications() {
   const listEl = document.getElementById('notifList');
   const badgeEl = document.getElementById('notifBadge');
   const container = document.getElementById('notifContainer');
@@ -3469,35 +3508,56 @@ function renderNotifications(notifications) {
   let unreadCount = 0;
   let newUnreadFound = false;
 
-  const html = notifications.map(n => {
+  // Apply Filter
+  const filteredNotifications = currentNotifications.filter(n => {
     const isUnread = !n.readBy.includes(identifier);
-    if (isUnread) {
-      unreadCount++;
-      if (!unreadNotifsIds.has(n.id)) {
-        unreadNotifsIds.add(n.id);
-        newUnreadFound = true;
+    if (isUnread) unreadCount++;
+    
+    // Check for new unread notifications regardless of filter
+    if (isUnread && !unreadNotifsIds.has(n.id)) {
+      unreadNotifsIds.add(n.id);
+      newUnreadFound = true;
+      
+      // Trigger Native Push Notification
+      if ("Notification" in window && Notification.permission === "granted") {
+        const nativeNotif = new Notification(n.title, { body: n.message, icon: 'icons/icon-192.png' });
+        nativeNotif.onclick = function() {
+          window.focus();
+          handleNotificationClick(n.id, n.link);
+        };
       }
     }
+
+    if (currentNotifFilter === 'all') return true;
+    if (currentNotifFilter === 'unread') return isUnread;
+    return n.type === currentNotifFilter;
+  });
+
+  const html = filteredNotifications.map(n => {
+    const isUnread = !n.readBy.includes(identifier);
     
-    // Type-based styling
+    // Type-based styling and icons
     let typeClass = 'type-system';
-    if (n.type === 'hazard') typeClass = 'type-hazard';
-    if (n.type === 'permit') typeClass = 'type-permit';
-    if (n.type === 'training') typeClass = 'type-training';
+    let iconEmoji = '🔔';
+    if (n.type === 'hazard') { typeClass = 'type-hazard'; iconEmoji = '⚠️'; }
+    if (n.type === 'permit') { typeClass = 'type-permit'; iconEmoji = '📝'; }
+    if (n.type === 'training') { typeClass = 'type-training'; iconEmoji = '🎓'; }
 
     return `
       <div class="notif-item ${isUnread ? 'unread' : ''} ${typeClass}" onclick="handleNotificationClick('${n.id}', '${n.link}')">
+        <div class="unread-dot"></div>
+        <div class="notif-icon-box">${iconEmoji}</div>
         <div class="notif-content">
           <div class="notif-title">${escapeHtml(n.title)}</div>
           <div class="notif-msg">${escapeHtml(n.message)}</div>
-          <div class="notif-time">${new Date(n.createdAt).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'})}</div>
+          <div class="notif-time">${timeAgo(n.createdAt)}</div>
         </div>
       </div>
     `;
   }).join('');
 
-  if (notifications.length === 0) {
-    listEl.innerHTML = '<div class="notif-empty">لا توجد إشعارات حالياً</div>';
+  if (filteredNotifications.length === 0) {
+    listEl.innerHTML = '<div class="notif-empty">لا توجد إشعارات تطابق التصفية الحالية</div>';
   } else {
     listEl.innerHTML = html;
   }

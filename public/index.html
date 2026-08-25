@@ -87,6 +87,13 @@
           <h3>الإشعارات</h3>
           <button class="mark-all-btn" onclick="markAllNotificationsAsRead()">تحديد الكل كمقروء</button>
         </div>
+        <div class="notif-filters">
+          <button class="notif-filter active" onclick="setNotifFilter('all')">الكل</button>
+          <button class="notif-filter" onclick="setNotifFilter('unread')">غير المقروءة</button>
+          <button class="notif-filter" onclick="setNotifFilter('permit')">التصاريح</button>
+          <button class="notif-filter" onclick="setNotifFilter('hazard')">البلاغات</button>
+          <button class="notif-filter" onclick="setNotifFilter('training')">التدريب</button>
+        </div>
         <div class="notif-list" id="notifList">
           <div class="notif-empty">لا توجد إشعارات حالياً</div>
         </div>
