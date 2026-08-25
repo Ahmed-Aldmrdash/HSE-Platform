@@ -76,7 +76,7 @@ if (!fs.existsSync(TRAININGS_FILE)) {
 app.disable('x-powered-by');
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader(
@@ -117,6 +117,15 @@ const employeeLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'تجاوزت عدد محاولات التسجيل. حاول مجدداً بعد 15 دقيقة.' }
+});
+
+/** Training Attendance: max 15 attempts per 15 min per IP */
+const attendLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'تجاوزت عدد محاولات تسجيل الحضور. حاول مجدداً بعد 15 دقيقة.' }
 });
 
 // ── Cache-Busting: prevent browsers/CDNs caching app-shell files ──────────
@@ -1093,12 +1102,23 @@ app.post('/api/hazards', submitLimiter, async (req, res) => {
     let photoUrl = '';
     if (payload.photo) {
       try {
-        const base64Data = payload.photo.replace(/^data:image\/\w+;base64,/, '');
-        const buffer = Buffer.from(base64Data, 'base64');
-        const filename = `${newId}-${Date.now()}.jpg`;
-        const filepath = path.join(UPLOADS_DIR, filename);
-        fs.writeFileSync(filepath, buffer);
-        photoUrl = `/uploads/hazards/${filename}`;
+        const base64Data = String(payload.photo).replace(/^data:image\/\w+;base64,/, '');
+        
+        // Validate Magic Numbers (Base64 headers)
+        const isJPEG = base64Data.startsWith('/9j/');
+        const isPNG = base64Data.startsWith('iVBORw0KGgo');
+        const isWebP = base64Data.startsWith('UklGR');
+        
+        if (isJPEG || isPNG || isWebP) {
+          const buffer = Buffer.from(base64Data, 'base64');
+          // Strict filename without user input to prevent Path Traversal
+          const filename = `HZ-${Date.now()}-${Math.floor(Math.random()*1000)}.jpg`;
+          const filepath = path.join(UPLOADS_DIR, filename);
+          fs.writeFileSync(filepath, buffer);
+          photoUrl = `/uploads/hazards/${filename}`;
+        } else {
+          console.warn('[Security] Invalid image magic number detected. Upload rejected.');
+        }
       } catch (err) {
         console.error('Error saving hazard photo:', err);
       }
@@ -1948,9 +1968,13 @@ app.put('/api/trainings/:id/close', authenticateToken, requireRole('superadmin',
   res.status(result.status).json(result.body);
 });
 
-app.post('/api/trainings/:id/attend', async (req, res) => {
-  const { empCode, pin } = req.body;
+app.post('/api/trainings/:id/attend', attendLimiter, async (req, res) => {
+  let { empCode, pin } = req.body;
   if (!empCode || !pin) return res.status(400).json({ error: 'الكود ورمز الجلسة مطلوبان' });
+  
+  // Strict Type Casting to prevent NoSQL injection / Prototype pollution
+  empCode = String(empCode).trim();
+  pin = String(pin).trim();
 
   let result;
   await enqueueWrite(async () => {

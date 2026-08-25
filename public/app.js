@@ -665,6 +665,9 @@ function logout(){
   clearToken();
   if(supervisorPollTimer){ clearInterval(supervisorPollTimer); supervisorPollTimer = null; }
   if(myHistoryPollTimer){  clearInterval(myHistoryPollTimer);  myHistoryPollTimer  = null; }
+  if(window.myHazardsPollTimer){ clearInterval(window.myHazardsPollTimer); window.myHazardsPollTimer = null; }
+  if(window.trnAdminPollTimer){ clearInterval(window.trnAdminPollTimer); window.trnAdminPollTimer = null; }
+  if(window.trnWorkerPollTimer){ clearInterval(window.trnWorkerPollTimer); window.trnWorkerPollTimer = null; }
 
   // ── Always return to unified worker login overlay (Option A) ──
   sessionRole = 'none';
@@ -787,6 +790,8 @@ function workerLogout(){
   currentEmployee = null;
   localStorage.removeItem('ep_currentEmployee');
   if(myHistoryPollTimer){ clearInterval(myHistoryPollTimer); myHistoryPollTimer = null; }
+  if(window.myHazardsPollTimer){ clearInterval(window.myHazardsPollTimer); window.myHazardsPollTimer = null; }
+  if(window.trnWorkerPollTimer){ clearInterval(window.trnWorkerPollTimer); window.trnWorkerPollTimer = null; }
   // Reset RBAC state and return to unified login
   sessionRole = 'none';
   applyRbacUI();
