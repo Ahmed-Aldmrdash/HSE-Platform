@@ -11,6 +11,15 @@ window.onerror = function(msg, url, lineNo, columnNo, error) {
 // 🔑 JWT Token Management & Auth Fetch Helper
 // ============================================================
 
+/** توحيد وتطبيع الأكواد الوظيفية (إزالة الأصفار البادئة) */
+function normalizeEmpCode(code) {
+  if (!code && code !== 0) return '';
+  const str = String(code).trim();
+  const stripped = str.replace(/^0+/, '');
+  return stripped === '' ? '0' : stripped;
+}
+
+
 /** حفظ الـ JWT Token في sessionStorage (يُمسح عند إغلاق التبويب) */
 function saveToken(token) {
   try { sessionStorage.setItem('wp_auth_token', token); } catch(e) {}
@@ -395,9 +404,12 @@ function applyRbacUI() {
   setDisplay('tabMyHazards',    isWorker);
   setDisplay('tabSup',          isSup);
   setDisplay('tabSupHazard',    isSup);
-  // Users tab: only superadmin sees it, and only in supervisor session
+  // Users tab: superadmin only
   const tabUsers = document.getElementById('tabUsers');
   if (tabUsers) tabUsers.style.display = (isSup && currentUserRole === 'superadmin') ? '' : 'none';
+  // Employees tab: all supervisor-session roles
+  const tabEmployees = document.getElementById('tabEmployees');
+  if (tabEmployees) tabEmployees.style.display = isSup ? '' : 'none';
 
   // Badge areas
   const empArea  = document.getElementById('empBadgeArea');
@@ -431,7 +443,7 @@ function switchTab(which){
   // worker tabs.  Pre-auth state ('none') is allowed to reach the
   // supervisor login gate so goToAdminLogin() keeps working.
   const workerTabs = ['worker', 'hazardWorker', 'myhistory', 'myhazards'];
-  const supTabs    = ['sup', 'supHazard', 'users'];
+  const supTabs    = ['sup', 'supHazard', 'users', 'employees'];
   if (workerTabs.includes(which) && sessionRole === 'supervisor') return;
   if (supTabs.includes(which)   && sessionRole === 'worker') return;
   // ─────────────────────────────────────────────────────────────────
@@ -448,6 +460,8 @@ function switchTab(which){
   if(tabSupHazard) tabSupHazard.classList.toggle('active', which==='supHazard');
   const tabUsers = document.getElementById('tabUsers');
   if(tabUsers) tabUsers.classList.toggle('active', which==='users');
+  const tabEmp = document.getElementById('tabEmployees');
+  if(tabEmp) tabEmp.classList.toggle('active', which==='employees');
 
   document.getElementById('viewWorker').style.display = which==='worker' ? 'block':'none';
   const viewHazardW = document.getElementById('viewHazardWorker');
@@ -461,6 +475,8 @@ function switchTab(which){
   if(viewSupHazard) viewSupHazard.style.display = which==='supHazard' ? 'block':'none';
   const viewUsers = document.getElementById('viewUsers');
   if(viewUsers) viewUsers.style.display = which==='users' ? 'block':'none';
+  const viewEmp = document.getElementById('viewEmployees');
+  if(viewEmp) viewEmp.style.display = which==='employees' ? 'block':'none';
 
   // Stop polling when leaving the relevant view
   if(which !== 'sup' && supervisorPollTimer){
@@ -500,6 +516,9 @@ function switchTab(which){
   }
   if(which==='supHazard'){
     if(isLoggedIn){ renderSupHazard(); } else { switchTab('sup'); }
+  }
+  if(which==='employees'){
+    if(isLoggedIn){ renderEmployeesPanel(); } else { switchTab('sup'); }
   }
 }
 
@@ -570,6 +589,7 @@ async function attemptLogin(){
 function showUserBadge(){
   const supArea = document.getElementById('supUserProfileChip');
   const umArea  = document.getElementById('umUserProfileChip');
+  const emArea  = document.getElementById('emUserProfileChip');
   
   const roleLabels = { 
     superadmin: 'مدير النظام (Super Admin)', 
@@ -599,7 +619,9 @@ function showUserBadge(){
   `;
 
   if (supArea) supArea.innerHTML = chipHtml;
-  if (umArea)  umArea.innerHTML = chipHtml;
+  if (umArea)  umArea.innerHTML  = chipHtml;
+  const emAreaEl = document.getElementById('emUserProfileChip');
+  if (emAreaEl)  emAreaEl.innerHTML  = chipHtml;
 }
 
 function logout(){
@@ -624,11 +646,13 @@ function logout(){
   const viewHazW  = document.getElementById('viewHazardWorker');
   const viewHazS  = document.getElementById('viewSupHazard');
   const viewMyHaz = document.getElementById('viewMyHazards');
-  if(viewMH)    viewMH.style.display    = 'none';
-  if(viewUsers) viewUsers.style.display = 'none';
-  if(viewHazW)  viewHazW.style.display  = 'none';
-  if(viewHazS)  viewHazS.style.display  = 'none';
-  if(viewMyHaz) viewMyHaz.style.display = 'none';
+  const viewEmpDir = document.getElementById('viewEmployees');
+  if(viewMH)     viewMH.style.display     = 'none';
+  if(viewUsers)  viewUsers.style.display  = 'none';
+  if(viewHazW)   viewHazW.style.display   = 'none';
+  if(viewHazS)   viewHazS.style.display   = 'none';
+  if(viewMyHaz)  viewMyHaz.style.display  = 'none';
+  if(viewEmpDir) viewEmpDir.style.display = 'none';
   // Clear any active tab highlight
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   // If there was a worker session, clear it too
@@ -662,11 +686,18 @@ function hideWorkerLoginOverlay(){
 /** إعادة ضبط شاشة تسجيل دخول الموظف للمرحلة الأولى */
 function resetWorkerLogin(){
   document.getElementById('wl-step1').style.display = 'block';
-  document.getElementById('wl-step2').style.display = 'none';
-  document.getElementById('wl_empCode').value = '';
-  document.getElementById('wl_checkMsg').textContent = '';
-  document.getElementById('wl_checkMsg').className = 'wl-msg';
+  const step2 = document.getElementById('wl-step2');
+  if (step2) step2.style.display = 'none';
+  const welcome = document.getElementById('wl-welcome');
+  if (welcome) welcome.style.display = 'none';
+  const codeEl = document.getElementById('wl_empCode');
+  if (codeEl) codeEl.value = '';
+  const msgEl = document.getElementById('wl_checkMsg');
+  if (msgEl) { msgEl.textContent = ''; msgEl.className = 'wl-msg'; }
+  const btn = document.getElementById('wl_checkBtn');
+  if (btn) { btn.disabled = false; btn.textContent = 'تسجيل الدخول ←'; }
 }
+
 
 /** يذهب لتبويب المشرف من شاشة الموظف */
 function goToAdminLogin(){
@@ -739,39 +770,69 @@ function workerLogout(){
 }
 
 /**
- * يُنفَّذ عند الضغط على "تسجيل الدخول" في شاشة الموظف.
- * يفحص الكود على السيرفر: إذا موجود → دخول فوري، وإلا → يُظهر حقول التسجيل.
+ * 1-Step Worker Login: looks up code → shows welcome card or error.
+ * No registration form. Workers not in the DB must contact HR.
  */
 async function checkEmpCode(){
-  const codeRaw = document.getElementById('wl_empCode').value.trim();
-  if(!codeRaw){
+  const rawInput = document.getElementById('wl_empCode').value;
+  const cleanCode = String(rawInput || '').trim().replace(/^0+/, '') || '0';
+  if(!cleanCode || (cleanCode === '0' && rawInput.trim() === '')){
     showWlMsg('wl_checkMsg', 'من فضلك أدخل الكود الوظيفي', 'error');
     return;
   }
+  const codeRaw = cleanCode;
   const btn = document.getElementById('wl_checkBtn');
   btn.disabled = true;
   btn.textContent = 'جارِ التحقق…';
+
   try{
-    const res = await fetch(`/api/employees/${encodeURIComponent(codeRaw)}`);
+    const res = await fetch(`/api/employees/lookup/${encodeURIComponent(codeRaw)}`);
     if(res.ok){
       const data = await res.json();
-      // الموظف موجود → دخول فوري
-      finishEmployeeLogin(data.employee);
-    } else if(res.status === 404){
-      // كود جديد → اطلب بيانات التسجيل
-      showWlMsg('wl_checkMsg', '✨ كود جديد! أكمل بيانات التسجيل أدناه', 'info');
-      document.getElementById('wl-step1').style.display = 'none';
-      document.getElementById('wl-step2').style.display = 'block';
-      document.getElementById('wl_name').focus();
+      if(data.found){
+        const emp = data.employee;
+        // Show brief welcome card
+        document.getElementById('wl-step1').style.display = 'none';
+        const welcomeDiv = document.getElementById('wl-welcome');
+        const welcomeText = document.getElementById('wl-welcomeText');
+        if(welcomeDiv && welcomeText){
+          welcomeText.innerHTML =
+            `👋 مرحباً: <strong>${escapeHtml(emp.name)}</strong><br>` +
+            `🏢 القسم: ${escapeHtml(emp.department || '—')}<br>` +
+            (emp.jobTitle ? `💼 المسمى: ${escapeHtml(emp.jobTitle)}<br>` : '');
+          welcomeDiv.style.display = 'block';
+        }
+        // Finish login after a short delay so the user sees the welcome
+        setTimeout(() => {
+          finishEmployeeLogin({
+            empCode:    emp.code,
+            name:       emp.name,
+            department: emp.department,
+            jobTitle:   emp.jobTitle || '',
+            role:       emp.role     || 'worker',
+            phone:      emp.phone    || ''
+          });
+        }, 1200);
+      } else {
+        // Code not in directory → hard error, no registration form
+        showWlMsg('wl_checkMsg',
+          '❌ الكود الوظيفي غير مسجل بقاعدة البيانات، يرجى مراجعة إدارة الموارد البشرية أو المشرف',
+          'error');
+        btn.disabled = false;
+        btn.textContent = 'تسجيل الدخول ←';
+      }
     } else {
       showWlMsg('wl_checkMsg', 'حصل خطأ في التحقق، حاول تاني', 'error');
+      btn.disabled = false;
+      btn.textContent = 'تسجيل الدخول ←';
     }
   } catch(e){
     showWlMsg('wl_checkMsg', 'لا يوجد اتصال بالسيرفر', 'error');
+    btn.disabled = false;
+    btn.textContent = 'تسجيل الدخول ←';
   }
-  btn.disabled = false;
-  btn.textContent = 'تسجيل الدخول ←';
 }
+
 
 /**
  * يُنفَّذ عند الضغط على "حفظ وتسجيل الدخول" للكود الجديد.
@@ -840,6 +901,41 @@ function autoFillForm(){
   set('f_emp',  currentEmployee.empCode, true);
   set('f_phone', currentEmployee.phone, false);
   set('f_dept',  currentEmployee.department, false);
+  // jobTitle field in form (if it exists)
+  const jobTitleEl = safeEl('f_jobTitle');
+  if(jobTitleEl && currentEmployee.jobTitle){
+    jobTitleEl.value = currentEmployee.jobTitle;
+    jobTitleEl.setAttribute('readonly','readonly');
+  }
+}
+
+/** Lookup employee code on the Work Permit form and auto-fill fields */
+async function lookupPermitEmpCode() {
+  const empEl  = safeEl('f_emp');
+  const msgEl  = safeEl('f_empMsg');
+  if (!empEl || !empEl.value.trim()) return;
+  // If autofilled from session, skip
+  if (empEl.hasAttribute('readonly')) return;
+  const rawInput = empEl.value;
+  const cleanCode = String(rawInput || '').trim().replace(/^0+/, '') || '0';
+  try {
+    const res  = await fetch(`/api/employees/lookup/${encodeURIComponent(cleanCode)}`);
+    const data = await res.json();
+    if (data.found) {
+      const emp = data.employee;
+      const set = (id, val) => { const el = safeEl(id); if(el){ el.value = val||''; el.setAttribute('readonly','readonly'); } };
+      set('f_name',     emp.name);
+      set('f_jobTitle', emp.jobTitle);
+      const deptEl = safeEl('f_dept');
+      if (deptEl) deptEl.value = emp.department || '';
+      if (msgEl) { msgEl.textContent = `✅ ${emp.name} — ${emp.department||''}${emp.jobTitle?' | '+emp.jobTitle:''}`; msgEl.style.color='var(--success)'; }
+    } else {
+      if (msgEl) { msgEl.textContent = 'الكود غير مسجل، يرجى كتابة البيانات يدوياً'; msgEl.style.color='var(--muted)'; }
+      ['f_name','f_jobTitle'].forEach(id => { const el=safeEl(id); if(el) el.removeAttribute('readonly'); });
+    }
+  } catch(e) {
+    if (msgEl) { msgEl.textContent = 'خطأ في البحث'; msgEl.style.color='var(--danger)'; }
+  }
 }
 
 /** helper: عرض رسالة في شاشة الدخول */
@@ -956,6 +1052,15 @@ function renderForm(){
         </div>
 
         <div class="section-title">بيانات مقدّم الطلب (مسئول التنفيذ)</div>
+        <div class="field">
+          <label>الكود الوظيفي <small style="font-weight:400;color:var(--muted);">(اكتب كودك لتعبئة بياناتك تلقائياً)</small></label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input id="f_emp" type="text" placeholder="مثال: EMP001"
+                   style="font-family:'Oswald',sans-serif;letter-spacing:1.5px;"
+                   oninput="this.value=this.value.toUpperCase()" onblur="lookupPermitEmpCode()">
+          </div>
+          <div id="f_empMsg" style="font-size:12px;margin-top:3px;min-height:14px;"></div>
+        </div>
         <div class="row2">
           <div class="field">
             <label>الاسم <span class="req-star">*</span></label>
@@ -972,8 +1077,8 @@ function renderForm(){
             <input id="f_phone" type="tel" placeholder="01xxxxxxxxx">
           </div>
           <div class="field">
-            <label>الكود الوظيفي</label>
-            <input id="f_emp" type="text" placeholder="اختياري">
+            <label>المسمى الوظيفي</label>
+            <input id="f_jobTitle" type="text" placeholder="اختياري">
           </div>
         </div>
 
@@ -1798,6 +1903,272 @@ async function saveUserPassword(){
 // ---------- init ----------
 initEmployeeSession();
 
+// =====================================================================
+// 🗂️ EMPLOYEE DIRECTORY — إدارة دليل الموظفين
+// =====================================================================
+
+let _allEmployees   = [];   // full list fetched from server
+let _empEditCode    = null; // code being edited (null = add mode)
+
+const EMP_ROLE_LABELS = {
+  worker:     'عامل / فني',
+  supervisor: 'مشرف',
+  area_head:  'رئيس قسم',
+  contractor: 'مقاول / خارجي'
+};
+
+function empRoleLabel(r){ return EMP_ROLE_LABELS[r] || r || 'عامل'; }
+
+/** Render the employees table panel (fetches from server) */
+async function renderEmployeesPanel() {
+  const listEl = document.getElementById('empDirList');
+  if (!listEl) return;
+  listEl.innerHTML = '<div class="loading">جارِ تحميل الموظفين…</div>';
+
+  // Sync user badge
+  const emArea = document.getElementById('emUserProfileChip');
+  const supChip = document.getElementById('supUserProfileChip');
+  if (emArea && supChip) emArea.innerHTML = supChip.innerHTML;
+
+  try {
+    const res  = await authFetch('/api/employees');
+    if (!res.ok) throw new Error('fetch failed');
+    const data = await res.json();
+    _allEmployees = data.employees || [];
+    renderEmployeesTable(_allEmployees);
+  } catch(e) {
+    listEl.innerHTML = '<div class="empty" style="color:var(--danger);">فشل تحميل الموظفين</div>';
+  }
+}
+
+/** Render (or re-render) the table from a given list */
+function renderEmployeesTable(list) {
+  const listEl = document.getElementById('empDirList');
+  if (!listEl) return;
+  if (list.length === 0) {
+    listEl.innerHTML = '<div class="empty"><div class="icon">👤</div>لا يوجد موظفون بعد — أضف موظفاً أو استورد ملف Excel</div>';
+    return;
+  }
+  listEl.innerHTML = `
+    <div class="um-table-wrap">
+      <table class="um-table emp-dir-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>الكود الوظيفي</th>
+            <th>الاسم الكامل</th>
+            <th>القسم</th>
+            <th>المسمى الوظيفي</th>
+            <th>الصلاحية</th>
+            <th>إجراءات</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${list.map((e, i) => `
+            <tr>
+              <td style="color:var(--muted);font-size:12px;">${i + 1}</td>
+              <td style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;color:var(--amber);">
+                ${escapeHtml(e.empCode)}
+              </td>
+              <td style="font-weight:700;">${escapeHtml(e.name || '—')}</td>
+              <td style="font-size:13px;">${escapeHtml(e.department || '—')}</td>
+              <td style="font-size:13px;color:var(--muted);">${escapeHtml(e.jobTitle || '—')}</td>
+              <td>
+                <span class="emp-role-badge ${e.role || 'worker'}">${empRoleLabel(e.role)}</span>
+              </td>
+              <td>
+                <div class="um-action-btns">
+                  <button class="um-btn pass" onclick="openEmpModal('${escapeHtml(e.empCode)}')">✏️ تعديل</button>
+                  <button class="um-btn del"  onclick="deleteEmployee('${escapeHtml(e.empCode)}','${escapeHtml(e.name||'')}')">🗑 حذف</button>
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-top:8px;text-align:left;">
+      إجمالي: ${list.length} موظف
+    </div>
+  `;
+}
+
+/** Real-time search filter */
+function filterEmployeesTable() {
+  const rawInput = document.getElementById('empSearchInput')?.value;
+  const q = (rawInput || '').toLowerCase().trim();
+  if (!q) { renderEmployeesTable(_allEmployees); return; }
+  
+  const cleanCode = String(rawInput || '').trim().replace(/^0+/, '') || '0';
+  
+  const filtered = _allEmployees.filter(e =>
+    (e.empCode    || '').toLowerCase().includes(q) ||
+    (e.empCode    || '').toLowerCase().includes(cleanCode) ||
+    (e.name       || '').toLowerCase().includes(q) ||
+    (e.department || '').toLowerCase().includes(q) ||
+    (e.jobTitle   || '').toLowerCase().includes(q)
+  );
+  renderEmployeesTable(filtered);
+}
+
+/** Open Add or Edit modal */
+function openEmpModal(code = null) {
+  _empEditCode = code;
+  const titleEl = document.getElementById('empModalTitle');
+  const codeEl  = document.getElementById('em_code');
+
+  if (code) {
+    // Edit mode
+    const emp = _allEmployees.find(e => e.empCode === code);
+    if (!emp) return;
+    if (titleEl) titleEl.textContent = `✏️ تعديل: ${emp.empCode}`;
+    if (codeEl) { codeEl.value = emp.empCode; codeEl.setAttribute('readonly','readonly'); }
+    const set = (id, val) => { const el = document.getElementById(id); if(el) el.value = val || ''; };
+    set('em_name',     emp.name);
+    set('em_dept',     emp.department);
+    set('em_jobTitle', emp.jobTitle);
+    set('em_role',     emp.role || 'worker');
+    set('em_phone',    emp.phone);
+  } else {
+    // Add mode
+    if (titleEl) titleEl.textContent = '➕ إضافة موظف جديد';
+    if (codeEl) { codeEl.value = ''; codeEl.removeAttribute('readonly'); }
+    ['em_name','em_dept','em_jobTitle','em_phone'].forEach(id => {
+      const el = document.getElementById(id); if(el) el.value = '';
+    });
+    const roleEl = document.getElementById('em_role');
+    if (roleEl) roleEl.value = 'worker';
+  }
+
+  const msgEl = document.getElementById('em_msg');
+  if (msgEl) { msgEl.className = 'um-msg'; msgEl.textContent = ''; }
+  document.getElementById('empModal').style.display = 'flex';
+}
+
+function closeEmpModal() {
+  document.getElementById('empModal').style.display = 'none';
+  _empEditCode = null;
+}
+
+/** Save (add or update) an employee */
+async function saveEmployee() {
+  const code     = document.getElementById('em_code')?.value.trim();
+  const name     = document.getElementById('em_name')?.value.trim();
+  const dept     = document.getElementById('em_dept')?.value.trim();
+  const jobTitle = document.getElementById('em_jobTitle')?.value.trim();
+  const role     = document.getElementById('em_role')?.value;
+  const phone    = document.getElementById('em_phone')?.value.trim();
+  const msgEl    = document.getElementById('em_msg');
+
+  if (!code || !name) {
+    if (msgEl) { msgEl.textContent = 'الكود والاسم مطلوبان'; msgEl.className = 'um-msg error show'; }
+    return;
+  }
+
+  try {
+    let res;
+    if (_empEditCode) {
+      // Update
+      res = await authFetch(`/api/employees/${encodeURIComponent(_empEditCode)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, department: dept, jobTitle, role, phone })
+      });
+    } else {
+      // Add
+      res = await authFetch('/api/employees', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empCode: code, name, department: dept, jobTitle, role, phone })
+      });
+    }
+    const data = await res.json();
+    if (res.ok) {
+      if (msgEl) { msgEl.textContent = '✅ تم الحفظ بنجاح'; msgEl.className = 'um-msg success show'; }
+      setTimeout(() => { closeEmpModal(); renderEmployeesPanel(); }, 900);
+    } else {
+      if (msgEl) { msgEl.textContent = data.error || 'فشل الحفظ'; msgEl.className = 'um-msg error show'; }
+    }
+  } catch(e) {
+    if (msgEl) { msgEl.textContent = 'خطأ في الاتصال'; msgEl.className = 'um-msg error show'; }
+  }
+}
+
+/** Delete an employee */
+async function deleteEmployee(code, name) {
+  if (!confirm(`هل تريد حذف الموظف "${name}" (${code})؟\nهذه العملية لا يمكن التراجع عنها.`)) return;
+  try {
+    const res  = await authFetch(`/api/employees/${encodeURIComponent(code)}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (res.ok) {
+      showToast(`تم حذف الموظف ${name} بنجاح`, 'success');
+      renderEmployeesPanel();
+    } else {
+      showToast(data.error || 'فشل الحذف', 'error');
+    }
+  } catch(e) {
+    showToast('خطأ في الاتصال', 'error');
+  }
+}
+
+/** Import employees from an Excel file (reads file → base64 → POST) */
+async function importEmployeesExcel(input) {
+  const file = input?.files?.[0];
+  if (!file) return;
+  // Reset input so the same file can be re-selected
+  input.value = '';
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const base64 = btoa(
+      new Uint8Array(e.target.result).reduce((s, b) => s + String.fromCharCode(b), '')
+    );
+    showToast('جارِ رفع الملف وتحليله…', 'info');
+    try {
+      const res  = await authFetch('/api/employees/import-excel', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ fileData: base64 })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`✅ تم الاستيراد: ${data.added} جديد، ${data.updated} محدّث (الإجمالي: ${data.total})`, 'success');
+        renderEmployeesPanel();
+      } else {
+        showToast(data.error || 'فشل الاستيراد', 'error');
+      }
+    } catch(err) {
+      showToast('خطأ في الاتصال أثناء الاستيراد', 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+/** Export employees as Excel */
+async function exportEmployeesExcel() {
+  try {
+    const res = await authFetch('/api/employees/export-excel');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(err.error || 'فشل التصدير', 'error');
+      return;
+    }
+    const blob = await res.blob();
+    const url  = window.URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `سجل_الموظفين_${new Date().toISOString().split('T')[0]}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+    showToast('تم تحميل ملف الموظفين بنجاح 📊', 'success');
+  } catch(e) {
+    showToast('خطأ في الاتصال أثناء التصدير', 'error');
+  }
+}
+
+
 // ================================================================
 // === تبويب "سجل تصاريحي" (My Permits History) ===
 // ================================================================
@@ -2027,18 +2398,56 @@ async function renderMyHazards(isSilent = false) {
 // pollMyHazards logic merged into silentRefreshHazards
 
 function initHazardWorker() {
+  const elDate = document.getElementById('hz_date');
+  if (elDate && !elDate.value) {
+    elDate.value = new Date().toISOString().split('T')[0];
+  }
+  calculateHazardRisk();
+
+  const codeWrap = document.getElementById('hz_codeFieldWrap');
   if (currentEmployee) {
+    // Session active: auto-fill and hide the code lookup field
     const elName = document.getElementById('hz_name');
     if (elName && !elName.value) elName.value = currentEmployee.name;
     const elDept = document.getElementById('hz_dept');
-    if (elDept && !elDept.value) elDept.value = currentEmployee.department || '';
+    if (elDept) elDept.value = currentEmployee.department || '';
+    // Hide the code lookup field since we already have session data
+    if (codeWrap) codeWrap.style.display = 'none';
+  } else {
+    // No session: show code lookup, clear previous auto-fills
+    if (codeWrap) codeWrap.style.display = 'block';
+    const empCodeEl = document.getElementById('hz_empCode');
+    if (empCodeEl) empCodeEl.value = '';
+    const msgEl = document.getElementById('hz_codeMsg');
+    if (msgEl) msgEl.textContent = '';
   }
-  const elDate = document.getElementById('hz_date');
-  if (elDate && !elDate.value) {
-    const today = new Date().toISOString().split('T')[0];
-    elDate.value = today;
+}
+
+/** Employee code lookup for the Hazard form */
+async function lookupHazardEmpCode() {
+  const codeEl = document.getElementById('hz_empCode');
+  const msgEl  = document.getElementById('hz_codeMsg');
+  if (!codeEl || !codeEl.value.trim()) return;
+  const rawInput = codeEl.value;
+  const cleanCode = String(rawInput || '').trim().replace(/^0+/, '') || '0';
+  try {
+    const res  = await fetch(`/api/employees/lookup/${encodeURIComponent(cleanCode)}`);
+    const data = await res.json();
+    if (data.found) {
+      const emp = data.employee;
+      const nameEl = document.getElementById('hz_name');
+      const deptEl = document.getElementById('hz_dept');
+      if (nameEl) { nameEl.value = emp.name; nameEl.setAttribute('readonly','readonly'); }
+      if (deptEl) deptEl.value = emp.department || '';
+      if (msgEl) { msgEl.textContent = `✅ ${emp.name} — ${emp.department || ''}`; msgEl.style.color = 'var(--success)'; }
+    } else {
+      if (msgEl) { msgEl.textContent = 'الكود غير مسجل، يرجى كتابة البيانات يدوياً'; msgEl.style.color = 'var(--muted)'; }
+      const nameEl = document.getElementById('hz_name');
+      if (nameEl) nameEl.removeAttribute('readonly');
+    }
+  } catch(e) {
+    if (msgEl) { msgEl.textContent = 'خطأ في البحث'; msgEl.style.color = 'var(--danger)'; }
   }
-  calculateHazardRisk();
 }
 
 function calculateHazardRisk() {

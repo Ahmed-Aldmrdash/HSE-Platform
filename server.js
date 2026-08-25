@@ -34,6 +34,9 @@ const DATA_FILE = path.join(DATA_DIR, 'storage.json');
 const HAZARDS_FILE = path.join(DATA_DIR, 'hazard-reports.json');
 const EXCEL_FILE = path.join(DATA_DIR, 'permits_log.xlsx');
 const HAZARDS_EXCEL_FILE = path.join(DATA_DIR, 'hazards_log.xlsx');
+const EMPLOYEES_FILE = path.join(DATA_DIR, 'employees.json');
+const EMPLOYEES_XLSX_INPUT = path.join(DATA_DIR, 'employees.xlsx');
+const EMPLOYEES_EXCEL_EXPORT = path.join(DATA_DIR, 'employees_export.xlsx');
 
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -162,6 +165,190 @@ function writeHazards(data) {
   } catch (err) {
     console.error('Error writing hazard-reports.json:', err);
     return false;
+  }
+}
+
+// ── Employee Storage Helpers ──────────────────────────────
+
+function normalizeEmpCode(code) {
+  if (!code && code !== 0) return '';
+  const str = String(code).trim();
+  const stripped = str.replace(/^0+/, '');
+  return stripped === '' ? '0' : stripped;
+}
+
+function readEmployees() {
+  if (!fs.existsSync(EMPLOYEES_FILE)) return [];
+  try {
+    return JSON.parse(fs.readFileSync(EMPLOYEES_FILE, 'utf8'));
+  } catch (err) {
+    console.error('Error reading employees.json:', err);
+    return [];
+  }
+}
+
+function writeEmployees(data) {
+  try {
+    fs.writeFileSync(EMPLOYEES_FILE, JSON.stringify(data, null, 2), 'utf8');
+    return true;
+  } catch (err) {
+    console.error('Error writing employees.json:', err);
+    return false;
+  }
+}
+
+/**
+ * Maps a raw Excel row object (keyed by column header) to the employee schema.
+ * Supports Arabic and English column names.
+ */
+function normalizeEmployeeRow(row) {
+  // Extract cell value as clean string (handles rich-text objects from ExcelJS)
+  const clean = (val) => {
+    if (val === undefined || val === null) return '';
+    // ExcelJS rich-text: { richText: [{text:'...'},...] }
+    if (typeof val === 'object' && val.richText) {
+      return val.richText.map(r => r.text || '').join('').trim();
+    }
+    return String(val).trim();
+  };
+
+  // Helper: try a list of keys in order (exact, then case-insensitive)
+  const pick = (...keys) => {
+    for (const k of keys) {
+      const v = clean(row[k]);
+      if (v) return v;
+    }
+    // case-insensitive fallback
+    for (const k of keys) {
+      const kl = k.toLowerCase();
+      for (const rk of Object.keys(row)) {
+        if (rk.trim().toLowerCase() === kl) {
+          const v = clean(row[rk]);
+          if (v) return v;
+        }
+      }
+    }
+    return '';
+  };
+
+  // ── Exact headers from the factory Excel file ──────────────
+  const code = pick(
+    'Employee Number', 'EmployeeNumber', 'employee number', 'employee_number',
+    'الكود الوظيفي', 'الكود', 'كود', 'كود الموظف', 'الرقم الوظيفي', 'رقم القيد',
+    'code', 'Code', 'empCode', 'id', 'ID', 'emp_id', 'EMP_CODE'
+  );
+
+  if (!code) return null;
+
+  const name = pick(
+    'Arabic Name', 'ArabicName', 'arabic name', 'arabic_name',
+    'الاسم الكامل', 'الاسم', 'اسم الموظف', 'اسم العامل', 'الاسم ثلاثي',
+    'name', 'Name', 'full name', 'Full Name', 'employee name'
+  );
+
+  const department = pick(
+    'Organization Description', 'OrganizationDescription', 'organization description', 'organization_description',
+    'القسم', 'الإدارة', 'الادارة', 'القطاع', 'مكان العمل',
+    'department', 'Department', 'dept', 'sector'
+  );
+
+  const jobTitle = pick(
+    'Position', 'position', 'job title', 'Job Title', 'jobtitle',
+    'المسمى الوظيفي', 'الوظيفة', 'المهنة', 'مسمى الوظيفة',
+    'title', 'Title'
+  );
+
+  const rawRole = pick('الصلاحية', 'الدور', 'role', 'Role').toLowerCase();
+  const validRoles = ['worker', 'supervisor', 'area_head', 'contractor'];
+
+  return {
+    empCode:    normalizeEmpCode(code),
+    name:       name   || 'موظف',
+    department: department || 'عام',
+    jobTitle:   jobTitle   || '',
+    role:       validRoles.includes(rawRole) ? rawRole : 'worker',
+    phone:      pick(
+      'رقم الهاتف', 'الهاتف', 'الموبايل', 'رقم التليفون',
+      'phone', 'Phone', 'mobile', 'Mobile', 'tel'
+    ),
+  };
+}
+
+/** Parse an xlsx buffer using ExcelJS, returns array of normalized employee objects. */
+async function parseEmployeesXlsx(buffer) {
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(buffer);
+  const ws = wb.worksheets[0];
+  if (!ws) return [];
+
+  // Helper: extract string from any ExcelJS cell value type
+  const cellStr = (cell) => {
+    if (!cell) return '';
+    const v = cell.value;
+    if (v === null || v === undefined) return '';
+    if (typeof v === 'object' && v.richText) {
+      return v.richText.map(r => r.text || '').join('').trim();
+    }
+    if (typeof v === 'object' && v.result !== undefined) return String(v.result).trim(); // formula
+    if (v instanceof Date) return v.toISOString().split('T')[0];
+    return String(v).trim();
+  };
+
+  // Read headers from row 1 (all columns, including empty gaps)
+  const headers = {}; // colNum → header string
+  const headerRow = ws.getRow(1);
+  headerRow.eachCell({ includeEmpty: true }, (cell, colNum) => {
+    const h = cellStr(cell);
+    if (h) headers[colNum] = h;
+  });
+
+  console.log('[Employees] Detected headers:', Object.values(headers));
+
+  const employees = [];
+  ws.eachRow((row, rowNum) => {
+    if (rowNum === 1) return; // skip header row
+    const rowObj = {};
+    row.eachCell({ includeEmpty: false }, (cell, colNum) => {
+      const hdr = headers[colNum];
+      if (hdr) rowObj[hdr] = cell.value;
+    });
+    const emp = normalizeEmployeeRow(rowObj);
+    if (emp && emp.empCode) employees.push(emp);
+  });
+  return employees;
+}
+
+/**
+ * On startup: if employees.json does not exist but employees.xlsx does,
+ * parse the xlsx and save employees.json automatically.
+ */
+async function loadEmployeesFromXlsxIfNeeded() {
+  // Check if employees.json exists AND has at least one record
+  const jsonExists   = fs.existsSync(EMPLOYEES_FILE);
+  const currentData  = jsonExists ? readEmployees() : [];
+  const jsonHasData  = currentData.length > 0;
+
+  if (jsonExists && jsonHasData) {
+    console.log(`✅ employees.json found (${currentData.length} records) — skipping xlsx import.`);
+    return;
+  }
+
+  if (!fs.existsSync(EMPLOYEES_XLSX_INPUT)) {
+    if (!jsonExists) console.log('ℹ️  No employees.xlsx found — employee directory starts empty.');
+    return;
+  }
+
+  try {
+    const buffer    = fs.readFileSync(EMPLOYEES_XLSX_INPUT);
+    const employees = await parseEmployeesXlsx(buffer);
+    if (employees.length === 0) {
+      console.log('⚠️  employees.xlsx parsed 0 rows — check column headers.');
+      return;
+    }
+    writeEmployees(employees);
+    console.log(`✅ Auto-imported ${employees.length} employees from employees.xlsx → employees.json`);
+  } catch (err) {
+    console.error('❌ Failed to auto-import employees.xlsx:', err.message);
   }
 }
 
@@ -313,6 +500,7 @@ function runHazardBackfillOnStartup() {
   await ensureDefaultSuperAdmin();
   await migratePasswordsIfNeeded();
   runHazardBackfillOnStartup();
+  await loadEmployeesFromXlsxIfNeeded();
   console.log('🔒 Security initialization complete.');
 })();
 
@@ -1351,85 +1539,233 @@ app.patch('/api/users/:id/password',
 );
 
 // ============================================================
-// 👷 API ROUTES — EMPLOYEES (مفتوح — بدون تسجيل دخول)
+// 👷 API ROUTES — EMPLOYEES
 // ============================================================
 
-// ── GET /api/employees — جلب كل الموظفين
-app.get('/api/employees', (req, res) => {
-  const storage = readStorage();
-  let employees = [];
-  if (storage['employees']) {
-    try { employees = JSON.parse(storage['employees']); } catch { employees = []; }
-  }
-  res.json({ employees });
-});
-
-// ── GET /api/employees/:empCode — البحث بالكود
-app.get('/api/employees/:empCode', (req, res) => {
-  const empCode = req.params.empCode.trim().toLowerCase();
-  const storage = readStorage();
-  let employees = [];
-  if (storage['employees']) {
-    try { employees = JSON.parse(storage['employees']); } catch { employees = []; }
-  }
-  const emp = employees.find(e => e.empCode && e.empCode.toLowerCase() === empCode);
-  if (!emp) {
-    return res.status(404).json({ error: 'الكود الوظيفي غير موجود' });
-  }
-  res.json({ employee: emp });
-});
-
-// ── POST /api/employees — إضافة/تحديث موظف
-app.post('/api/employees', employeeLimiter, async (req, res) => {
-  const { empCode, name, phone, department } = req.body;
-
-  if (!empCode || !name) {
-    return res.status(400).json({ error: 'الكود الوظيفي والاسم مطلوبان' });
-  }
-
-  let result;
-  await enqueueWrite(async () => {
-    const storage = readStorage();
-    let employees = [];
-    if (storage['employees']) {
-      try { employees = JSON.parse(storage['employees']); } catch { employees = []; }
-    }
-
-    const codeNorm = empCode.trim();
-    const existingIdx = employees.findIndex(e => e.empCode && e.empCode.toLowerCase() === codeNorm.toLowerCase());
-
-    if (existingIdx !== -1) {
-      employees[existingIdx] = {
-        ...employees[existingIdx],
-        name:       name.trim(),
-        phone:      (phone || '').trim(),
-        department: (department || '').trim()
-      };
-      storage['employees'] = JSON.stringify(employees);
-      writeStorage(storage);
-      result = { status: 200, body: { success: true, employee: employees[existingIdx] } };
-      return;
-    }
-
-    const newEmp = {
-      empCode:      codeNorm,
-      name:         name.trim(),
-      phone:        (phone || '').trim(),
-      department:   (department || '').trim(),
-      registeredAt: new Date().toISOString()
-    };
-    employees.push(newEmp);
-    storage['employees'] = JSON.stringify(employees);
-
-    if (writeStorage(storage)) {
-      result = { status: 200, body: { success: true, employee: newEmp } };
-    } else {
-      result = { status: 500, body: { error: 'فشل حفظ بيانات الموظف' } };
+// ── GET /api/employees/lookup/:code — بحث عام بالكود (Public)
+// NOTE: Must be declared BEFORE /api/employees/:code to prevent route conflict
+app.get('/api/employees/lookup/:code', (req, res) => {
+  const searchCode = normalizeEmpCode(req.params.code);
+  const employees = readEmployees();
+  const emp = employees.find(e => normalizeEmpCode(e.code || e.empCode) === searchCode);
+  if (!emp) return res.json({ found: false });
+  res.json({
+    found: true,
+    employee: {
+      code:       emp.empCode,
+      name:       emp.name       || '',
+      department: emp.department  || '',
+      jobTitle:   emp.jobTitle   || '',
+      role:       emp.role       || 'worker',
+      phone:      emp.phone      || ''
     }
   });
+});
 
+// ── GET /api/employees/export-excel — تصدير قاعدة الموظفين كـ xlsx
+app.get('/api/employees/export-excel',
+  authenticateToken,
+  requireRole('superadmin', 'admin', 'supervisor'),
+  async (req, res) => {
+    try {
+      const employees = readEmployees();
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('قاعدة الموظفين');
+      ws.columns = [
+        { header: 'الكود الوظيفي',  key: 'empCode',    width: 18 },
+        { header: 'الاسم الكامل',   key: 'name',       width: 26 },
+        { header: 'القسم',          key: 'department', width: 22 },
+        { header: 'المسمى الوظيفي', key: 'jobTitle',   width: 22 },
+        { header: 'الصلاحية',       key: 'role',       width: 15 },
+        { header: 'رقم التليفون',   key: 'phone',      width: 18 },
+      ];
+      employees.forEach(e => ws.addRow({
+        empCode:    e.empCode    || '',
+        name:       e.name       || '',
+        department: e.department || '',
+        jobTitle:   e.jobTitle   || '',
+        role:       e.role       || 'worker',
+        phone:      e.phone      || ''
+      }));
+      ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD51E27' } };
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="employees_${Date.now()}.xlsx"`);
+      await wb.xlsx.write(res);
+      return res.end();
+    } catch (err) {
+      console.error('Export employees error:', err);
+      if (!res.headersSent) res.status(500).json({ error: 'فشل تصدير بيانات الموظفين' });
+    }
+  }
+);
+
+// ── POST /api/employees/import-excel — استيراد/دمج xlsx (base64)
+app.post('/api/employees/import-excel',
+  authenticateToken,
+  requireRole('superadmin', 'admin', 'supervisor'),
+  async (req, res) => {
+    const { fileData } = req.body;
+    if (!fileData) return res.status(400).json({ error: 'fileData (base64) مطلوب' });
+    try {
+      const buffer = Buffer.from(fileData, 'base64');
+      const incoming = await parseEmployeesXlsx(buffer);
+      if (incoming.length === 0) {
+        return res.status(400).json({ error: 'الملف لا يحتوي على بيانات صالحة أو الأعمدة غير متوافقة' });
+      }
+      let addedCount = 0, updatedCount = 0;
+      await enqueueWrite(async () => {
+        const existing = readEmployees();
+        const map = new Map(existing.map(e => [normalizeEmpCode(e.empCode).toLowerCase(), e]));
+        incoming.forEach(emp => {
+          const key = normalizeEmpCode(emp.empCode).toLowerCase();
+          if (map.has(key)) {
+            const old = map.get(key);
+            map.set(key, {
+              ...old,
+              name:       emp.name       || old.name,
+              department: emp.department || old.department,
+              jobTitle:   emp.jobTitle   || old.jobTitle,
+              role:       emp.role       !== 'worker' ? emp.role : (old.role || 'worker'),
+              phone:      emp.phone      || old.phone,
+              updatedAt:  new Date().toISOString()
+            });
+            updatedCount++;
+          } else {
+            map.set(key, { ...emp, registeredAt: new Date().toISOString() });
+            addedCount++;
+          }
+        });
+        writeEmployees(Array.from(map.values()));
+      });
+      res.json({ success: true, added: addedCount, updated: updatedCount, total: readEmployees().length });
+    } catch (err) {
+      console.error('Import employees error:', err);
+      if (!res.headersSent) res.status(500).json({ error: 'فشل قراءة ملف الإكسيل: ' + err.message });
+    }
+  }
+);
+
+// ── GET /api/employees — جلب كل الموظفين (محمي)
+app.get('/api/employees',
+  authenticateToken,
+  requireRole('superadmin', 'admin', 'supervisor'),
+  (req, res) => res.json({ employees: readEmployees() })
+);
+
+// ── POST /api/employees — إضافة موظف (محمي) أو تسجيل ذاتي (عام)
+app.post('/api/employees', async (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authenticateToken(req, res, () =>
+      requireRole('superadmin', 'admin', 'supervisor')(req, res, next)
+    );
+  }
+  return employeeLimiter(req, res, next);
+}, async (req, res) => {
+  const rawCode = (req.body.empCode || req.body.code || '').trim();
+  const { name, phone, department, jobTitle, role } = req.body;
+  if (!rawCode || !name) {
+    return res.status(400).json({ error: 'الكود الوظيفي والاسم مطلوبان' });
+  }
+  let result;
+  await enqueueWrite(async () => {
+    const employees = readEmployees();
+    const normalizedCode = normalizeEmpCode(rawCode);
+    const idx = employees.findIndex(e => normalizeEmpCode(e.code || e.empCode) === normalizedCode);
+    const validRoles = ['worker','supervisor','area_head','contractor'];
+    if (idx !== -1) {
+      employees[idx] = {
+        ...employees[idx],
+        name:       sanitizeStr(name, 100),
+        phone:      sanitizeStr(phone || '', 20),
+        department: sanitizeStr(department || '', 100),
+        jobTitle:   sanitizeStr(jobTitle || employees[idx].jobTitle || '', 100),
+        role:       validRoles.includes(role) ? role : (employees[idx].role || 'worker'),
+        updatedAt:  new Date().toISOString()
+      };
+      writeEmployees(employees);
+      result = { status: 200, body: { success: true, employee: employees[idx] } };
+    } else {
+      const newEmp = {
+        empCode:      normalizedCode,
+        name:         sanitizeStr(name, 100),
+        phone:        sanitizeStr(phone || '', 20),
+        department:   sanitizeStr(department || '', 100),
+        jobTitle:     sanitizeStr(jobTitle || '', 100),
+        role:         validRoles.includes(role) ? role : 'worker',
+        registeredAt: new Date().toISOString()
+      };
+      employees.push(newEmp);
+      if (writeEmployees(employees)) {
+        result = { status: 201, body: { success: true, employee: newEmp } };
+      } else {
+        result = { status: 500, body: { error: 'فشل حفظ بيانات الموظف' } };
+      }
+    }
+  });
   res.status(result.status).json(result.body);
 });
+
+// ── PUT /api/employees/:code — تعديل بيانات موظف (محمي)
+app.put('/api/employees/:code',
+  authenticateToken,
+  requireRole('superadmin', 'admin', 'supervisor'),
+  async (req, res) => {
+    const targetCode = normalizeEmpCode(req.params.code);
+    const { name, phone, department, jobTitle, role } = req.body;
+    let result;
+    await enqueueWrite(async () => {
+      const employees = readEmployees();
+      const idx = employees.findIndex(e => normalizeEmpCode(e.code || e.empCode) === targetCode);
+      if (idx === -1) {
+        result = { status: 404, body: { error: 'الموظف غير موجود' } };
+        return;
+      }
+      const validRoles = ['worker','supervisor','area_head','contractor'];
+      employees[idx] = {
+        ...employees[idx],
+        name:       sanitizeStr(name       || employees[idx].name,       100),
+        phone:      sanitizeStr(phone      !== undefined ? phone      : (employees[idx].phone      || ''), 20),
+        department: sanitizeStr(department || employees[idx].department, 100),
+        jobTitle:   sanitizeStr(jobTitle   !== undefined ? jobTitle   : (employees[idx].jobTitle   || ''), 100),
+        role:       validRoles.includes(role) ? role : (employees[idx].role || 'worker'),
+        updatedAt:  new Date().toISOString()
+      };
+      if (writeEmployees(employees)) {
+        result = { status: 200, body: { success: true, employee: employees[idx] } };
+      } else {
+        result = { status: 500, body: { error: 'فشل تحديث بيانات الموظف' } };
+      }
+    });
+    res.status(result.status).json(result.body);
+  }
+);
+
+// ── DELETE /api/employees/:code — حذف موظف (محمي)
+app.delete('/api/employees/:code',
+  authenticateToken,
+  requireRole('superadmin', 'admin', 'supervisor'),
+  async (req, res) => {
+    const targetCode = normalizeEmpCode(req.params.code);
+    let result;
+    await enqueueWrite(async () => {
+      const employees = readEmployees();
+      const idx = employees.findIndex(e => normalizeEmpCode(e.code || e.empCode) === targetCode);
+      if (idx === -1) {
+        result = { status: 404, body: { error: 'الموظف غير موجود' } };
+        return;
+      }
+      employees.splice(idx, 1);
+      if (writeEmployees(employees)) {
+        result = { status: 200, body: { success: true } };
+      } else {
+        result = { status: 500, body: { error: 'فشل حذف الموظف' } };
+      }
+    });
+    res.status(result.status).json(result.body);
+  }
+);
 
 // ── 404 fallback ──────────────────────────────────────────────
 app.use((req, res) => {
