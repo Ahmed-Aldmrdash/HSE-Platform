@@ -294,7 +294,7 @@ function writeNotifications(data) {
  * Creates a notification and appends it to the storage safely using enqueueWrite.
  * @param {Object} options - { targetRole, targetEmpCode, targetGroup, type, title, message, link }
  */
-function createNotification({ targetRole, targetEmpCode, targetGroup, type, title, message, link }) {
+function createNotification({ targetRole, targetEmpCode, targetGroup, type, title, message, link, targetId }) {
   enqueueWrite(async () => {
     const notifications = readNotifications();
     const newNotif = {

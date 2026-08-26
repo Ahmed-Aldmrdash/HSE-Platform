@@ -3527,12 +3527,12 @@ function renderNotifications() {
         const nativeNotif = new Notification(n.title, { body: n.message, icon: 'icons/icon-192.png' });
         nativeNotif.onclick = function() {
           window.focus();
-          handleNotificationClick(n.id, n.link);
+          handleNotificationClick(n.id, n.link, n.targetId, n.type);
         };
       }
       
       // Also show an immediate in-app Toast alert
-      showInAppToast(n.title, n.message, () => handleNotificationClick(n.id, n.link));
+      showInAppToast(n.title, n.message, () => handleNotificationClick(n.id, n.link, n.targetId, n.type));
     }
 
     if (currentNotifFilter === 'all') return true;
@@ -3551,7 +3551,7 @@ function renderNotifications() {
     if (n.type === 'training') { typeClass = 'type-training'; iconEmoji = '🎓'; }
 
     return `
-      <div class="notif-item ${isUnread ? 'unread' : ''} ${typeClass}" onclick="handleNotificationClick('${n.id}', '${n.link}')">
+      <div class="notif-item ${isUnread ? 'unread' : ''} ${typeClass}" onclick="handleNotificationClick('${n.id}', '${n.link}', '${n.targetId || ''}', '${n.type || ''}')">
         <div class="notif-icon">${iconEmoji}</div>
         <div class="notif-body">
           <div class="notif-title">${escapeHtml(n.title)}</div>
@@ -3581,7 +3581,7 @@ function renderNotifications() {
   }
 }
 
-async function handleNotificationClick(id, link) {
+async function handleNotificationClick(id, link, targetId, type) {
   // Mark read
   await markReadAPI(id);
   
@@ -3590,6 +3590,45 @@ async function handleNotificationClick(id, link) {
   // Navigate
   if (link) {
     switchTab(link);
+    
+    if (targetId) {
+      setTimeout(() => {
+        let targetEl = null;
+        if (type === 'permit') {
+          // Search in permits table or history
+          const els = document.querySelectorAll('.tnum, .phc-id');
+          for (const el of Array.from(els)) {
+            if (el.textContent.trim().includes(targetId)) {
+              targetEl = el.closest('.sup-card') || el.closest('.permit-history-card');
+              break;
+            }
+          }
+        } else if (type === 'hazard') {
+          // Search in hazards table
+          const els = document.querySelectorAll('.tnum');
+          for (const el of Array.from(els)) {
+            if (el.textContent.trim().includes(targetId)) {
+              targetEl = el.closest('.sup-card');
+              break;
+            }
+          }
+        } else if (type === 'training') {
+          // Focus on PIN input if in training worker view
+          targetEl = document.getElementById('trnWorkerPin');
+        }
+        
+        if (targetEl) {
+          targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          targetEl.classList.remove('highlight-focus');
+          void targetEl.offsetWidth; // trigger reflow
+          targetEl.classList.add('highlight-focus');
+          
+          if (type === 'training' && targetEl.tagName === 'INPUT') {
+            targetEl.focus();
+          }
+        }
+      }, 800); // Give it some time to load the tab content
+    }
   }
   
   fetchNotifications();

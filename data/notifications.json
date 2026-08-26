@@ -10,5 +10,41 @@
     "link": "tabSupHazard",
     "readBy": [],
     "createdAt": "2026-08-25T20:36:28.235Z"
+  },
+  {
+    "id": "NT-1787723111041-573",
+    "targetRole": "admin",
+    "targetEmpCode": null,
+    "targetGroup": null,
+    "type": "permit",
+    "title": "تصريح جديد 📋",
+    "message": "مقدم من احمد محمد فتحي الدمرداش نوع عام في outside",
+    "link": "tabPermits",
+    "readBy": [],
+    "createdAt": "2026-08-26T05:45:11.041Z"
+  },
+  {
+    "id": "NT-1787723111043-930",
+    "targetRole": null,
+    "targetEmpCode": "1",
+    "targetGroup": null,
+    "type": "permit",
+    "title": "استلام طلب تصريح ✅",
+    "message": "تم استلام طلب تصريحك بنجاح وهو قيد المراجعة",
+    "link": "tabMyHistory",
+    "readBy": [],
+    "createdAt": "2026-08-26T05:45:11.043Z"
+  },
+  {
+    "id": "NT-1787723139699-354",
+    "targetRole": "admin",
+    "targetEmpCode": null,
+    "targetGroup": null,
+    "type": "hazard",
+    "title": "بلاغ خطورة جديد 🚨",
+    "message": "بلاغ خطورة جديد في w - esd",
+    "link": "tabSupHazard",
+    "readBy": [],
+    "createdAt": "2026-08-26T05:45:39.700Z"
   }
 ]

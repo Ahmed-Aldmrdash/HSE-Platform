@@ -249,5 +249,23 @@
     "updatedBy": "المدير العام",
     "inProgressAt": "2026-08-25T20:59:05.111Z",
     "inProgressBy": "المدير العام"
+  },
+  {
+    "id": "HZ-2026-0013",
+    "reporterName": "احمد محمد فتحي الدمرداش",
+    "empCode": "",
+    "date": "2026-08-26",
+    "department": "Quality Control",
+    "area": "w",
+    "description": "esd",
+    "potentialInjury": "wesd",
+    "proposedSolution": "",
+    "likelihood": 1,
+    "severity": "A",
+    "riskLevel": "L",
+    "status": "open",
+    "actionTaken": "",
+    "photoUrl": "",
+    "submittedAt": "2026-08-26T05:45:39.640Z"
   }
 ]
