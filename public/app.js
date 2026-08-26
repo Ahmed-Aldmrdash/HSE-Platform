@@ -3597,7 +3597,17 @@ async function handleNotificationClick(id, link, targetId, type) {
   
   // Navigate
   if (link) {
-    switchTab(link);
+    const tabMap = {
+      'tabPermits': 'sup',
+      'tabMyHistory': 'myhistory',
+      'tabSupHazard': 'supHazard',
+      'tabHazardWorker': 'hazardWorker',
+      'tabMyHazards': 'myhazards',
+      'tabTrainingWorker': 'trainingWorker',
+      'tabTrainingAdmin': 'trainingAdmin'
+    };
+    const mappedLink = tabMap[link] || link;
+    switchTab(mappedLink);
     
     if (targetId) {
       setTimeout(() => {
