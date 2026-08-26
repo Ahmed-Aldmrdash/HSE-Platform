@@ -614,6 +614,7 @@ async function attemptLogin(){
     showUserBadge();
     applyRbacUI();
     startNotificationPolling();
+    subscribeUserToPush();
     // Switch to supervisor view (guard allows 'sup' now)
     switchTab('sup');
     showDashboard();
@@ -767,6 +768,7 @@ function initEmployeeSession(){
       showEmpBadge();
       renderForm();
       startNotificationPolling();
+      subscribeUserToPush();
       switchTab('worker');
       return;
     }
@@ -932,6 +934,7 @@ function finishEmployeeLogin(emp){
   showEmpBadge();
   autoFillForm();
   startNotificationPolling();
+  subscribeUserToPush();
   // switchTab guard now allows 'worker' since sessionRole === 'worker'
   switchTab('worker');
 }
@@ -3730,4 +3733,74 @@ function showInAppToast(title, message, onClickCallback) {
       setTimeout(() => toast.remove(), 300);
     }
   }, 5000);
+}
+
+// ── Web Push & Service Worker Registration ───────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => {
+        console.log('[SW] Registered successfully:', reg.scope);
+      })
+      .catch(err => {
+        console.warn('[SW] Registration failed:', err);
+      });
+  });
+}
+
+async function subscribeUserToPush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    return;
+  }
+  
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    
+    // Check existing subscription
+    let subscription = await registration.pushManager.getSubscription();
+    
+    if (!subscription) {
+      // Get public key
+      const response = await fetch('/api/vapid-publicKey');
+      if (!response.ok) return;
+      const vapidPublicKey = await response.text();
+      
+      // Convert VAPID key
+      const urlB64ToUint8Array = (base64String) => {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+          outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+      };
+      
+      const convertedVapidKey = urlB64ToUint8Array(vapidPublicKey);
+      
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: convertedVapidKey
+      });
+    }
+    
+    // Send subscription to server
+    const payload = { subscription };
+    if (sessionRole !== 'none' && sessionRole !== 'worker') {
+      payload.role = sessionRole;
+    } else if (currentEmployee && currentEmployee.empCode) {
+      payload.empCode = currentEmployee.empCode;
+    }
+    
+    await fetch('/api/notifications/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    
+    console.log('[Web Push] Subscribed successfully');
+  } catch (err) {
+    console.error('[Web Push] Failed to subscribe', err);
+  }
 }

@@ -73,3 +73,48 @@ self.addEventListener('message', (event) => {
     self.skipWaiting();
   }
 });
+
+// ── Web Push Event Listeners ─────────────────────────────────────
+self.addEventListener('push', function(event) {
+  if (event.data) {
+    try {
+      const data = event.data.json();
+      const title = data.title || 'تنبيه جديد';
+      const options = {
+        body: data.body || 'لديك إشعار جديد',
+        icon: '/icons/icon-192.png',
+        badge: '/icons/icon-192.png',
+        data: {
+          url: data.link ? '/?link=' + data.link + '&targetId=' + (data.targetId || '') : '/',
+          type: data.type
+        }
+      };
+
+      event.waitUntil(self.registration.showNotification(title, options));
+    } catch (err) {
+      console.error('[SW] Error parsing push data:', err);
+    }
+  }
+});
+
+self.addEventListener('notificationclick', function(event) {
+  event.notification.close();
+
+  const targetUrl = event.notification.data.url || '/';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
+      // If a window is already open, focus it and navigate
+      for (let i = 0; i < clientList.length; i++) {
+        const client = clientList[i];
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          return client.focus().then(() => client.navigate(targetUrl));
+        }
+      }
+      // If no window is open, open a new one
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
+});

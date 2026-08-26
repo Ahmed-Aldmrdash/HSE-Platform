@@ -13,6 +13,7 @@ const ExcelJS    = require('exceljs');
 const bcrypt     = require('bcryptjs');
 const jwt        = require('jsonwebtoken');
 const rateLimit  = require('express-rate-limit');
+const webpush    = require('web-push');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -42,6 +43,8 @@ const EMPLOYEES_EXCEL_EXPORT = path.join(DATA_DIR, 'employees_export.xlsx');
 const TRAINING_TOPICS_FILE = path.join(DATA_DIR, 'training-topics.json');
 const TRAININGS_FILE = path.join(DATA_DIR, 'trainings.json');
 const NOTIFICATIONS_FILE = path.join(DATA_DIR, 'notifications.json');
+const SUBSCRIPTIONS_FILE = path.join(DATA_DIR, 'push-subscriptions.json');
+const VAPID_KEYS_FILE = path.join(DATA_DIR, 'vapid.json');
 
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -71,6 +74,23 @@ if (!fs.existsSync(TRAINING_TOPICS_FILE)) {
 if (!fs.existsSync(TRAININGS_FILE)) {
   fs.writeFileSync(TRAININGS_FILE, JSON.stringify([], null, 2), 'utf8');
 }
+if (!fs.existsSync(SUBSCRIPTIONS_FILE)) {
+  fs.writeFileSync(SUBSCRIPTIONS_FILE, JSON.stringify([], null, 2), 'utf8');
+}
+
+// ── Web Push Initialization ────────────────────────────────────
+let vapidKeys = { publicKey: '', privateKey: '' };
+if (fs.existsSync(VAPID_KEYS_FILE)) {
+  vapidKeys = JSON.parse(fs.readFileSync(VAPID_KEYS_FILE, 'utf8'));
+} else {
+  vapidKeys = webpush.generateVAPIDKeys();
+  fs.writeFileSync(VAPID_KEYS_FILE, JSON.stringify(vapidKeys, null, 2), 'utf8');
+}
+webpush.setVapidDetails(
+  'mailto:admin@elsewedy.com',
+  vapidKeys.publicKey,
+  vapidKeys.privateKey
+);
 
 // ── Security Headers Middleware ───────────────────────────────
 // Applied before all other routes. No external dependency needed.
@@ -290,6 +310,21 @@ function writeNotifications(data) {
   }
 }
 
+function readSubscriptions() {
+  try { return JSON.parse(fs.readFileSync(SUBSCRIPTIONS_FILE, 'utf8')); }
+  catch { return []; }
+}
+
+function writeSubscriptions(data) {
+  try {
+    fs.writeFileSync(SUBSCRIPTIONS_FILE, JSON.stringify(data, null, 2), 'utf8');
+    return true;
+  } catch (err) {
+    console.error('Error writing subscriptions:', err);
+    return false;
+  }
+}
+
 /**
  * Creates a notification and appends it to the storage safely using enqueueWrite.
  * @param {Object} options - { targetRole, targetEmpCode, targetGroup, type, title, message, link }
@@ -306,6 +341,7 @@ function createNotification({ targetRole, targetEmpCode, targetGroup, type, titl
       title: sanitizeStr(title, 200),
       message: sanitizeStr(message, 1000),
       link: link || '',
+      targetId: targetId || null,
       readBy: [],
       createdAt: new Date().toISOString()
     };
@@ -317,6 +353,53 @@ function createNotification({ targetRole, targetEmpCode, targetGroup, type, titl
     }
     
     writeNotifications(notifications);
+    
+    // Trigger Web Push Notification
+    const subscriptions = readSubscriptions();
+    const payload = JSON.stringify({
+      title: newNotif.title,
+      body: newNotif.message,
+      link: newNotif.link,
+      targetId: newNotif.targetId,
+      type: newNotif.type
+    });
+    
+    let validSubscriptions = [];
+    let subscriptionsChanged = false;
+    
+    const sendPromises = subscriptions.map(sub => {
+      let shouldSend = false;
+      if (newNotif.targetRole === 'all') shouldSend = true;
+      if (newNotif.targetEmpCode && sub.empCode && normalizeEmpCode(newNotif.targetEmpCode) === normalizeEmpCode(sub.empCode)) shouldSend = true;
+      if (newNotif.targetRole && sub.role) {
+        if (newNotif.targetRole === 'admin' && ['superadmin', 'admin', 'supervisor', 'area_head'].includes(sub.role)) shouldSend = true;
+        if (newNotif.targetRole === sub.role) shouldSend = true;
+      }
+      
+      if (shouldSend) {
+        return webpush.sendNotification(sub.subscription, payload).then(() => {
+          validSubscriptions.push(sub);
+        }).catch(err => {
+          if (err.statusCode === 410 || err.statusCode === 404) {
+            // Subscription expired
+            console.log('Subscription expired, removing', sub.endpoint);
+            subscriptionsChanged = true;
+          } else {
+            console.error('Error sending web push:', err);
+            validSubscriptions.push(sub);
+          }
+        });
+      } else {
+        validSubscriptions.push(sub);
+        return Promise.resolve();
+      }
+    });
+    
+    Promise.all(sendPromises).then(() => {
+      if (subscriptionsChanged) {
+        writeSubscriptions(validSubscriptions);
+      }
+    });
   });
 }
 
@@ -2415,6 +2498,40 @@ function checkPreTrainingAlerts() {
   }
 }
 setInterval(checkPreTrainingAlerts, 60000); // Check every 60 seconds
+
+// ── Web Push API Routes ──────────────────────────────────────────
+app.get('/api/vapid-publicKey', (req, res) => {
+  res.send(vapidKeys.publicKey);
+});
+
+app.post('/api/notifications/subscribe', (req, res) => {
+  const { subscription, role, empCode } = req.body;
+  if (!subscription) {
+    return res.status(400).json({ error: 'Subscription object missing' });
+  }
+  
+  enqueueWrite(async () => {
+    let subscriptions = readSubscriptions();
+    const existingIdx = subscriptions.findIndex(sub => sub.subscription.endpoint === subscription.endpoint);
+    
+    const subData = {
+      subscription,
+      role: role || null,
+      empCode: empCode ? normalizeEmpCode(empCode) : null,
+      updatedAt: new Date().toISOString()
+    };
+    
+    if (existingIdx !== -1) {
+      subscriptions[existingIdx] = subData;
+    } else {
+      subscriptions.push(subData);
+    }
+    
+    writeSubscriptions(subscriptions);
+  });
+  
+  res.status(201).json({ success: true });
+});
 
 // ── 404 fallback ──────────────────────────────────────────────
 app.use((req, res) => {
