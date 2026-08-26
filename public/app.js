@@ -582,6 +582,10 @@ function renderLoginGate(){
 }
 
 async function attemptLogin(){
+  // Request permission explicitly on button click for mobile browsers
+  if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
+    Notification.requestPermission();
+  }
   const user = document.getElementById('loginUser').value.trim();
   const pass = document.getElementById('loginPass').value;
   if(!user || !pass){
@@ -817,6 +821,10 @@ function workerLogout(){
  * No registration form. Workers not in the DB must contact HR.
  */
 async function checkEmpCode(){
+  // Request permission explicitly on button click for mobile browsers
+  if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
+    Notification.requestPermission();
+  }
   const rawInput = document.getElementById('wl_empCode').value;
   const cleanCode = String(rawInput || '').trim().replace(/^0+/, '') || '0';
   if(!cleanCode || (cleanCode === '0' && rawInput.trim() === '')){
@@ -3595,6 +3603,10 @@ async function handleNotificationClick(id, link, targetId, type) {
       setTimeout(() => {
         let targetEl = null;
         if (type === 'permit') {
+          // Open the details section if it exists
+          const detailsEl = document.getElementById('details-' + targetId);
+          if (detailsEl) detailsEl.classList.add('show');
+          
           // Search in permits table or history
           const els = document.querySelectorAll('.tnum, .phc-id');
           for (const el of Array.from(els)) {
