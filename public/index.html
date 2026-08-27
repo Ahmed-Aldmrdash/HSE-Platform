@@ -7,9 +7,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="تصاريح العمل">
-<meta name="description" content="نظام تصاريح العمل - Elsewedy Polymers. أرسل وتابع طلبات تصاريح العمل بسهولة.">
-<title>تصاريح العمل - Elsewedy Polymers</title>
+<meta name="apple-mobile-web-app-title" content="HSE Platform - تصاريح العمل">
+<meta name="description" content="HSE Platform - تصاريح العمل - Elsewedy Polymers. أرسل وتابع طلبات تصاريح العمل بسهولة.">
+<title>HSE Platform - تصاريح العمل - Elsewedy Polymers</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -29,7 +29,7 @@
       <img src="icons/icon-192.png" alt="Elsewedy Polymers" onerror="this.style.display='none'">
     </div>
     <div class="wl-title">مرحباً بك</div>
-    <div class="wl-sub">نظام تصاريح العمل · Elsewedy Polymers</div>
+    <div class="wl-sub">HSE Platform - تصاريح العمل · Elsewedy Polymers</div>
 
     <!-- Single-step: code input only -->
     <div id="wl-step1">
@@ -68,7 +68,7 @@
       <img src="icons/icon-192.png" alt="Elsewedy Polymers" onerror="this.style.display='none'">
     </div>
     <div>
-      <h1>تصاريح العمل</h1>
+      <h1>HSE Platform - تصاريح العمل</h1>
       <p>Elsewedy Polymers · Work Permit System</p>
     </div>
     <!-- بادج الموظف الحالي -->
@@ -158,18 +158,7 @@
         <div class="row2">
           <div class="field">
             <label>القسم (Department) <span class="req-star">*</span></label>
-            <select id="hz_dept">
-              <option value="">-- اختر القسم --</option>
-              <option value="Administration">Administration</option>
-              <option value="all factory">all factory</option>
-              <option value="Maintenance">Maintenance</option>
-              <option value="outside">outside</option>
-              <option value="Production - Master Batch">Production - Master Batch</option>
-              <option value="Production - Special Compounds">Production - Special Compounds</option>
-              <option value="Quality Control">Quality Control</option>
-              <option value="R&D">R&D</option>
-              <option value="Warehouse">Warehouse</option>
-            </select>
+            <input type="text" id="hz_dept" class="form-control" readonly tabindex="-1" style="background-color: #f8fafc; cursor: default; user-select: none;" placeholder="يتم التحديد تلقائياً...">
           </div>
           <div class="field">
             <label>المنطقة (Area / Zone) <span class="req-star">*</span></label>
@@ -301,6 +290,7 @@
     <div class="toolbar">
       <div class="filters" id="hzFilters"></div>
       <button class="export-btn" onclick="renderSupHazard(false)" style="margin-inline-start:auto; background:var(--primary); color:#fff; display:flex; align-items:center; gap:6px;">🔄 تحديث البيانات</button>
+      <button class="export-btn" onclick="toggleHazardKPI()" style="margin-inline-start:8px; background:var(--amber); color:#fff;">📈 إحصائيات الموظفين</button>
     </div>
     <div class="toolbar" id="hzDeptToolbar" style="display:none;">
       <div class="filters" id="hzDeptFilters"></div>
@@ -308,6 +298,15 @@
     <div class="toolbar">
       <button class="export-btn" onclick="exportHazardsExcel()" style="margin-inline-start:auto;">📊 تصدير سجل البلاغات Excel</button>
     </div>
+    
+    <div id="hzKpiContainer" style="display:none; padding:16px; background:#fff; border-radius:12px; margin-bottom:16px; border:1px solid var(--paper-line); overflow-x:auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h4 style="margin:0;">تارجت بلاغات الموظفين (الهدف: 2 لكل موظف شهرياً)</h4>
+        <button class="btn" onclick="toggleHazardKPI()" style="padding:4px 8px;">إخفاء</button>
+      </div>
+      <div id="hzKpiList"></div>
+    </div>
+
     <div id="hzList"><div class="loading">جارِ التحميل…</div></div>
   </div>
 
@@ -342,15 +341,15 @@
         <div class="field">
           <label>الدور <span class="req-star">*</span></label>
           <select id="um_role" onchange="toggleUmDept()">
-            <option value="admin">Admin — مشرف عام</option>
-            <option value="supervisor">Supervisor — مشرف</option>
-            <option value="area_head">Area Head — رئيس منطقة</option>
+            <option value="super_admin">Super Admin — مدير النظام</option>
+            <option value="hse_admin">HSE Admin — مشرف سلامة</option>
+            <option value="dept_admin">Dept Admin — أدمن قسم</option>
           </select>
         </div>
       </div>
       <div class="row2" id="um_deptRow" style="display:none;">
         <div class="field">
-          <label>القسم (مطلوب لرئيس المنطقة) <span class="req-star">*</span></label>
+          <label>القسم (مطلوب لأدمن القسم) <span class="req-star">*</span></label>
           <select id="um_dept">
             <option value="Administration">Administration</option>
             <option value="all factory">all factory</option>
@@ -371,20 +370,56 @@
     <!-- Users Table -->
     <div id="um_usersList"><div class="loading">جارِ التحميل…</div></div>
 
-    <!-- Change Password Modal -->
-    <div id="um_passModal" class="um-modal-overlay" style="display:none;">
+    <!-- Edit User Modal -->
+    <div id="um_editModal" class="um-modal-overlay" style="display:none;">
       <div class="um-modal-card">
-        <div class="section-title" style="margin-top:0;">🔑 تغيير كلمة المرور</div>
-        <p id="um_passModalName" style="color:var(--muted);font-size:13px;margin:0 0 12px;"></p>
+        <div class="section-title" style="margin-top:0;">✏️ تعديل بيانات المستخدم</div>
+        <p id="um_editModalName" style="color:var(--muted);font-size:13px;margin:0 0 12px;"></p>
+        
         <div class="field">
-          <label>كلمة المرور الجديدة <span class="req-star">*</span></label>
-          <input id="um_newPass" type="password" placeholder="كلمة المرور الجديدة">
+          <label>الاسم <span class="req-star">*</span></label>
+          <input id="um_editName" type="text" placeholder="الاسم الكامل">
         </div>
-        <div style="display:flex;gap:8px;margin-top:8px;">
-          <button class="submit-btn" style="flex:1;" onclick="saveUserPassword()">حفظ</button>
-          <button class="logout-btn" style="flex:1;" onclick="closePassModal()">إلغاء</button>
+        <div class="field">
+          <label>اسم المستخدم <span class="req-star">*</span></label>
+          <input id="um_editUsername" type="text" placeholder="اسم المستخدم">
         </div>
-        <div id="um_passMsg" class="um-msg"></div>
+        <div class="field">
+          <label>الدور <span class="req-star">*</span></label>
+          <select id="um_editRole" onchange="toggleEditUmDept()">
+            <option value="super_admin">Super Admin — مدير النظام</option>
+            <option value="hse_admin">HSE Admin — مشرف سلامة</option>
+            <option value="dept_admin">Dept Admin — أدمن قسم</option>
+          </select>
+        </div>
+        <div class="field" id="um_editDeptRow" style="display:none;">
+          <label>القسم (مطلوب لأدمن القسم) <span class="req-star">*</span></label>
+          <select id="um_editDept">
+            <option value="Administration">Administration</option>
+            <option value="all factory">all factory</option>
+            <option value="Extrusion">Extrusion</option>
+            <option value="HSE">HSE</option>
+            <option value="Logistics">Logistics</option>
+            <option value="Maintenance">Maintenance</option>
+            <option value="Production - Master Batch">Production - Master Batch</option>
+            <option value="Production - Special Compounds">Production - Special Compounds</option>
+            <option value="Production - PVC">Production - PVC</option>
+            <option value="PVP">PVP</option>
+            <option value="Quality Control">Quality Control</option>
+            <option value="R&D">R&D</option>
+            <option value="Warehouse">Warehouse</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>كلمة المرور الجديدة <span style="font-size:11px;color:#64748b;">(اختياري)</span></label>
+          <input id="um_editNewPass" type="password" placeholder="اتركها فارغة للحفاظ على الحالية">
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button class="submit-btn" style="flex:1;" onclick="saveUserEdit()">حفظ التعديلات</button>
+          <button class="logout-btn" style="flex:1;" onclick="closeEditUserModal()">إلغاء</button>
+        </div>
+        <div id="um_editMsg" class="um-msg"></div>
       </div>
     </div>
   </div>
@@ -456,8 +491,8 @@
             <label>الصلاحية / الفئة</label>
             <select id="em_role">
               <option value="worker">عامل / فني</option>
-              <option value="supervisor">مشرف</option>
-              <option value="area_head">رئيس قسم / منطقة</option>
+              <option value="hse_admin">مشرف سلامة (HSE Admin)</option>
+              <option value="dept_admin">أدمن قسم (Dept Admin)</option>
               <option value="contractor">مقاول / خارجي</option>
             </select>
           </div>
@@ -563,6 +598,91 @@
   </div>
   <div class="lightbox-content-area" id="lightboxContentArea">
     <img id="lightboxImg" src="" alt="Full Screen Hazard Image" style="transform: scale(1); transition: transform 0.2s ease;">
+  </div>
+</div>
+<!-- 🗑️ Delete Permit Modal -->
+<div id="deletePermitModal" class="um-modal-overlay" style="display:none; z-index: 9999;">
+  <div class="um-modal-card">
+    <div class="section-title" style="margin-top:0; color:var(--danger);">🗑️ حذف التصريح</div>
+    <p style="color:var(--muted);font-size:13px;margin:0 0 12px;">تأكيد حذف التصريح ونقله للأرشيف.</p>
+    
+    <div class="field">
+      <label>سبب الحذف <span class="req-star">*</span></label>
+      <input id="deletePermitReason" type="text" placeholder="مثال: تصريح مكرر، تصريح خاطئ...">
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="submit-btn" style="flex:1; background-color:var(--danger); border-color:var(--danger);" onclick="confirmDeletePermit()">حذف التصريح</button>
+      <button class="logout-btn" style="flex:1;" onclick="closeDeletePermitModal()">إلغاء</button>
+    </div>
+    <div id="deletePermitMsg" class="um-msg"></div>
+  </div>
+</div><!-- HAZARD ASSIGN TO MAINTENANCE MODAL -->
+<div id="hzAssignModal" class="um-modal-overlay" style="display:none; z-index: 9999;">
+  <div class="um-modal-card">
+    <div class="section-title" style="margin-top:0;">توجيه البلاغ للصيانة</div>
+    <div class="field">
+      <label>قسم الصيانة المستهدف <span class="req-star">*</span></label>
+      <select id="hz_target_maint">
+        <option value="" disabled selected>-- اختر قسم الصيانة --</option>
+        <option value="Electrical Maintenance">الصيانة الكهربائية (Electrical Maintenance)</option>
+        <option value="Mechanical Maintenance">الصيانة الميكانيكية (Mechanical Maintenance)</option>
+        <option value="Preventive Maintenance">الصيانة الوقائية (Preventive Maintenance)</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="submit-btn" style="flex:1;" onclick="submitHzAssign()">توجيه الآن</button>
+      <button class="logout-btn" style="flex:1;" onclick="closeHzAssignModal()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- HAZARD RESOLVE BY MAINTENANCE MODAL -->
+<div id="hzResolveModal" class="um-modal-overlay" style="display:none; z-index: 9999;">
+  <div class="um-modal-card">
+    <div class="section-title" style="margin-top:0;">تأكيد إصلاح الخطورة</div>
+    <div class="field">
+      <label>الإجراء المتخذ (تفاصيل الصيانة) <span class="req-star">*</span></label>
+      <textarea id="hz_resolve_action" rows="3" placeholder="اكتب تفاصيل ما تم عمله..."></textarea>
+    </div>
+    <div class="field">
+      <label>أسماء فريق الصيانة المنفذ <span class="req-star">*</span></label>
+      <input type="text" id="hz_resolve_team" placeholder="مثال: م. أحمد، فني محمود">
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="submit-btn" style="flex:1; background:var(--success); border-color:var(--success);" onclick="submitHzResolve()">تأكيد الإصلاح والإغلاق</button>
+      <button class="logout-btn" style="flex:1;" onclick="closeHzResolveModal()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- HAZARD REJECT BY MAINTENANCE MODAL -->
+<div id="hzRejectMaintModal" class="um-modal-overlay" style="display:none; z-index: 9999;">
+  <div class="um-modal-card">
+    <div class="section-title" style="margin-top:0; color:var(--danger)">رفض الإصلاح (عدم اختصاص)</div>
+    <div class="field">
+      <label>سبب الرفض والاعتذار <span class="req-star">*</span></label>
+      <textarea id="hz_maint_reject_reason" rows="3" placeholder="مثال: العطل ميكانيكي وليس كهربائياً..."></textarea>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="submit-btn" style="flex:1; background:var(--danger); border-color:var(--danger);" onclick="submitHzRejectMaint()">تأكيد الرفض</button>
+      <button class="logout-btn" style="flex:1;" onclick="closeHzRejectMaintModal()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- HAZARD REJECT BY HSE MODAL -->
+<div id="hzRejectHseModal" class="um-modal-overlay" style="display:none; z-index: 9999;">
+  <div class="um-modal-card">
+    <div class="section-title" style="margin-top:0; color:var(--danger)">رفض بلاغ الخطورة</div>
+    <div class="field">
+      <label>سبب الرفض <span class="req-star">*</span></label>
+      <textarea id="hz_hse_reject_reason" rows="3" placeholder="اكتب سبب رفض البلاغ..."></textarea>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="submit-btn" style="flex:1; background:var(--danger); border-color:var(--danger);" onclick="submitHzRejectHse()">تأكيد الرفض</button>
+      <button class="logout-btn" style="flex:1;" onclick="closeHzRejectHseModal()">إلغاء</button>
+    </div>
   </div>
 </div>
 

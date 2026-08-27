@@ -623,6 +623,36 @@ async function migratePasswordsIfNeeded() {
   }
 }
 
+// ── Role Migration (Legacy -> New HSE Hierarchical Roles) ─────
+async function migrateRolesIfNeeded() {
+  const storage = readStorage();
+  let users = [];
+  if (storage['app-users']) {
+    try { users = JSON.parse(storage['app-users']); } catch { users = []; }
+  }
+
+  let changed = false;
+  for (let i = 0; i < users.length; i++) {
+    const u = users[i];
+    if (u.role === 'superadmin') {
+      u.role = 'super_admin';
+      changed = true;
+    } else if (u.role === 'area_head') {
+      u.role = 'dept_admin';
+      changed = true;
+    } else if (u.role === 'admin' || u.role === 'supervisor') {
+      u.role = 'hse_admin';
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    storage['app-users'] = JSON.stringify(users);
+    writeStorage(storage);
+    console.log('✅ Role migration complete.');
+  }
+}
+
 // ── Ensure Default Super Admin ────────────────────────────────
 async function ensureDefaultSuperAdmin() {
   const storage = readStorage();
@@ -631,20 +661,20 @@ async function ensureDefaultSuperAdmin() {
     try { users = JSON.parse(storage['app-users']); } catch { users = []; }
   }
 
-  const hasSuperAdmin = users.some(u => u.role === 'superadmin');
+  const hasSuperAdmin = users.some(u => u.role === 'super_admin');
   if (!hasSuperAdmin) {
     const hashedPassword = await bcrypt.hash('admin123', BCRYPT_ROUNDS);
     users.unshift({
       id: 'superadmin-default',
       username: 'superadmin',
       password: hashedPassword,
-      role: 'superadmin',
+      role: 'super_admin',
       name: 'المدير العام',
       createdAt: new Date().toISOString()
     });
     storage['app-users'] = JSON.stringify(users);
     writeStorage(storage);
-    console.log('✅ Default superadmin account created.');
+    console.log('✅ Default super_admin account created.');
   }
 }
 
@@ -701,9 +731,88 @@ function runHazardBackfillOnStartup() {
   }
 }
 
+// ── Auto-seed Department Admins ─────────────────────────────────
+async function autoSeedDeptAdmins() {
+  const employees = readEmployees();
+  if (!employees || employees.length === 0) return;
+
+  const depts = new Set();
+  employees.forEach(e => {
+    if (e.department && e.department.trim()) depts.add(e.department.trim());
+  });
+
+  const storage = readStorage();
+  let users = [];
+  if (storage['app-users']) {
+    try { users = JSON.parse(storage['app-users']); } catch { users = []; }
+  }
+
+  let changed = false;
+  const hashedPassword = await bcrypt.hash('123456', BCRYPT_ROUNDS);
+
+  // Hotfix: Force HSE admin to have correct role
+  for (let i = 0; i < users.length; i++) {
+    if ((users[i].department === 'HSE' || users[i].username === 'hse_admin') && users[i].role === 'dept_admin') {
+      users[i].role = 'hse_admin';
+      users[i].department = '';
+      users[i].name = 'مشرف سلامة (HSE Admin)';
+      changed = true;
+    }
+  }
+
+  const maintDepts = ['Electrical Maintenance', 'Mechanical Maintenance', 'Preventive Maintenance'];
+  for (const dept of maintDepts) {
+    const hasMaintAdmin = users.some(u => u.role === 'maint_admin' && u.department === dept);
+    if (!hasMaintAdmin) {
+      const username = dept.split(' ')[0].toLowerCase() + '_maintenance_admin';
+      if (!users.some(u => u.username === username)) {
+        users.push({
+          id: 'auto-maint-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+          username: username,
+          password: hashedPassword,
+          role: 'maint_admin',
+          name: 'مشرف الصيانة - ' + dept,
+          department: dept,
+          createdAt: new Date().toISOString()
+        });
+        changed = true;
+      }
+    }
+  }
+
+  for (const dept of depts) {
+    const hasDeptAdmin = users.some(u => u.role === 'dept_admin' && u.department === dept);
+    if (!hasDeptAdmin) {
+      const username = dept.toLowerCase().replace(/\s+/g, '_') + '_admin';
+      
+      // Ensure username is unique just in case
+      if (!users.some(u => u.username === username)) {
+        users.push({
+          id: 'auto-dept-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+          username: username,
+          password: hashedPassword,
+          role: 'dept_admin',
+          name: 'مشرف قسم ' + dept,
+          department: dept,
+          createdAt: new Date().toISOString()
+        });
+        changed = true;
+      }
+    }
+  }
+
+  if (changed) {
+    storage['app-users'] = JSON.stringify(users);
+    writeStorage(storage);
+    console.log('✅ Auto-seeded missing department admin accounts.');
+  }
+}
+
 // ── Startup Sequence ──────────────────────────────────────────
 (async () => {
+  await migrateRolesIfNeeded();
   await ensureDefaultSuperAdmin();
+  await autoSeedDeptAdmins();
   await migratePasswordsIfNeeded();
   runHazardBackfillOnStartup();
   await loadEmployeesFromXlsxIfNeeded();
@@ -731,6 +840,18 @@ function authenticateToken(req, res, next) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded; // { id, username, role, iat, exp }
+    
+    // Dynamic role patches for legacy compatibility
+    if (req.user.role === 'dept_admin') {
+      if (req.user.department && req.user.department.toUpperCase() === 'HSE') {
+        req.user.role = 'hse_admin';
+        req.user.department = '';
+      } else if (req.user.department && ['Electrical Maintenance', 'Mechanical Maintenance', 'Preventive Maintenance'].includes(req.user.department)) {
+        req.user.role = 'maint_admin';
+      }
+    }
+    if (req.user.username === 'hse_admin') req.user.role = 'hse_admin';
+    
     next();
   } catch (err) {
     if (err.name === 'TokenExpiredError') {
@@ -988,7 +1109,8 @@ app.post('/api/storage/:key', (req, res, next) => {
           // New permit: sanitize free-text fields, force status to pending_area_head
           
           createNotification({
-            targetRole: 'admin',
+            targetRole: 'dept_admin',
+            targetDept: p.department,
             type: 'permit',
             title: 'تصريح جديد 📋',
             message: `مقدم من ${p.workerName || 'موظف'} نوع ${p.typeLabel || 'غير محدد'} في ${p.location || 'غير محدد'}`,
@@ -1033,8 +1155,8 @@ app.post('/api/storage/:key', (req, res, next) => {
             shift:            sanitizeStr(String(p.shift || ''), 30),
             date:             sanitizeStr(String(p.date || ''), 15),
             previousPermitNo: sanitizeStr(String(p.previousPermitNo || ''), 50),
-            timeFrom:         sanitizeStr(String(p.timeFrom || ''), 10),
-            timeTo:           sanitizeStr(String(p.timeTo || ''), 10),
+            timeFrom:         sanitizeStr(String(p.timeFrom || ''), 50),
+            timeTo:           sanitizeStr(String(p.timeTo || ''), 50),
             workerName:       sanitizeStr(String(p.workerName || ''), 100),
             requesterKind:    ['\u0645\u0648\u0638\u0641', '\u0645\u0642\u0627\u0648\u0644'].includes(p.requesterKind) ? p.requesterKind : '\u0645\u0648\u0638\u0641',
             requesterPhone:   sanitizeStr(String(p.requesterPhone || ''), 20),
@@ -1047,7 +1169,7 @@ app.post('/api/storage/:key', (req, res, next) => {
             checklist:        safeChecklist,
             checklistNote:    sanitizeStr(String(p.checklistNote || ''), 500),
             risks:            safeRisks,
-            status:           'pending_area_head',
+            status:           'pending_dept',
             reviewedBy:       '',
             reviewedAt:       '',
             reviewNote:       '',
@@ -1085,7 +1207,7 @@ app.post('/api/storage/:key', (req, res, next) => {
 // ── GET /api/export-excel — تصدير ملف الإكسيل (supervisors only)
 app.get('/api/export-excel',
   authenticateToken,
-  requireRole('superadmin', 'admin', 'supervisor'),
+  requireRole('super_admin', 'hse_admin', 'dept_admin'),
   (req, res) => {
     if (fs.existsSync(EXCEL_FILE)) {
       res.download(EXCEL_FILE, 'سجل_تصاريح_العمل.xlsx');
@@ -1114,18 +1236,20 @@ app.get('/api/export-excel',
 app.patch(
   '/api/permits/:id',
   authenticateToken,
-  requireRole('superadmin', 'admin', 'supervisor', 'area_head'),
+  requireRole('super_admin', 'hse_admin', 'dept_admin'),
   async (req, res) => {
     const permitId = req.params.id;
-    const { action, reviewNote, safetyOfficerName, areaManagerName, closureType, closureReason } = req.body;
+    const { action, reviewNote, closureType, closureReason } = req.body;
 
-    const VALID_ACTIONS = ['approve', 'reject', 'close', 'area_approve', 'area_reject'];
+    const VALID_ACTIONS = ['dept_approve', 'hse_approve', 'reject', 'close'];
     if (!action || !VALID_ACTIONS.includes(action)) {
       return res.status(400).json({ error: `الإجراء غير صالح. المتاح: ${VALID_ACTIONS.join(' | ')}` });
     }
-    // area_head actions must be from an area_head user
-    if ((action === 'area_approve' || action === 'area_reject') && req.user.role !== 'area_head' && req.user.role !== 'superadmin') {
-      return res.status(403).json({ error: 'هذا الإجراء مخصص لرئيس المنطقة فقط' });
+    if (action === 'dept_approve' && req.user.role !== 'dept_admin' && req.user.role !== 'super_admin') {
+      return res.status(403).json({ error: 'هذا الإجراء مخصص لرئيس القسم فقط' });
+    }
+    if (action === 'hse_approve' && req.user.role !== 'hse_admin' && req.user.role !== 'super_admin') {
+      return res.status(403).json({ error: 'هذا الإجراء مخصص لمشرف السلامة فقط' });
     }
     if (action === 'close') {
       const VALID_CLOSURE = ['safe', 'incomplete', 'forced'];
@@ -1151,45 +1275,32 @@ app.patch(
       const now = new Date().toISOString();
       const reviewerName = req.user.name || req.user.username;
 
-      if (action === 'area_approve') {
-        // Area head first-tier approval: pending_area_head → pending_admin
-        if (permits[idx].status !== 'pending_area_head') {
-          result = { status: 409, body: { error: 'لا يمكن موافقة رئيس المنطقة إلا على تصاريح pending_area_head' } };
+      if (action === 'dept_approve') {
+        if (permits[idx].status !== 'pending_dept' && permits[idx].status !== 'pending_area_head' && permits[idx].status !== 'pending') {
+          result = { status: 409, body: { error: 'لا يمكن موافقة رئيس القسم إلا على تصاريح قيد انتظار القسم' } };
           return;
         }
-        // Optionally validate department match (skipped for superadmin bypass)
-        if (req.user.role === 'area_head' && req.user.department &&
+        if (req.user.role === 'dept_admin' && req.user.department &&
             permits[idx].department && req.user.department !== permits[idx].department) {
-          result = { status: 403, body: { error: 'رئيس المنطقة لا يملك صلاحية الموافقة على تصاريح قسم آخر' } };
+          result = { status: 403, body: { error: 'رئيس القسم لا يملك صلاحية الموافقة على تصاريح قسم آخر' } };
           return;
         }
-        permits[idx].status              = 'pending_admin';
+        permits[idx].status              = 'pending_hse';
         permits[idx].areaHeadReviewedAt  = now;
         permits[idx].areaHeadReviewedBy  = sanitizeStr(reviewerName, 100);
-      } else if (action === 'area_reject') {
-        // Area head rejection: pending_area_head → rejected
-        if (permits[idx].status !== 'pending_area_head') {
-          result = { status: 409, body: { error: 'لا يمكن رفض إلا تصاريح pending_area_head' } };
-          return;
-        }
-        permits[idx].status     = 'rejected';
-        permits[idx].reviewedAt = now;
-        permits[idx].reviewedBy = sanitizeStr(reviewerName, 100);
-        permits[idx].reviewNote = sanitizeStr(reviewNote, 500);
-      } else if (action === 'approve') {
-        // Admin final approval: pending_admin → approved
-        if (permits[idx].status !== 'pending_admin') {
-          result = { status: 409, body: { error: 'الموافقة النهائية تتطلب حالة pending_admin' } };
+        permits[idx].areaManagerName     = sanitizeStr(reviewerName, 100);
+        console.log("Updated permit status to:", permits[idx].status);
+      } else if (action === 'hse_approve') {
+        if (permits[idx].status !== 'pending_hse') {
+          result = { status: 409, body: { error: 'الموافقة النهائية تتطلب حالة pending_hse' } };
           return;
         }
         permits[idx].status            = 'approved';
         permits[idx].reviewedAt        = now;
         permits[idx].reviewedBy        = sanitizeStr(reviewerName, 100);
-        permits[idx].safetyOfficerName = sanitizeStr(safetyOfficerName, 100);
-        permits[idx].areaManagerName   = sanitizeStr(areaManagerName,   100);
+        permits[idx].safetyOfficerName = sanitizeStr(reviewerName, 100);
       } else if (action === 'reject') {
-        // Admin rejection on pending_admin
-        if (permits[idx].status !== 'pending_admin' && permits[idx].status !== 'pending_area_head') {
+        if (permits[idx].status !== 'pending_dept' && permits[idx].status !== 'pending_hse') {
           result = { status: 409, body: { error: 'لا يمكن الرفض إلا على التصاريح قيد الانتظار' } };
           return;
         }
@@ -1197,11 +1308,10 @@ app.patch(
         permits[idx].reviewedAt = now;
         permits[idx].reviewedBy = sanitizeStr(reviewerName, 100);
         permits[idx].reviewNote = sanitizeStr(reviewNote, 500);
+        permits[idx].rejectedByRole = req.user.role;
       } else if (action === 'close') {
         if (!permits[idx].status || !permits[idx].status.startsWith('approved')) {
-          // Allow closing only approved permits
-          // (reject closing of pending/rejected/already-closed unless superadmin)
-          if (req.user.role !== 'superadmin' && permits[idx].status !== 'approved') {
+          if (req.user.role !== 'super_admin' && permits[idx].status !== 'approved') {
             result = { status: 409, body: { error: 'لا يمكن إغلاق إلا التصاريح الموافق عليها' } };
             return;
           }
@@ -1221,21 +1331,52 @@ app.patch(
         await syncExcelFromPermits(newValue);
         
         if (permits[idx].employeeId) {
-          if (action === 'approve' || action === 'area_approve') {
+          if (action === 'hse_approve') {
             createNotification({
               targetEmpCode: permits[idx].employeeId,
               type: 'permit',
-              title: 'موافقة على التصريح 🎉',
-              message: `تمت الموافقة على تصريحك رقم ${permits[idx].id} ويمكنك بدء العمل`,
+              title: 'تم اعتماد التصريح النهائي 🎉',
+              message: `تم اعتماد تصريحك النهائي برقم ${permits[idx].id} من إدارة السلامة، يمكنك بدء العمل`,
               link: 'tabMyHistory'
             });
-          } else if (action === 'reject' || action === 'area_reject') {
+            createNotification({
+              targetRole: 'dept_admin',
+              targetDept: permits[idx].department,
+              type: 'permit',
+              title: 'تم اعتماد التصريح النهائي 🎉',
+              message: `تم اعتماد تصريح قسمك النهائي برقم ${permits[idx].id} من إدارة السلامة`,
+              link: 'tabPermits'
+            });
+          } else if (action === 'dept_approve') {
+            createNotification({
+              targetRole: 'hse_admin',
+              type: 'permit',
+              title: 'تصريح بانتظار مراجعة السلامة 🛡️',
+              message: `تم موافقة رئيس القسم على التصريح رقم ${permits[idx].id} وبانتظار اعتماد HSE`,
+              link: 'tabPermits'
+            });
+            createNotification({
+              targetRole: 'super_admin',
+              type: 'permit',
+              title: 'تصريح بانتظار مراجعة السلامة 🛡️',
+              message: `تم موافقة رئيس القسم على التصريح رقم ${permits[idx].id} وبانتظار اعتماد HSE`,
+              link: 'tabPermits'
+            });
+          } else if (action === 'reject') {
             createNotification({
               targetEmpCode: permits[idx].employeeId,
               type: 'permit',
               title: 'رفض التصريح ❌',
               message: `تم رفض تصريحك رقم ${permits[idx].id} - السبب: ${reviewNote || 'غير محدد'}`,
               link: 'tabMyHistory'
+            });
+            createNotification({
+              targetRole: 'dept_admin',
+              targetDept: permits[idx].department,
+              type: 'permit',
+              title: 'رفض التصريح ❌',
+              message: `تم رفض تصريح قسمك رقم ${permits[idx].id} - السبب: ${reviewNote || 'غير محدد'}`,
+              link: 'tabPermits'
             });
           } else if (action === 'close') {
             createNotification({
@@ -1357,14 +1498,44 @@ app.post('/api/hazards', submitLimiter, async (req, res) => {
   res.status(result.status).json(result.body);
 });
 
-app.get('/api/hazards', authenticateToken, requireRole('superadmin', 'admin', 'supervisor', 'area_head'), async (req, res) => {
+app.get('/api/hazards/employee-stats', authenticateToken, requireRole('super_admin', 'hse_admin', 'dept_admin'), async (req, res) => {
+  let hazards = readHazards();
+  
+  const fs = require('fs');
+  const path = require('path');
+  let employees = [];
+  try {
+    const empData = fs.readFileSync(path.join(__dirname, 'data', 'employees.json'), 'utf8');
+    employees = JSON.parse(empData);
+  } catch(e) {}
+
+  if (req.user.role === 'dept_admin' && req.user.department) {
+    employees = employees.filter(e => e.department === req.user.department);
+  }
+  
+  const stats = employees.map(emp => {
+    // Only count non-deleted hazards
+    const empHazards = hazards.filter(h => h.reporterId === emp.code && h.deleted !== true);
+    return {
+      code: emp.code,
+      name: emp.name,
+      department: emp.department,
+      count: empHazards.length,
+      target: 2
+    };
+  });
+  
+  res.json({ stats });
+});
+
+app.get('/api/hazards', authenticateToken, requireRole('super_admin', 'hse_admin', 'dept_admin', 'maint_admin'), async (req, res) => {
   let hazards = readHazards();
   let changed = false;
   const now = new Date().toISOString();
   const readerName = sanitizeStr(req.user.name || req.user.username || 'المشرف', 100);
 
   hazards.forEach(h => {
-    if (!h.seenAt) {
+    if (!h.seenAt && req.user.role !== 'maint_admin') {
       h.seenAt = now;
       h.seenBy = readerName;
       changed = true;
@@ -1375,8 +1546,10 @@ app.get('/api/hazards', authenticateToken, requireRole('superadmin', 'admin', 's
     writeHazards(hazards);
   }
   
-  if (req.user.role === 'area_head' && req.user.department) {
+  if (req.user.role === 'dept_admin' && req.user.department) {
     hazards = hazards.filter(h => h.department === req.user.department);
+  } else if (req.user.role === 'maint_admin' && req.user.department) {
+    hazards = hazards.filter(h => h.assignedToMaintenance === req.user.department);
   }
 
   res.json({ hazards });
@@ -1392,14 +1565,9 @@ app.get('/api/my-hazards/:name', (req, res) => {
   res.json({ hazards: myHazards });
 });
 
-app.patch('/api/hazards/:id', authenticateToken, requireRole('superadmin', 'admin', 'supervisor', 'area_head'), async (req, res) => {
+app.patch('/api/hazards/:id', authenticateToken, requireRole('super_admin', 'hse_admin', 'dept_admin', 'maint_admin'), async (req, res) => {
   const hazardId = req.params.id;
-  const { status, actionTaken } = req.body;
-
-  const VALID_STATUSES = ['open', 'notified', 'in_progress', 'resolved', 'closed'];
-  if (!status || !VALID_STATUSES.includes(status)) {
-    return res.status(400).json({ error: 'حالة غير صالحة' });
-  }
+  const { action, targetMaintenance, maintenanceAction, maintenanceTeamNames, status, actionTaken } = req.body;
 
   let result;
   await enqueueWrite(async () => {
@@ -1410,62 +1578,176 @@ app.patch('/api/hazards/:id', authenticateToken, requireRole('superadmin', 'admi
       return;
     }
 
-    if (req.user.role === 'area_head' && req.user.department && hazards[idx].department !== req.user.department) {
-       result = { status: 403, body: { error: 'ليس لديك صلاحية لتعديل هذا البلاغ' } };
-       return;
-    }
-
-    hazards[idx].status = status;
-    if (actionTaken !== undefined) {
-      hazards[idx].actionTaken = sanitizeStr(actionTaken, 1000);
-    }
-    // Update who changed it
+    const h = hazards[idx];
     const updater = sanitizeStr(req.user.name || req.user.username || 'المشرف', 100);
-    hazards[idx].updatedBy = updater;
-    
     const now = new Date().toISOString();
-    
-    if (status === 'resolved' || status === 'closed') {
-      hazards[idx].resolvedAt = now;
-      hazards[idx].resolvedBy = updater;
-      if (!hazards[idx].inProgressAt) {
-        hazards[idx].inProgressAt = now;
-        hazards[idx].inProgressBy = updater;
-      }
-      if (!hazards[idx].seenAt) {
-        hazards[idx].seenAt = now;
-        hazards[idx].seenBy = updater;
-      }
-    } else if (status === 'in_progress') {
-      if (!hazards[idx].inProgressAt) {
-        hazards[idx].inProgressAt = now;
-        hazards[idx].inProgressBy = updater;
-      }
-      if (!hazards[idx].seenAt) {
-        hazards[idx].seenAt = now;
-        hazards[idx].seenBy = updater;
-      }
-    } else if (status === 'notified') {
-      if (!hazards[idx].seenAt) {
-        hazards[idx].seenAt = now;
-        hazards[idx].seenBy = updater;
-      }
-    }
 
-    if (writeHazards(hazards)) {
-      await syncHazardsExcelFromData(hazards);
-      
-      if (hazards[idx].empCode) {
+    if (action === 'assign_maintenance') {
+      if (req.user.role !== 'hse_admin' && req.user.role !== 'super_admin') {
+        result = { status: 403, body: { error: 'فقط مشرف السلامة يمكنه التوجيه للصيانة' } };
+        return;
+      }
+      if (!targetMaintenance) {
+        result = { status: 400, body: { error: 'قسم الصيانة المستهدف مطلوب' } };
+        return;
+      }
+      h.assignedToMaintenance = sanitizeStr(targetMaintenance, 100);
+      h.forwardedByHseName = updater;
+      h.forwardedByHseAt = now;
+      h.status = 'assigned_to_maintenance';
+      h.updatedBy = updater;
+      delete h.maintRejectReason;
+      delete h.hseRejectReason;
+
+      const maintUsername = targetMaintenance.split(' ')[0].toLowerCase() + '_maintenance_admin';
+      createNotification({
+        targetUsername: maintUsername,
+        type: 'hazard',
+        title: 'بلاغ خطورة جديد',
+        message: `تم توجيه بلاغ خطورة (${h.id}) إلى قسمكم من قبل ${updater}.`,
+        link: 'tabSupHazard'
+      });
+
+    } else if (action === 'start_maintenance') {
+      if (req.user.role !== 'maint_admin' && req.user.role !== 'super_admin') {
+        result = { status: 403, body: { error: 'فقط فريق الصيانة يمكنه بدء الإصلاح' } };
+        return;
+      }
+      if (req.user.role === 'maint_admin' && h.assignedToMaintenance !== req.user.department) {
+        result = { status: 403, body: { error: 'هذا البلاغ غير موجه لقسمكم' } };
+        return;
+      }
+      h.status = 'in_progress';
+      h.startedAt = now;
+      h.startedByName = updater;
+      h.updatedBy = updater;
+
+    } else if (action === 'reject_maintenance' || action === 'reject_maint') {
+      if (req.user.role !== 'maint_admin' && req.user.role !== 'super_admin') {
+        result = { status: 403, body: { error: 'غير مصرح' } };
+        return;
+      }
+      if (req.user.role === 'maint_admin' && h.assignedToMaintenance !== req.user.department) {
+        result = { status: 403, body: { error: 'هذا البلاغ غير موجه لقسمكم' } };
+        return;
+      }
+      const rejectReason = req.body.reason || req.body.rejectReason || req.body.rejectionReason;
+      if (!rejectReason) {
+        result = { status: 400, body: { error: 'سبب الرفض مطلوب' } };
+        return;
+      }
+      h.status = 'rejected_by_maintenance';
+      h.maintRejectReason = sanitizeStr(rejectReason, 500);
+      h.maintRejectedBy = updater;
+      h.maintRejectedAt = now;
+      h.rejectedByMaintName = updater; // Legacy support
+      h.rejectedByMaintAt = now; // Legacy support
+      h.updatedBy = updater;
+
+      createNotification({
+        targetRole: 'hse_admin',
+        type: 'hazard',
+        title: 'رفض بلاغ من الصيانة',
+        message: `تم رفض البلاغ (${h.id}) من قسم ${h.assignedToMaintenance} بحجة عدم الاختصاص.`,
+        link: 'tabSupHazard'
+      });
+
+    } else if (action === 'reject_hse' || action === 'reject') {
+      if (req.user.role !== 'hse_admin' && req.user.role !== 'super_admin') {
+        result = { status: 403, body: { error: 'غير مصرح' } };
+        return;
+      }
+      const rejectReason = req.body.reason || req.body.rejectReason || req.body.rejectionReason;
+      if (!rejectReason) {
+        result = { status: 400, body: { error: 'سبب الرفض مطلوب' } };
+        return;
+      }
+      h.status = 'rejected_by_hse';
+      h.hseRejectReason = sanitizeStr(rejectReason, 500);
+      h.hseRejectedBy = updater;
+      h.hseRejectedAt = now;
+      h.rejectedByHseName = updater; // Legacy support
+      h.rejectedByHseAt = now; // Legacy support
+      h.updatedBy = updater;
+
+      if (h.reporterId) {
         createNotification({
-          targetEmpCode: hazards[idx].empCode,
+          targetEmpCode: h.reporterId,
           type: 'hazard',
-          title: 'تحديث حالة البلاغ 🛠️',
-          message: `تم تحديث حالة بلاغك في ${hazards[idx].location || hazards[idx].area} إلى: ${status}`,
+          title: 'تم رفض بلاغ الخطورة',
+          message: `تم رفض البلاغ (${h.id}) من قبل المشرف: ${h.hseRejectReason}`,
           link: 'tabMyHazards'
         });
       }
 
-      result = { status: 200, body: { success: true, hazard: hazards[idx] } };
+    } else if (action === 'resolve_maintenance') {
+      if (req.user.role !== 'maint_admin' && req.user.role !== 'super_admin') {
+        result = { status: 403, body: { error: 'فقط فريق الصيانة يمكنه إغلاق البلاغ' } };
+        return;
+      }
+      if (req.user.role === 'maint_admin' && h.assignedToMaintenance !== req.user.department) {
+        result = { status: 403, body: { error: 'هذا البلاغ غير موجه لقسمكم' } };
+        return;
+      }
+      if (!h.startedAt) {
+        h.startedAt = now;
+        h.startedByName = updater;
+      }
+      h.maintenanceAction = sanitizeStr(maintenanceAction || '', 1000);
+      h.maintenanceTeamNames = sanitizeStr(maintenanceTeamNames || '', 300);
+      h.resolvedByMaintenanceName = updater;
+      h.resolvedAt = now;
+      h.status = 'resolved';
+      h.updatedBy = updater;
+
+      if (h.reporterId) {
+        createNotification({
+          targetEmpCode: h.reporterId,
+          type: 'hazard',
+          title: 'تم إصلاح الخطورة',
+          message: `تم الانتهاء من إصلاح بلاغ الخطورة (${h.id}) الخاص بك بواسطة قسم الصيانة.`,
+          link: 'tabMyHazards'
+        });
+      }
+      createNotification({
+        targetRole: 'hse_admin',
+        type: 'hazard',
+        title: 'إصلاح خطورة من الصيانة',
+        message: `تم إصلاح بلاغ الخطورة (${h.id}) من قبل الصيانة.`,
+        link: 'tabSupHazard'
+      });
+      if (h.department) {
+        createNotification({
+          targetDept: h.department,
+          targetRole: 'dept_admin',
+          type: 'hazard',
+          title: 'إصلاح خطورة في قسمك',
+          message: `تم إصلاح بلاغ الخطورة (${h.id}) في قسمك.`,
+          link: 'tabSupHazard'
+        });
+      }
+    } else if (status) {
+      // Legacy status update
+      if (req.user.role === 'dept_admin' && req.user.department && h.department !== req.user.department) {
+         result = { status: 403, body: { error: 'ليس لديك صلاحية لتعديل هذا البلاغ' } };
+         return;
+      }
+      h.status = status;
+      if (actionTaken !== undefined) h.actionTaken = sanitizeStr(actionTaken, 1000);
+      h.updatedBy = updater;
+      
+      if (status === 'resolved' || status === 'closed') {
+        h.resolvedAt = now;
+        h.resolvedBy = updater;
+      }
+    } else {
+      result = { status: 400, body: { error: 'إجراء غير معروف' } };
+      return;
+    }
+
+    if (writeHazards(hazards)) {
+      await syncHazardsExcelFromData(hazards);
+      result = { status: 200, body: { success: true, hazard: h } };
     } else {
       result = { status: 500, body: { error: 'فشل التحديث' } };
     }
@@ -1474,11 +1756,145 @@ app.patch('/api/hazards/:id', authenticateToken, requireRole('superadmin', 'admi
   res.status(result.status).json(result.body);
 });
 
-app.get('/api/export-hazards', authenticateToken, requireRole('superadmin', 'admin', 'supervisor', 'area_head'), async (req, res) => {
+app.delete('/api/hazards/:id', authenticateToken, requireRole('super_admin', 'hse_admin', 'dept_admin', 'maint_admin'), async (req, res) => {
+  const hazardId = req.params.id;
+  const { reason } = req.body;
+  let result;
+  await enqueueWrite(async () => {
+    let hazards = readHazards();
+    const idx = hazards.findIndex(h => h.id === hazardId);
+    if (idx === -1) {
+      result = { status: 404, body: { error: 'البلاغ غير موجود' } };
+      return;
+    }
+    const h = hazards[idx];
+    if (req.user.role === 'dept_admin' && req.user.department && h.department !== req.user.department) {
+       result = { status: 403, body: { error: 'لا تملك صلاحية حذف هذا البلاغ' } };
+       return;
+    }
+    
+    if (req.user.role === 'maint_admin') {
+       const userDept = String(req.user.department || '').trim().toLowerCase();
+       const assignedDept = String(h.assignedToMaintenance || '').trim().toLowerCase();
+       
+       if (assignedDept !== userDept && h.status !== 'rejected_by_maintenance') {
+           result = { status: 403, body: { error: 'لا تملك صلاحية حذف بلاغ غير موجه لقسمك' } };
+           return;
+       }
+       // Smart Maintenance Delete Isolation
+       h.deletedByMaintenance = true;
+       h.maintenanceDeletedBy = sanitizeStr(req.user.name || req.user.username, 100);
+       h.maintenanceDeletedDept = req.user.department;
+       h.status = 'rejected_by_maintenance';
+       h.maintRejectReason = sanitizeStr(reason || 'تم حذف/رفض البلاغ من قسم الصيانة ' + req.user.department, 1000);
+       h.maintRejectedBy = h.maintenanceDeletedBy;
+       h.maintRejectedAt = new Date().toISOString();
+       
+       writeHazards(hazards);
+       result = { status: 200, body: { success: true } };
+       return;
+    }
+
+    h.deleted = true;
+    h.deletedAt = new Date().toISOString();
+    h.deletedBy = sanitizeStr(req.user.name || req.user.username, 100);
+    h.deletedByRole = req.user.role;
+    h.deleteReason = sanitizeStr(reason || '', 1000);
+
+    writeHazards(hazards);
+    result = { status: 200, body: { success: true } };
+  });
+  res.status(result.status).json(result.body);
+});
+
+app.post('/api/hazards/:id/restore', authenticateToken, requireRole('super_admin', 'hse_admin', 'dept_admin', 'maint_admin'), async (req, res) => {
+  const hazardId = req.params.id;
+  let result;
+  await enqueueWrite(async () => {
+    let hazards = readHazards();
+    const idx = hazards.findIndex(h => h.id === hazardId);
+    if (idx === -1) {
+      result = { status: 404, body: { error: 'البلاغ غير موجود' } };
+      return;
+    }
+    const h = hazards[idx];
+    if (req.user.role === 'dept_admin' && req.user.department && h.department !== req.user.department) {
+       result = { status: 403, body: { error: 'لا تملك صلاحية استعادة هذا البلاغ' } };
+       return;
+    }
+    
+    if (req.user.role === 'maint_admin') {
+       const userDept = String(req.user.department || '').trim().toLowerCase();
+       const assignedDept = String(h.assignedToMaintenance || '').trim().toLowerCase();
+       if (assignedDept !== userDept && h.maintenanceDeletedDept !== req.user.department) {
+           result = { status: 403, body: { error: 'لا تملك صلاحية استعادة هذا البلاغ' } };
+           return;
+       }
+       h.deletedByMaintenance = false;
+       delete h.maintenanceDeletedBy;
+       delete h.maintenanceDeletedDept;
+       h.status = 'assigned_to_maintenance';
+       delete h.maintRejectReason;
+       delete h.maintRejectedBy;
+       delete h.maintRejectedAt;
+       writeHazards(hazards);
+       result = { status: 200, body: { success: true } };
+       return;
+    }
+
+    h.deleted = false;
+    delete h.deletedAt;
+    delete h.deletedBy;
+    delete h.deletedByRole;
+    delete h.deleteReason;
+
+    writeHazards(hazards);
+    result = { status: 200, body: { success: true } };
+  });
+  res.status(result.status).json(result.body);
+});
+
+app.delete('/api/hazards/:id/permanent', authenticateToken, requireRole('super_admin', 'hse_admin', 'maint_admin'), async (req, res) => {
+  const hazardId = req.params.id;
+  let result;
+  await enqueueWrite(async () => {
+    let hazards = readHazards();
+    const idx = hazards.findIndex(h => h.id === hazardId);
+    if (idx === -1) {
+      result = { status: 404, body: { error: 'البلاغ غير موجود' } };
+      return;
+    }
+    const h = hazards[idx];
+    if (req.user.role === 'maint_admin') {
+       const userDept = String(req.user.department || '').trim().toLowerCase();
+       if (h.maintenanceDeletedDept !== req.user.department) {
+           result = { status: 403, body: { error: 'لا تملك صلاحية حذف هذا البلاغ نهائياً' } };
+           return;
+       }
+       h.deletedByMaintenance = false;
+       delete h.maintenanceDeletedBy;
+       delete h.maintenanceDeletedDept;
+       writeHazards(hazards);
+       result = { status: 200, body: { success: true } };
+       return;
+    }
+
+    if (!h.deleted) {
+      result = { status: 400, body: { error: 'يجب نقل البلاغ إلى سلة المحذوفات أولاً' } };
+      return;
+    }
+    hazards.splice(idx, 1);
+    writeHazards(hazards);
+    result = { status: 200, body: { success: true } };
+  });
+  res.status(result.status).json(result.body);
+});
+
+app.get('/api/export-hazards', authenticateToken, requireRole('super_admin', 'hse_admin', 'dept_admin'), async (req, res) => {
   try {
     let hazards = readHazards();
     
-    if (req.user && req.user.role === 'area_head' && req.user.department) {
+    if (req.user && req.user.role === 'dept_admin' && req.user.department) {
       hazards = hazards.filter(h => h.department === req.user.department);
     }
 
@@ -1554,7 +1970,131 @@ app.get('/api/export-hazards', authenticateToken, requireRole('superadmin', 'adm
     return res.status(500).json({ error: 'فشل تصدير البيانات' });
   }
 });
-// 🔑 API ROUTES — AUTH
+// ── DELETE /api/permits/:id — Soft Delete التصريح
+app.delete('/api/permits/:id', authenticateToken, requireRole('super_admin', 'hse_admin', 'dept_admin'), async (req, res) => {
+  const permitId = req.params.id;
+  const { reason } = req.body;
+  if (!reason) {
+    return res.status(400).json({ error: 'سبب الحذف مطلوب' });
+  }
+
+  let result;
+  await enqueueWrite(async () => {
+    const storage = readStorage();
+    let permits = [];
+    if (storage['work-permits']) {
+      try { permits = JSON.parse(storage['work-permits']); } catch { permits = []; }
+    }
+
+    const idx = permits.findIndex(p => p.id === permitId);
+    if (idx === -1) {
+      result = { status: 404, body: { error: 'التصريح غير موجود' } };
+      return;
+    }
+
+    const permit = permits[idx];
+    if (req.user.role === 'dept_admin') {
+      if (permit.department !== req.user.department) {
+        result = { status: 403, body: { error: 'ليس لديك صلاحية لحذف تصريح تابع لقسم آخر' } };
+        return;
+      }
+    }
+
+    permits[idx].deleted = true;
+    permits[idx].status = 'rejected'; // Show as rejected for the worker
+    permits[idx].deletedAt = new Date().toISOString();
+    permits[idx].deletedBy = req.user.name;
+    permits[idx].deleteReason = reason;
+    permits[idx].deletedByUsername = req.user.username;
+    permits[idx].deletedByRole = req.user.role;
+    permits[idx].deletedByDept = req.user.department || '';
+
+    storage['work-permits'] = JSON.stringify(permits);
+    if (writeStorage(storage)) {
+      result = { status: 200, body: { success: true } };
+    } else {
+      result = { status: 500, body: { error: 'فشل عملية الحذف' } };
+    }
+  });
+
+  res.status(result.status).json(result.body);
+});
+
+// ── POST /api/permits/:id/restore — استعادة التصريح المحذوف
+app.post('/api/permits/:id/restore', authenticateToken, requireRole('super_admin', 'hse_admin', 'dept_admin'), async (req, res) => {
+  const permitId = req.params.id;
+  
+  let result;
+  await enqueueWrite(async () => {
+    const storage = readStorage();
+    let permits = [];
+    if (storage['work-permits']) {
+      try { permits = JSON.parse(storage['work-permits']); } catch { permits = []; }
+    }
+
+    const idx = permits.findIndex(p => p.id === permitId);
+    if (idx === -1) {
+      result = { status: 404, body: { error: 'التصريح غير موجود' } };
+      return;
+    }
+
+    if (req.user.role !== 'super_admin' && permits[idx].deletedByUsername !== req.user.username) {
+      result = { status: 403, body: { error: 'ليس لديك صلاحية لاستعادة هذا التصريح' } };
+      return;
+    }
+
+    permits[idx].deleted = false;
+    delete permits[idx].deletedAt;
+    delete permits[idx].deletedBy;
+    delete permits[idx].deleteReason;
+
+    storage['work-permits'] = JSON.stringify(permits);
+    if (writeStorage(storage)) {
+      result = { status: 200, body: { success: true } };
+    } else {
+      result = { status: 500, body: { error: 'فشل استعادة التصريح' } };
+    }
+  });
+
+  res.status(result.status).json(result.body);
+});
+
+// ── DELETE /api/permits/:id/permanent — الحذف النهائي للتصريح
+app.delete('/api/permits/:id/permanent', authenticateToken, requireRole('super_admin', 'hse_admin', 'dept_admin'), async (req, res) => {
+  const permitId = req.params.id;
+  
+  let result;
+  await enqueueWrite(async () => {
+    const storage = readStorage();
+    let permits = [];
+    if (storage['work-permits']) {
+      try { permits = JSON.parse(storage['work-permits']); } catch { permits = []; }
+    }
+
+    const idx = permits.findIndex(p => p.id === permitId);
+    if (idx === -1) {
+      result = { status: 404, body: { error: 'التصريح غير موجود' } };
+      return;
+    }
+
+    if (req.user.role !== 'super_admin' && permits[idx].deletedByUsername !== req.user.username) {
+        result = { status: 403, body: { error: 'ليس لديك صلاحية للحذف النهائي لهذا التصريح' } };
+        return;
+    }
+
+    permits.splice(idx, 1);
+
+    storage['work-permits'] = JSON.stringify(permits);
+    if (writeStorage(storage)) {
+      result = { status: 200, body: { success: true } };
+    } else {
+      result = { status: 500, body: { error: 'فشل الحذف النهائي' } };
+    }
+  });
+
+  res.status(result.status).json(result.body);
+});
+
 // ============================================================
 // 🔑 API ROUTES — AUTH
 // ============================================================
@@ -1643,10 +2183,10 @@ app.patch('/api/permits/:id/worker-close', async (req, res) => {
 
 // ── POST /api/auth/login — تسجيل الدخول (rate-limited)
 app.post('/api/auth/login', loginLimiter, async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, empCode } = req.body;
 
-  if (!username || !password) {
-    return res.status(400).json({ error: 'يجب إدخال اسم المستخدم وكلمة المرور' });
+  if (!username || !password || !empCode) {
+    return res.status(400).json({ error: 'يجب إدخال اسم المستخدم وكلمة المرور والكود الوظيفي' });
   }
 
   const storage = readStorage();
@@ -1655,33 +2195,81 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
     try { users = JSON.parse(storage['app-users']); } catch { users = []; }
   }
 
-  // البحث عن المستخدم باسمه فقط (bcrypt.compare للكلمة)
-  const user = users.find(u => u.username === username);
+  // Normalize and trim inputs
+  const usernameStr = String(username || '').trim().toLowerCase();
+  const empCodeStr = String(empCode || '').trim();
+
+  // Find user ignoring case
+  const user = users.find(u => String(u.username || '').trim().toLowerCase() === usernameStr);
   if (!user) {
-    // نفس وقت الاستجابة لمنع Username Enumeration
+    console.log(`[LOGIN ERROR] Username not found: ${usernameStr}`);
+    // Fake bcrypt to prevent timing attacks
     await bcrypt.compare(password, '$2b$12$invalidhashtopreventtimingattack000000000000');
-    return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
+    return res.status(401).json({ error: `اسم المستخدم غير موجود: ${usernameStr}` });
   }
 
-  const isMatch = await bcrypt.compare(password, user.password);
+  // Check password (support both plaintext and bcrypt)
+  let isMatch = false;
+  if (user.password.startsWith('$2')) {
+    isMatch = await bcrypt.compare(password, user.password);
+  } else {
+    isMatch = (password === user.password); // Fallback for plaintext
+  }
+
   if (!isMatch) {
-    return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
+    console.log(`[LOGIN ERROR] Invalid password for username: ${usernameStr}`);
+    return res.status(401).json({ error: 'كلمة المرور غير صحيحة' });
   }
 
-  // Include department in token for area_head role-based permit filtering
+  // Check empCode in employees sheet
+  const employees = readEmployees();
+  const searchCode = normalizeEmpCode(empCodeStr);
+  const employee = employees.find(e => {
+    const code = normalizeEmpCode(String(e.empCode || e.code || e.id || '').trim());
+    return code === searchCode;
+  });
+
+  if (!employee) {
+    console.log(`[LOGIN ERROR] EmpCode not found in employees DB: ${empCodeStr}`);
+    return res.status(401).json({ error: `الكود الوظيفي (${empCodeStr}) غير مسجل في قاعدة بيانات الموظفين` });
+  }
+
+  // Check department authorization for dept_admin
+  if (user.role === 'dept_admin') {
+    const empDept = String(employee.department || '').trim().toLowerCase();
+    const adminDept = String(user.department || '').trim().toLowerCase();
+    if (empDept !== adminDept) {
+      console.log(`[LOGIN ERROR] Dept mismatch. Emp Dept: ${empDept}, Admin Dept: ${adminDept}`);
+      return res.status(403).json({ error: `الموظف مسجل بقسم (${employee.department}) وغير مصرح له بإدارة قسم (${user.department})` });
+    }
+  }
+
+  // إدراج القسم الفعلي واسم المشرف الفعلي في الـ Token
   const tokenPayload = {
     id:         user.id,
     username:   user.username,
     role:       user.role,
-    name:       user.name,
-    department: user.department || ''
+    name:       employee.name,
+    department: user.department || employee.department || ''
   };
+
+  // Dynamic role patches for legacy compatibility
+  if (tokenPayload.role === 'dept_admin') {
+    if (tokenPayload.department && tokenPayload.department.toUpperCase() === 'HSE') {
+      tokenPayload.role = 'hse_admin';
+      tokenPayload.department = '';
+    } else if (tokenPayload.department && ['Electrical Maintenance', 'Mechanical Maintenance', 'Preventive Maintenance'].includes(tokenPayload.department)) {
+      tokenPayload.role = 'maint_admin';
+    }
+  }
+  if (tokenPayload.username === 'hse_admin') tokenPayload.role = 'hse_admin';
+
   const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: JWT_EXPIRES });
 
   res.json({
     success: true,
     token,
-    user: { id: user.id, username: user.username, role: user.role, name: user.name, department: user.department || '' }
+    user: { id: user.id, username: user.username, role: tokenPayload.role, name: employee.name, department: tokenPayload.department }
   });
 });
 
@@ -1704,7 +2292,7 @@ app.post('/api/auth/refresh', authenticateToken, (req, res) => {
 // ── GET /api/users — قائمة المستخدمين
 app.get('/api/users',
   authenticateToken,
-  requireRole('superadmin'),
+  requireRole('super_admin'),
   (req, res) => {
     const storage = readStorage();
     let users = [];
@@ -1727,19 +2315,19 @@ app.get('/api/users',
 // ── POST /api/users — إضافة مستخدم جديد
 app.post('/api/users',
   authenticateToken,
-  requireRole('superadmin'),
+  requireRole('super_admin'),
   async (req, res) => {
     const { username, password, role, name } = req.body;
 
     if (!username || !password || !role || !name) {
       return res.status(400).json({ error: 'جميع الحقول مطلوبة' });
     }
-    const VALID_ROLES = ['admin', 'supervisor', 'area_head'];
+    const VALID_ROLES = ['super_admin', 'hse_admin', 'dept_admin'];
     if (!VALID_ROLES.includes(role)) {
       return res.status(400).json({ error: `الدور غير صالح. الأدوار المتاحة: ${VALID_ROLES.join(', ')}` });
     }
-    if (role === 'area_head' && !req.body.department) {
-      return res.status(400).json({ error: 'يجب تحديد القسم لرئيس المنطقة' });
+    if (role === 'dept_admin' && !req.body.department) {
+      return res.status(400).json({ error: 'يجب تحديد القسم لرئيس القسم' });
     }
     if (password.length < 6) {
       return res.status(400).json({ error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' });
@@ -1765,7 +2353,7 @@ app.post('/api/users',
         password:   hashedPassword,
         role:       role,
         name:       name.trim(),
-        department: role === 'area_head' ? (req.body.department || '').trim() : '',
+        department: role === 'dept_admin' ? (req.body.department || '').trim() : '',
         createdAt:  new Date().toISOString()
       };
       users.push(newUser);
@@ -1788,7 +2376,7 @@ app.post('/api/users',
 // ── DELETE /api/users/:id — حذف مستخدم
 app.delete('/api/users/:id',
   authenticateToken,
-  requireRole('superadmin'),
+  requireRole('super_admin'),
   async (req, res) => {
     const userId = req.params.id;
 
@@ -1805,7 +2393,7 @@ app.delete('/api/users/:id',
         result = { status: 404, body: { error: 'المستخدم غير موجود' } };
         return;
       }
-      if (userToDelete.role === 'superadmin') {
+      if (userToDelete.role === 'super_admin') {
         result = { status: 403, body: { error: 'لا يمكن حذف حساب المدير العام' } };
         return;
       }
@@ -1824,18 +2412,19 @@ app.delete('/api/users/:id',
   }
 );
 
-// ── PATCH /api/users/:id/password — تغيير كلمة مرور
-app.patch('/api/users/:id/password',
+// ── PUT /api/users/:id — تعديل بيانات المستخدم كاملة
+app.put('/api/users/:id',
   authenticateToken,
-  requireRole('superadmin'),
+  requireRole('super_admin'),
   async (req, res) => {
-    const userId     = req.params.id;
-    const { newPassword } = req.body;
+    const userId = req.params.id;
+    const { name, username, role, department, newPassword } = req.body;
 
-    if (!newPassword) {
-      return res.status(400).json({ error: 'كلمة المرور الجديدة مطلوبة' });
+    if (!name || !username || !role) {
+      return res.status(400).json({ error: 'الاسم واسم المستخدم والدور مطلوبة' });
     }
-    if (newPassword.length < 6) {
+
+    if (newPassword && newPassword.length < 6) {
       return res.status(400).json({ error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' });
     }
 
@@ -1853,13 +2442,27 @@ app.patch('/api/users/:id/password',
         return;
       }
 
-      users[idx].password = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+      // Check username uniqueness if changed
+      if (username !== users[idx].username && users.some(u => u.username === username)) {
+        result = { status: 400, body: { error: 'اسم المستخدم مسجل مسبقاً' } };
+        return;
+      }
+
+      users[idx].name = name;
+      users[idx].username = username;
+      users[idx].role = role;
+      users[idx].department = role === 'dept_admin' ? department : '';
+
+      if (newPassword) {
+        users[idx].password = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+      }
+
       storage['app-users'] = JSON.stringify(users);
 
       if (writeStorage(storage)) {
         result = { status: 200, body: { success: true } };
       } else {
-        result = { status: 500, body: { error: 'فشل تحديث كلمة المرور' } };
+        result = { status: 500, body: { error: 'فشل التحديث' } };
       }
     });
 
@@ -1894,7 +2497,7 @@ app.get('/api/employees/lookup/:code', (req, res) => {
 // ── GET /api/employees/export-excel — تصدير قاعدة الموظفين كـ xlsx
 app.get('/api/employees/export-excel',
   authenticateToken,
-  requireRole('superadmin', 'admin', 'supervisor', 'area_head', 'hse', 'issuer'),
+  requireRole('super_admin', 'hse_admin', 'dept_admin', 'issuer'),
   async (req, res) => {
     try {
       const employees = readEmployees();
@@ -1932,7 +2535,7 @@ app.get('/api/employees/export-excel',
 // ── POST /api/employees/import-excel — استيراد/دمج xlsx (base64)
 app.post('/api/employees/import-excel',
   authenticateToken,
-  requireRole('superadmin', 'admin', 'supervisor', 'area_head', 'hse', 'issuer'),
+  requireRole('super_admin', 'hse_admin', 'dept_admin', 'issuer'),
   async (req, res) => {
     const { fileData } = req.body;
     if (!fileData) return res.status(400).json({ error: 'fileData (base64) مطلوب' });
@@ -1978,7 +2581,7 @@ app.post('/api/employees/import-excel',
 // ── GET /api/employees — جلب كل الموظفين (محمي)
 app.get('/api/employees',
   authenticateToken,
-  requireRole('superadmin', 'admin', 'supervisor', 'area_head', 'hse', 'issuer'),
+  requireRole('super_admin', 'hse_admin', 'dept_admin', 'issuer'),
   (req, res) => res.json({ employees: readEmployees() })
 );
 
@@ -1987,7 +2590,7 @@ app.post('/api/employees', async (req, res, next) => {
   const authHeader = req.headers['authorization'];
   if (authHeader && authHeader.startsWith('Bearer ')) {
     return authenticateToken(req, res, () =>
-      requireRole('superadmin', 'admin', 'supervisor', 'area_head', 'hse', 'issuer')(req, res, next)
+      requireRole('super_admin', 'hse_admin', 'dept_admin', 'issuer')(req, res, next)
     );
   }
   return employeeLimiter(req, res, next);
@@ -2395,16 +2998,16 @@ app.get('/api/trainings/stats/employees', authenticateToken, requireRole('supera
 // ============================================================
 
 app.get('/api/notifications', (req, res) => {
-  const { role, empCode } = req.query;
+  const { role, empCode, department } = req.query;
   const notifications = readNotifications();
   
   // Filter notifications based on role or empCode
   let userNotifs = notifications.filter(n => {
-    if (n.targetRole === 'all') return true;
+    if (role === 'super_admin') return true;
     if (n.targetEmpCode && empCode && normalizeEmpCode(n.targetEmpCode) === normalizeEmpCode(empCode)) return true;
-    if (n.targetRole && role) {
-      if (n.targetRole === 'admin' && ['superadmin', 'admin', 'supervisor', 'area_head'].includes(role)) return true;
-      if (n.targetRole === role) return true;
+    if (n.targetRole && role && n.targetRole === role) {
+      if (n.targetDept) return n.targetDept === department;
+      return true;
     }
     return false;
   });

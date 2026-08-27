@@ -337,7 +337,7 @@ let permitsCache = [];
 let isLoggedIn = false;
 let currentUsername = '';
 let currentUserName = '';
-let currentUserRole = ''; // 'superadmin' | 'admin' | 'supervisor' | 'area_head'
+let currentUserRole = ''; // 'super_admin' | 'hse_admin' | 'dept_admin'
 let currentUserDept = '';
 let selectedType = 'general';
 let supervisorPollTimer = null;
@@ -397,27 +397,33 @@ function applyRbacUI() {
   // screen (or overlay) needs no navigation bar.
   setDisplay('mainTabs', isWorker || isSup);
 
+  const isMaintAdmin = (isSup && currentUserRole === 'maint_admin');
+
   // Individual tab visibility
   setDisplay('tabWorker',       isWorker);
   setDisplay('tabHazardWorker', isWorker);
   setDisplay('tabMyHistory',    isWorker);
   setDisplay('tabMyHazards',    isWorker);
-  setDisplay('tabSup',          isSup);
+  setDisplay('tabSup',          isSup && !isMaintAdmin);
   setDisplay('tabSupHazard',    isSup);
-  // Users tab: superadmin only
+  // Users tab: super_admin only
   const tabUsers = document.getElementById('tabUsers');
-  if (tabUsers) tabUsers.style.display = (isSup && currentUserRole === 'superadmin') ? '' : 'none';
+  if (tabUsers) tabUsers.style.display = (isSup && currentUserRole === 'super_admin') ? '' : 'none';
   // Employees tab: all supervisor-session roles
   const tabEmployees = document.getElementById('tabEmployees');
-  if (tabEmployees) tabEmployees.style.display = isSup ? '' : 'none';
+  if (tabEmployees) tabEmployees.style.display = (isSup && !isMaintAdmin) ? '' : 'none';
   
   // Training Tabs
   setDisplay('tabTrainingWorker', isWorker);
-  setDisplay('tabTrainingAdmin', isSup);
+  setDisplay('tabTrainingAdmin', isSup && !isMaintAdmin);
 
   // Badge areas
   const empArea  = document.getElementById('empBadgeArea');
   if (empArea)  empArea.style.display  = isWorker ? 'block' : 'none';
+
+  // Notification Bell
+  const notifContainer = document.getElementById('notifContainer');
+  if (notifContainer) notifContainer.style.display = (isWorker || isSup) ? 'inline-flex' : 'none';
 }
 
 // ---------- storage helpers ----------
@@ -531,7 +537,7 @@ function switchTab(which){
     initHazardWorker();
   }
   if(which==='users'){
-    if(isLoggedIn && currentUserRole==='superadmin'){ renderUsersPanel(); }
+    if(isLoggedIn && currentUserRole==='super_admin'){ renderUsersPanel(); }
     else { switchTab('sup'); }
   }
   if(which==='supHazard'){
@@ -571,6 +577,10 @@ function renderLoginGate(){
           <input id="loginUser" type="text" placeholder="اسم المستخدم" autocomplete="username">
         </div>
         <div class="field">
+          <label>الكود الوظيفي (empCode)</label>
+          <input id="loginEmpCode" type="text" placeholder="أدخل الكود الوظيفي (مثال: EMP001)" autocomplete="off" oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div class="field">
           <label>كلمة المرور</label>
           <input id="loginPass" type="password" placeholder="كلمة المرور" autocomplete="current-password">
         </div>
@@ -588,7 +598,8 @@ async function attemptLogin(){
   }
   const user = document.getElementById('loginUser').value.trim();
   const pass = document.getElementById('loginPass').value;
-  if(!user || !pass){
+  const empCode = document.getElementById('loginEmpCode') ? document.getElementById('loginEmpCode').value.trim() : '';
+  if(!user || !pass || !empCode){
     document.getElementById('loginErr').classList.add('show');
     return;
   }
@@ -596,7 +607,7 @@ async function attemptLogin(){
     const res = await fetch('/api/auth/login',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({username: user, password: pass})
+      body: JSON.stringify({username: user, password: pass, empCode: empCode})
     });
     if(!res.ok){
       document.getElementById('loginErr').classList.add('show');
@@ -609,6 +620,10 @@ async function attemptLogin(){
     currentUserName = data.user.name || data.user.username;
     currentUserRole = data.user.role;
     currentUserDept = data.user.department || '';
+    if ((currentUserRole === 'dept_admin' && currentUserDept.toUpperCase() === 'HSE') || currentUsername === 'hse_admin') {
+      currentUserRole = 'hse_admin';
+      currentUserDept = '';
+    }
     // ── Set RBAC session role and rebuild UI ──────────────────
     sessionRole = 'supervisor';
     showUserBadge();
@@ -616,8 +631,12 @@ async function attemptLogin(){
     startNotificationPolling();
     subscribeUserToPush();
     // Switch to supervisor view (guard allows 'sup' now)
-    switchTab('sup');
-    showDashboard();
+    if (currentUserRole === 'maint_admin') {
+      switchTab('supHazard');
+    } else {
+      switchTab('sup');
+      showDashboard();
+    }
   } catch(e){
     document.getElementById('loginErr').classList.add('show');
   }
@@ -629,16 +648,16 @@ function showUserBadge(){
   const emArea  = document.getElementById('emUserProfileChip');
   
   const roleLabels = { 
-    superadmin: 'مدير النظام (Super Admin)', 
-    admin: 'أدمن (Admin)', 
-    supervisor: 'مشرف سلامة (Supervisor)', 
-    area_head: 'رئيس قسم / منطقة (Area Head)' 
+    super_admin: 'مدير النظام (Super Admin)', 
+    hse_admin: 'مشرف سلامة (HSE Admin)', 
+    dept_admin: 'أدمن قسم / منطقة (Dept Admin)',
+    maint_admin: 'مشرف صيانة (Maint Admin)'
   };
   
   const initial = currentUserName ? currentUserName.charAt(0).toUpperCase() : 'U';
   
   let deptHtml = '';
-  if (currentUserRole === 'area_head' && currentUserDept) {
+  if (currentUserRole === 'dept_admin' && currentUserDept) {
     deptHtml = `<span class="profile-dept-pill">القسم: ${escapeHtml(currentUserDept)}</span>`;
   }
   
@@ -955,7 +974,7 @@ function autoFillForm(){
   set('f_name', currentEmployee.name, true);
   set('f_emp',  currentEmployee.empCode, true);
   set('f_phone', currentEmployee.phone, false);
-  set('f_dept',  currentEmployee.department, false);
+  set('f_dept',  currentEmployee.department, true);
   // jobTitle field in form (if it exists)
   const jobTitleEl = safeEl('f_jobTitle');
   if(jobTitleEl && currentEmployee.jobTitle){
@@ -1034,6 +1053,18 @@ function renderForm(){
   // بناء قائمة التحقق الثلاثية المقسّمة
   let chkGlobalIndex = 0;
   function buildSectionHtml(section) {
+    let toggleHtml = '';
+    let sectionId = '';
+    let toggleId = '';
+    if(section.sectionTitle.includes('ب)')) {
+      sectionId = 'sec_oil'; toggleId = 'sec_oil_toggle';
+    } else if(section.sectionTitle.includes('ج)')) {
+      sectionId = 'sec_special'; toggleId = 'sec_special_toggle';
+    }
+    if (toggleId) {
+      toggleHtml = `<label style="font-size:13px; font-weight:normal; margin-inline-start:auto; display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="${toggleId}" onchange="document.getElementById('${sectionId}_content').style.display = this.checked ? 'none' : 'block'"> لا يوجد</label>`;
+    }
+
     const rows = section.items.map((q) => {
       const i = chkGlobalIndex++;
       return `
@@ -1046,7 +1077,7 @@ function renderForm(){
         </div>
       </div>`;
     }).join('');
-    return `<div class="chk-section-label">${section.sectionTitle}</div>${rows}`;
+    return `<div id="${sectionId}_wrap"><div class="chk-section-label" style="display:flex; align-items:center;"><span>${section.sectionTitle}</span>${toggleHtml}</div><div id="${sectionId}_content">${rows}</div></div>`;
   }
   const checklistHtml =
     buildSectionHtml(HSE_CHECKLIST.general) +
@@ -1075,10 +1106,7 @@ function renderForm(){
         <div class="row2">
           <div class="field">
             <label>الإدارة الطالبة / القسم <span class="req-star">*</span></label>
-            <select id="f_dept">
-              <option value="">اختر القسم...</option>
-              ${DEPARTMENTS.map(d=>`<option value="${d}">${d}</option>`).join('')}
-            </select>
+            <input id="f_dept" type="text" readonly style="background-color: #f5f5f5;" placeholder="سيتم تعبئته تلقائياً">
           </div>
           <div class="field">
             <label>الوردية <span class="req-star">*</span></label>
@@ -1097,12 +1125,17 @@ function renderForm(){
         </div>
         <div class="row2">
           <div class="field">
-            <label>من الساعة</label>
-            <input id="f_from" type="time">
+            <label>من الساعة <span class="req-star">*</span></label>
+            <input id="f_from" type="time" required>
           </div>
           <div class="field">
-            <label>إلى الساعة</label>
-            <input id="f_to" type="time">
+            <label>إلى الساعة <span class="req-star">*</span></label>
+            <input id="f_to" type="time" required>
+            <label class="custom-pill-check" style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; margin-top: 6px; user-select: none;">
+              <span style="font-size: 0.85rem; color: #475569; font-weight: 500;">نهاية مفتوحة / حتى انتهاء العمل</span>
+              <input type="checkbox" id="f_open_end" class="pill-checkbox-input" onchange="window.toggleOpenEnd(this)">
+              <span class="pill-checkbox-box"></span>
+            </label>
           </div>
         </div>
 
@@ -1167,7 +1200,7 @@ function renderForm(){
           </div>
         </div>
         <div class="field">
-          <label>أسماء القائمين بالعمل (كل اسم في سطر)</label>
+          <label>أسماء القائمين بالعمل (كل اسم في سطر) <span class="req-star">*</span></label>
           <textarea id="f_workers" placeholder="1- ...&#10;2- ..."></textarea>
         </div>
 
@@ -1190,6 +1223,20 @@ function renderForm(){
   document.getElementById('riskRows').innerHTML = '';
   riskRowCount = 0; // [FIX-3] إعادة ضبط العداد في كل مرة تُعاد فيها رسم النموذج
   addRiskRow();
+  addRiskRow();
+  
+  window.toggleOpenEnd = function(el) {
+    const toInput = document.getElementById('f_to');
+    if (el.checked) {
+      toInput.value = '';
+      toInput.disabled = true;
+      toInput.style.backgroundColor = '#f0f0f0';
+    } else {
+      toInput.disabled = false;
+      toInput.style.backgroundColor = '';
+    }
+  };
+
   // تعبئة تلقائية إذا كان الموظف مسجل دخول
   autoFillForm();
   // تفعيل خانة "أخرى" في قائمة الأدوات
@@ -1293,11 +1340,33 @@ async function submitPermit(){
   const name = document.getElementById('f_name').value.trim();
   const dept = document.getElementById('f_dept').value;
   const date = document.getElementById('f_date').value;
+  const timeFrom = document.getElementById('f_from').value;
+  const timeTo = document.getElementById('f_to').value;
+  const openEnd = document.getElementById('f_open_end') ? document.getElementById('f_open_end').checked : false;
   const desc = document.getElementById('f_desc').value.trim();
   const loc = document.getElementById('workLocationSelect').value;
+  const workers = document.getElementById('f_workers').value.trim();
 
-  if(!name || !desc || !date || !dept || !loc){
-    alert('من فضلك املأ الحقول المطلوبة: القسم، اسم مقدم الطلب، تاريخ التنفيذ، مكان العمل، ووصف العملية');
+  const missingFields = [];
+
+  if(!loc) missingFields.push('مكان العمل');
+  if(!desc) missingFields.push('وصف العملية');
+  if(!date) missingFields.push('تاريخ التنفيذ');
+  if(!timeFrom) missingFields.push('وقت البدء');
+  if(!timeTo && !openEnd) missingFields.push('وقت الانتهاء');
+  if(!workers) missingFields.push('أسماء القائمين بالعمل');
+
+  // Also include name/dept just in case they were cleared
+  if(!name) missingFields.push('اسم مقدم الطلب');
+  if(!dept) missingFields.push('الإدارة الطالبة / القسم');
+
+  const risks = collectRisks();
+  if (risks.length < 2 || !risks[0].source || !risks[0].control || !risks[1].source || !risks[1].control) {
+    missingFields.push('تقييم المخاطر (الخطر 1 و 2 وإجراءات الوقاية)');
+  }
+
+  if (missingFields.length > 0) {
+    alert('برجاء استكمال الحقول المطلوبة التالية:\n• ' + missingFields.join('\n• '));
     return;
   }
 
@@ -1316,8 +1385,8 @@ async function submitPermit(){
     shift: document.getElementById('f_shift').value,
     date: date,
     previousPermitNo: document.getElementById('f_prev').value.trim(),
-    timeFrom: document.getElementById('f_from').value,
-    timeTo: document.getElementById('f_to').value,
+    timeFrom: timeFrom,
+    timeTo: openEnd ? 'نهاية مفتوحة' : timeTo,
     workerName: name,
     requesterKind: document.getElementById('f_kind').value,
     requesterPhone: document.getElementById('f_phone').value.trim(),
@@ -1330,7 +1399,7 @@ async function submitPermit(){
     checklist: collectChecklist(),
     checklistNote: document.getElementById('f_checknote').value.trim(),
     risks: collectRisks(),
-    status: 'pending_area_head',
+    status: 'pending_dept',
     reviewedBy: '',
     areaHeadReviewedBy: '',
     safetyOfficerName: '',
@@ -1383,7 +1452,7 @@ function goTrackWithId(permitId){
 // منطق التتبع انتقل بالكامل لتبويب "سجل تصاريحي" (myhistory)
 // ---------- supervisor view ----------
 function renderFilters(){
-  const opts = ['الكل','بانتظار رئيس المنطقة','بانتظار الإدارة','موافق عليه','مرفوض','مغلق'];
+  const opts = ['الكل','بانتظار أدمن القسم','بانتظار السلامة والصحة المهنية','موافق عليه','مرفوض','مغلق','🗑️ المحذوفات'];
   document.getElementById('filters').innerHTML = opts.map(o=>
     `<div class="chip ${o===currentFilter?'active':''}" onclick="setFilter('${o}')">${o}</div>`
   ).join('');
@@ -1420,8 +1489,8 @@ async function pollPermitsForSupervisor(){
 }
 
 function statusLabel(s){
-  if(s==='pending' || s==='pending_area_head') return 'بانتظار رئيس المنطقة';
-  if(s==='pending_admin') return 'بانتظار الإدارة';
+  if(s==='pending' || s==='pending_dept') return 'بانتظار أدمن القسم';
+  if(s==='pending_hse') return 'بانتظار السلامة والصحة المهنية';
   if(s==='approved') return 'موافق عليه';
   if(s==='rejected') return 'مرفوض';
   if(s && s.startsWith('closed')) return 'مغلق';
@@ -1434,6 +1503,16 @@ function closureLabel(c){
   if(c.type==='forced') return 'إغلاق جبري';
   return '';
 }
+function formatTime12(time24) {
+  if (!time24 || !time24.includes(':')) return time24 || '—';
+  const [hStr, mStr] = time24.split(':');
+  let h = parseInt(hStr, 10);
+  if (isNaN(h)) return time24;
+  const ampm = h >= 12 ? 'م' : 'ص';
+  h = h % 12;
+  h = h ? h : 12;
+  return `${h.toString().padStart(2, '0')}:${mStr} ${ampm}`;
+}
 function statusFilterMatch(s){
   if(currentFilter==='الكل') return true;
   return statusLabel(s) === currentFilter;
@@ -1444,7 +1523,42 @@ function typeFilterMatch(p){
 }
 
 function renderList(){
-  const list = [...permitsCache].reverse().filter(p => statusFilterMatch(p.status) && typeFilterMatch(p));
+  const list = [...permitsCache].reverse().filter(p => {
+    const isDeptAdmin = currentUserRole === 'dept_admin';
+    const isHSEAdmin = currentUserRole === 'hse_admin';
+    const isSuperAdmin = currentUserRole === 'super_admin';
+
+    // 1. Dept Admin can only see their own department's permits
+    if (isDeptAdmin && p.department !== currentUserDept) {
+      return false;
+    }
+
+    // 2. Strict HSE Admin visibility rules
+    if (isHSEAdmin && currentFilter !== '🗑️ المحذوفات') {
+      if (p.status === 'pending_hse' || p.status === 'approved' || (p.status === 'rejected' && p.rejectedByRole === 'hse_admin') || (p.status && p.status.startsWith('closed'))) {
+         return !p.deleted && typeFilterMatch(p) && (currentFilter === 'الكل' || statusFilterMatch(p.status) || p.status === 'pending_hse');
+      }
+      return false;
+    }
+
+    // 3. Super Admin visibility rules
+    if (isSuperAdmin && currentFilter !== '🗑️ المحذوفات') {
+      const isApprovedOrClosed = p.status === 'pending_hse' || p.status === 'approved' || (p.status && p.status.startsWith('closed'));
+      if (!isApprovedOrClosed) {
+        return false;
+      }
+    }
+
+    if (currentFilter === '🗑️ المحذوفات') {
+      if (!p.deleted || !typeFilterMatch(p)) return false;
+      if (isSuperAdmin) return true;
+      if (isDeptAdmin) return p.department === currentUserDept || p.deletedByUsername === currentUsername;
+      if (isHSEAdmin) return p.deletedByUsername === currentUsername || p.status === 'pending_hse' || p.status === 'approved' || (p.status && p.status.startsWith('closed'));
+      return false;
+    } else {
+      return !p.deleted && statusFilterMatch(p.status) && typeFilterMatch(p);
+    }
+  });
   const container = document.getElementById('supList');
 
   if(list.length === 0){
@@ -1477,7 +1591,7 @@ function renderList(){
     `).join('') || `<div class="risk-summary" style="color:var(--muted);">لا توجد مخاطر مسجلة</div>`;
 
     return `
-    <div class="sup-card">
+    <div class="sup-card ${p.deleted ? 'deleted' : ''}">
       <div class="sup-top">
         <div>
           <div class="worker"><span class="type-pill">${escapeHtml(p.typeLabel)}</span>${escapeHtml(p.workerName)}</div>
@@ -1488,7 +1602,7 @@ function renderList(){
       <div class="meta-grid">
         <div><span>القسم</span>${escapeHtml(p.department)||'—'}</div>
         <div><span>مكان العمل</span>${escapeHtml(p.location)||'—'}</div>
-        <div><span>الوقت</span>${(p.timeFrom||'—')+' → '+(p.timeTo||'—')}</div>
+        <div style="white-space: normal;"><span>الوقت</span>${escapeHtml(formatTime12(p.timeFrom))} → ${escapeHtml(formatTime12(p.timeTo))}</div>
         <div><span>الصفة</span>${escapeHtml(p.requesterKind)||'—'}</div>
       </div>
       <div class="desc"><strong>وصف العملية:</strong> ${escapeHtml(p.description)}</div>
@@ -1511,14 +1625,13 @@ function renderList(){
         <div class="doc-control-footer">SE-07-F02 &nbsp;|&nbsp; VER.NO.: 01 &nbsp;|&nbsp; VER. DATE: 01/01/2025</div>
       </div>
 
-      ${(p.status === 'pending' || p.status === 'pending_area_head') ? `
-        ${(currentUserRole === 'area_head' && currentUserDept === p.department) || currentUserRole === 'superadmin' ? `
+      ${(p.status === 'pending' || p.status === 'pending_dept') ? `
+        ${(currentUserRole === 'dept_admin' && currentUserDept === p.department) || currentUserRole === 'super_admin' ? `
           <div class="row2" style="margin-top:12px;">
-            <div class="field"><label>اسم مشرف السلامة</label><input id="safety-${p.id}" type="text" placeholder="اختياري"></div>
             <div class="field"><label>اسم مدير المنطقة</label><input id="area-${p.id}" type="text" placeholder="اختياري"></div>
           </div>
           <div class="actions">
-            <button class="act-btn approve" onclick="approvePermit('${p.id}')">✓ موافقة رئيس المنطقة</button>
+            <button class="act-btn approve" onclick="approvePermit('${p.id}')">✓ موافقة أدمن القسم</button>
             <button class="act-btn reject" onclick="toggleNote('${p.id}')">✗ رفض</button>
           </div>
           <div class="note-box" id="note-${p.id}">
@@ -1526,19 +1639,18 @@ function renderList(){
             <button onclick="rejectPermit('${p.id}')">تأكيد الرفض</button>
           </div>
         ` : `
-          <div class="review-note">⏳ التصريح بانتظار موافقة رئيس منطقة ${escapeHtml(p.department)}</div>
+          <div class="review-note">⏳ التصريح بانتظار موافقة أدمن قسم ${escapeHtml(p.department)}</div>
         `}
       ` : ''}
 
-      ${p.status === 'pending_admin' ? `
-        <div class="reviewed-by">موافقة مبدئية من: ${escapeHtml(p.areaHeadReviewedBy)||'رئيس المنطقة'} — ${p.areaHeadReviewedAt ? new Date(p.areaHeadReviewedAt).toLocaleString('ar-EG') : ''}</div>
-        ${(currentUserRole === 'admin' || currentUserRole === 'supervisor' || currentUserRole === 'superadmin') ? `
+      ${p.status === 'pending_hse' ? `
+        <div class="reviewed-by">موافقة مبدئية من: ${escapeHtml(p.areaHeadReviewedBy)||'أدمن القسم'} — ${p.areaHeadReviewedAt ? new Date(p.areaHeadReviewedAt).toLocaleString('ar-EG') : ''}</div>
+        ${(currentUserRole === 'hse_admin' || currentUserRole === 'super_admin') ? `
           <div class="row2" style="margin-top:12px;">
             <div class="field"><label>اسم مشرف السلامة</label><input id="safety-${p.id}" type="text" placeholder="اختياري"></div>
-            <div class="field"><label>اسم مدير المنطقة</label><input id="area-${p.id}" type="text" placeholder="اختياري"></div>
           </div>
           <div class="actions">
-            <button class="act-btn approve" onclick="approvePermit('${p.id}')">✓ اعتماد الإدارة النهائية</button>
+            <button class="act-btn approve" onclick="approvePermit('${p.id}')">✓ اعتماد السلامة والصحة المهنية (HSE)</button>
             <button class="act-btn reject" onclick="toggleNote('${p.id}')">✗ رفض</button>
           </div>
           <div class="note-box" id="note-${p.id}">
@@ -1546,7 +1658,7 @@ function renderList(){
             <button onclick="rejectPermit('${p.id}')">تأكيد الرفض</button>
           </div>
         ` : `
-          <div class="review-note">⏳ التصريح بانتظار اعتماد الإدارة النهائية</div>
+          <div class="review-note">⏳ التصريح بانتظار اعتماد السلامة والصحة المهنية (HSE)</div>
         `}
       ` : ''}
 
@@ -1568,8 +1680,22 @@ function renderList(){
       ${p.status.startsWith('closed') ? `
         <div class="reviewed-by">اعتمدته الإدارة: ${escapeHtml(p.reviewedBy)||'الإدارة'}</div>
         <div class="reviewed-by">حالة الإغلاق: ${closureLabel(p.closure)} — ${p.closure && p.closure.time ? new Date(p.closure.time).toLocaleString('ar-EG') : ''}</div>
-        ${p.closure && p.closure.closedBy ? `<div class="reviewed-by">أغلقه: ${escapeHtml(p.closure.closedBy)}</div>` : ''}
+        ${p.closure && p.closure.closedBy ? `<div class="reviewed-by">أغلقه: ${escapeHtml(p.closure.closedBy.includes('(worker)') ? (p.workerName || p.applicantName || p.employeeName || p.closure.closedBy) : p.closure.closedBy)}</div>` : ''}
         ${p.closure && p.closure.reason ? `<div class="review-note">السبب: ${escapeHtml(p.closure.reason)}</div>` : ''}
+      ` : ''}
+      ${currentFilter === '🗑️ المحذوفات' ? `
+        <div style="margin-top:12px; border-top:1px solid var(--paper-line); padding-top:10px;">
+          ${(currentUserRole === 'super_admin' || p.deletedByUsername === currentUsername) ? `
+          <button class="act-btn" style="background:var(--success); color:white; border:none; padding:6px 12px; border-radius:4px;" onclick="restorePermit('${p.id}')">استعادة ↩️</button>
+          <button class="act-btn" style="background:var(--danger); color:white; border:none; padding:6px 12px; border-radius:4px; margin-inline-start: 8px;" onclick="hardDeletePermit('${p.id}')">🔥 حذف نهائي</button>
+          ` : ''}
+          <div style="font-size:12px; color:var(--danger); margin-top:6px;">حُذف بواسطة: ${escapeHtml(p.deletedBy||'')} | السبب: ${escapeHtml(p.deleteReason||'')}</div>
+        </div>
+      ` : ''}
+      ${currentFilter !== '🗑️ المحذوفات' && (currentUserRole === 'super_admin' || currentUserRole === 'hse_admin' || currentUserRole === 'dept_admin') ? `
+        <div style="margin-top:12px; text-align:left;">
+          <button class="um-btn del" onclick="openDeletePermitModal('${p.id}')">🗑️ حذف</button>
+        </div>
       ` : ''}
     </div>
   `;}).join('');
@@ -1582,6 +1708,82 @@ function toggleNote(id){
   document.getElementById('note-'+id).classList.toggle('show');
 }
 
+let permitToDelete = '';
+function openDeletePermitModal(id) {
+  permitToDelete = id;
+  document.getElementById('deletePermitReason').value = '';
+  const msg = document.getElementById('deletePermitMsg');
+  if(msg) msg.className = 'um-msg';
+  document.getElementById('deletePermitModal').style.display = 'flex';
+}
+function closeDeletePermitModal() {
+  document.getElementById('deletePermitModal').style.display = 'none';
+  permitToDelete = '';
+}
+async function confirmDeletePermit() {
+  const reason = document.getElementById('deletePermitReason').value.trim();
+  const msgEl = document.getElementById('deletePermitMsg');
+  msgEl.className = 'um-msg';
+
+  if(!reason) {
+    msgEl.textContent = 'من فضلك أدخل سبب الحذف';
+    msgEl.className = 'um-msg error show';
+    return;
+  }
+
+  try {
+    const res = await authFetch(`/api/permits/${encodeURIComponent(permitToDelete)}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      msgEl.textContent = '✅ تم حذف التصريح ونقله للأرشيف';
+      msgEl.className = 'um-msg success show';
+      setTimeout(() => {
+        closeDeletePermitModal();
+        pollPermitsForSupervisor();
+      }, 1000);
+    } else {
+      msgEl.textContent = data.error || 'فشل عملية الحذف';
+      msgEl.className = 'um-msg error show';
+    }
+  } catch (e) {
+    msgEl.textContent = 'خطأ في الاتصال بالسيرفر';
+    msgEl.className = 'um-msg error show';
+  }
+}
+async function restorePermit(id) {
+  if(!confirm('هل أنت متأكد من استعادة هذا التصريح؟')) return;
+  try {
+    const res = await authFetch(`/api/permits/${encodeURIComponent(id)}/restore`, { method: 'POST' });
+    if(res.ok) {
+      pollPermitsForSupervisor();
+    } else {
+      const data = await res.json();
+      alert(data.error || 'فشل استعادة التصريح');
+    }
+  } catch (e) {
+    alert('خطأ في الاتصال بالسيرفر');
+  }
+}
+
+async function hardDeletePermit(id) {
+  if(!confirm('هل أنت متأكد من حذف هذا التصريح نهائياً من قاعدة البيانات؟ لا يمكن التراجع عن هذا الإجراء')) return;
+  try {
+    const res = await authFetch(`/api/permits/${encodeURIComponent(id)}/permanent`, { method: 'DELETE' });
+    if(res.ok) {
+      pollPermitsForSupervisor();
+    } else {
+      const data = await res.json();
+      alert(data.error || 'فشل الحذف النهائي');
+    }
+  } catch (e) {
+    alert('خطأ في الاتصال بالسيرفر');
+  }
+}
+
 async function approvePermit(id){
   const safetyEl = document.getElementById('safety-'+id);
   const areaEl   = document.getElementById('area-'+id);
@@ -1590,7 +1792,7 @@ async function approvePermit(id){
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action:            currentUserRole === 'area_head' ? 'area_approve' : 'approve',
+        action:            currentUserRole === 'dept_admin' ? 'dept_approve' : 'hse_approve',
         safetyOfficerName: safetyEl ? safetyEl.value.trim() : '',
         areaManagerName:   areaEl   ? areaEl.value.trim()   : ''
       })
@@ -1600,6 +1802,8 @@ async function approvePermit(id){
       // Update local cache from server response
       const idx = permitsCache.findIndex(p => p.id === id);
       if (idx !== -1 && data.permit) permitsCache[idx] = data.permit;
+      currentFilter = 'الكل';
+      renderFilters();
       renderList();
     } else {
       alert(data.error || 'حصل خطأ في الموافقة، حاول تاني');
@@ -1617,7 +1821,7 @@ async function rejectPermit(id){
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
-        action: currentUserRole === 'area_head' ? 'area_reject' : 'reject', 
+        action: 'reject', 
         reviewNote: note 
       })
     });
@@ -1685,7 +1889,38 @@ function escapeHtml(str){
 
 // ---------- excel export ----------
 function exportExcel(){
-  const list = [...permitsCache].reverse().filter(p => statusFilterMatch(p.status) && typeFilterMatch(p));
+  if (currentFilter === '🗑️ المحذوفات') {
+    const list = [...permitsCache].reverse().filter(p => {
+      if (!p.deleted || !typeFilterMatch(p)) return false;
+      if (currentUserRole === 'super_admin') return true;
+      if (currentUserRole === 'dept_admin') return p.department === currentUserDept || p.deletedByUsername === currentUsername;
+      if (currentUserRole === 'hse_admin') return p.deletedByUsername === currentUsername || p.status === 'pending_hse' || p.status === 'approved' || (p.status && p.status.startsWith('closed'));
+      return false;
+    });
+
+    if(list.length === 0){
+      alert('لا توجد بيانات محذوفة لتصديرها بعد');
+      return;
+    }
+
+    const rows = list.map(p => ({
+      'كود التصريح': p.id,
+      'اسم مقدم الطلب': p.workerName,
+      'القسم': p.department,
+      'تاريخ الحذف': p.deletedAt ? new Date(p.deletedAt).toLocaleString('ar-EG') : '',
+      'اسم من قام بالحذف': p.deletedBy || '',
+      'سبب الحذف': p.deleteReason || ''
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = Object.keys(rows[0]).map(()=>({wch:20}));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'المحذوفات');
+    const dateStr = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(wb, `سجل_المحذوفات_${dateStr}.xlsx`);
+    return;
+  }
+
+  const list = [...permitsCache].reverse().filter(p => !p.deleted && statusFilterMatch(p.status) && typeFilterMatch(p));
   if(list.length === 0){
     alert('لا توجد بيانات لتصديرها بعد');
     return;
@@ -1776,16 +2011,16 @@ if ('serviceWorker' in navigator) {
 // إدارة المستخدمين - User Management (Super Admin only)
 // ===================================================================
 function roleLabel(r){
-  if(r==='superadmin') return 'Super Admin';
-  if(r==='admin') return 'Admin';
-  if(r==='supervisor') return 'Supervisor';
+  if(r==='super_admin') return 'Super Admin';
+  if(r==='hse_admin') return 'HSE Admin';
+  if(r==='dept_admin') return 'Dept Admin';
   return r;
 }
 
 function toggleUmDept() {
   const role = document.getElementById('um_role').value;
   const deptRow = document.getElementById('um_deptRow');
-  if (role === 'area_head') {
+  if (role === 'dept_admin') {
     deptRow.style.display = 'flex';
   } else {
     deptRow.style.display = 'none';
@@ -1801,6 +2036,7 @@ async function renderUsersPanel(){
     if(!res.ok) throw new Error('fetch failed');
     const data = await res.json();
     const users = data.users || [];
+    window.umUsers = users; // Save globally for the edit modal
     if(users.length === 0){
       listEl.innerHTML = '<div class="empty"><div class="icon">👤</div>لا يوجد مستخدمون</div>';
       return;
@@ -1826,14 +2062,14 @@ async function renderUsersPanel(){
                 <td style="font-family:'Oswald',sans-serif;font-size:13px;">${escapeHtml(u.username)}</td>
                 <td>
                   <span class="role-badge ${u.role}">${roleLabel(u.role)}</span>
-                  ${u.role === 'area_head' && u.department ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">${escapeHtml(u.department)}</div>` : ''}
+                  ${u.role === 'dept_admin' && u.department ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">${escapeHtml(u.department)}</div>` : ''}
                 </td>
                 <td style="color:var(--muted);font-size:12px;">${u.createdAt ? new Date(u.createdAt).toLocaleDateString('ar-EG') : '—'}</td>
                 <td>
                   <div class="um-action-btns">
-                    <button class="um-btn pass" onclick="openPassModal('${u.id}','${escapeHtml(u.name)}')">🔑 كلمة المرور</button>
+                    <button class="um-btn pass" onclick="openEditUserModal('${u.id}')">✏️ تعديل</button>
                     <button class="um-btn del" onclick="deleteUser('${u.id}','${escapeHtml(u.name)}')"
-                      ${u.role==='superadmin' ? 'disabled title="لا يمكن حذف Super Admin"' : ''}>🗑 حذف</button>
+                      ${u.role==='super_admin' ? 'disabled title="لا يمكن حذف Super Admin"' : ''}>🗑 حذف</button>
                   </div>
                 </td>
               </tr>
@@ -1871,7 +2107,7 @@ async function addUser(){
     const res = await authFetch('/api/users',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({name, username, password, role, department: role === 'area_head' ? dept : ''})
+      body: JSON.stringify({name, username, password, role, department: role === 'dept_admin' ? dept : ''})
     });
     const data = await res.json();
     if(res.ok){
@@ -1880,7 +2116,7 @@ async function addUser(){
       document.getElementById('um_name').value = '';
       document.getElementById('um_username').value = '';
       document.getElementById('um_password').value = '';
-      document.getElementById('um_role').value = 'admin';
+      document.getElementById('um_role').value = 'hse_admin';
       renderUsersPanel();
     } else {
       msgEl.textContent = data.error || 'حصل خطأ في الإضافة';
@@ -1910,47 +2146,86 @@ async function deleteUser(id, name){
   }
 }
 
-function openPassModal(userId, userName){
-  umPassTargetId = userId;
-  document.getElementById('um_passModalName').textContent = `تغيير كلمة مرور: ${userName}`;
-  document.getElementById('um_newPass').value = '';
-  const msg = document.getElementById('um_passMsg');
+let umEditTargetId = '';
+
+function toggleEditUmDept() {
+  const role = document.getElementById('um_editRole').value;
+  const deptRow = document.getElementById('um_editDeptRow');
+  if (role === 'dept_admin') {
+    deptRow.style.display = 'block';
+  } else {
+    deptRow.style.display = 'none';
+  }
+}
+
+function openEditUserModal(userId){
+  const user = window.umUsers.find(u => u.id === userId);
+  if(!user) return;
+  
+  umEditTargetId = userId;
+  document.getElementById('um_editModalName').textContent = `تعديل المستخدم: ${user.name}`;
+  document.getElementById('um_editName').value = user.name || '';
+  document.getElementById('um_editUsername').value = user.username || '';
+  document.getElementById('um_editRole').value = user.role || 'hse_admin';
+  document.getElementById('um_editDept').value = user.department || 'Administration';
+  document.getElementById('um_editNewPass').value = '';
+  
+  toggleEditUmDept();
+  
+  const msg = document.getElementById('um_editMsg');
   msg.className = 'um-msg';
-  document.getElementById('um_passModal').style.display = 'flex';
+  document.getElementById('um_editModal').style.display = 'flex';
 }
 
-function closePassModal(){
-  document.getElementById('um_passModal').style.display = 'none';
-  umPassTargetId = '';
+function closeEditUserModal(){
+  document.getElementById('um_editModal').style.display = 'none';
+  umEditTargetId = '';
 }
 
-async function saveUserPassword(){
-  const newPass = document.getElementById('um_newPass').value;
-  const msgEl = document.getElementById('um_passMsg');
+async function saveUserEdit(){
+  const name = document.getElementById('um_editName').value.trim();
+  const username = document.getElementById('um_editUsername').value.trim();
+  const role = document.getElementById('um_editRole').value;
+  const dept = document.getElementById('um_editDept').value;
+  const newPass = document.getElementById('um_editNewPass').value;
+  
+  const msgEl = document.getElementById('um_editMsg');
   msgEl.className = 'um-msg';
-  if(!newPass){
-    msgEl.textContent = 'من فضلك أدخل كلمة المرور الجديدة';
+  
+  if(!name || !username || !role){
+    msgEl.textContent = 'من فضلك أملأ جميع الحقول المطلوبة';
     msgEl.className = 'um-msg error show';
     return;
   }
+  if(newPass && newPass.length < 6){
+    msgEl.textContent = 'كلمة المرور يجب أن تكون 6 أحرف على الأقل';
+    msgEl.className = 'um-msg error show';
+    return;
+  }
+
+  const payload = { name, username, role, department: role === 'dept_admin' ? dept : '' };
+  if(newPass) payload.newPassword = newPass;
+
   try{
-    // ─── استخدام authFetch لإرسال الـ Token ─────────────────
-    const res = await authFetch(`/api/users/${encodeURIComponent(umPassTargetId)}/password`,{
-      method:'PATCH',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({newPassword: newPass})
+    const res = await authFetch(`/api/users/${encodeURIComponent(umEditTargetId)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
     });
     const data = await res.json();
     if(res.ok){
-      msgEl.textContent = '✅ تم تحديث كلمة المرور بنجاح';
+      msgEl.textContent = '✅ تم تحديث بيانات المستخدم بنجاح';
       msgEl.className = 'um-msg success show';
-      setTimeout(closePassModal, 1500);
+      setTimeout(() => {
+        closeEditUserModal();
+        renderUsersPanel();
+      }, 1000);
     } else {
-      msgEl.textContent = data.error || 'فشل تحديث كلمة المرور';
+      msgEl.textContent = data.error || 'حصل خطأ أثناء التحديث';
       msgEl.className = 'um-msg error show';
     }
   } catch(e){
-    msgEl.textContent = 'حصل خطأ في الاتصال';
+    msgEl.textContent = 'حصل خطأ في الاتصال بالسيرفر';
     msgEl.className = 'um-msg error show';
   }
 }
@@ -2228,12 +2503,12 @@ async function exportEmployeesExcel() {
 // === تبويب "سجل تصاريحي" (My Permits History) ===
 // ================================================================
 
-const MY_HISTORY_FILTERS = ['الكل', 'بانتظار رئيس المنطقة', 'بانتظار الإدارة', 'موافق عليه', 'مرفوض', 'مغلق'];
+const MY_HISTORY_FILTERS = ['الكل', 'بانتظار أدمن القسم', 'بانتظار السلامة والصحة المهنية', 'موافق عليه', 'مرفوض', 'مغلق'];
 
 function myHistoryFilterMatch(p){
   if(myHistoryFilter === 'الكل') return true;
-  if(myHistoryFilter === 'بانتظار رئيس المنطقة') return p.status === 'pending' || p.status === 'pending_area_head';
-  if(myHistoryFilter === 'بانتظار الإدارة') return p.status === 'pending_admin';
+  if(myHistoryFilter === 'بانتظار أدمن القسم') return p.status === 'pending' || p.status === 'pending_dept';
+  if(myHistoryFilter === 'بانتظار السلامة والصحة المهنية') return p.status === 'pending_hse';
   if(myHistoryFilter === 'موافق عليه') return p.status === 'approved';
   if(myHistoryFilter === 'مرفوض') return p.status === 'rejected';
   if(myHistoryFilter === 'مغلق') return p.status && p.status.startsWith('closed');
@@ -2304,8 +2579,8 @@ async function renderMyHistory(isSilent = false){
         <div><span>القسم</span>${escapeHtml(p.department || '—')}</div>
       </div>
       <div class="phc-desc">${escapeHtml(p.description || '')}</div>
-      ${(st === 'pending' || st === 'pending_area_head') ? `<div class="phc-msg pending">⏳ بانتظار موافقة رئيس المنطقة</div>` : ''}
-      ${st === 'pending_admin' ? `<div class="phc-msg pending">✅ تمت موافقة رئيس المنطقة (بانتظار اعتماد الإدارة العليا)</div>` : ''}
+      ${(st === 'pending' || st === 'pending_dept') ? `<div class="phc-msg pending">⏳ بانتظار موافقة أدمن القسم</div>` : ''}
+      ${st === 'pending_hse' ? `<div class="phc-msg pending">✅ تمت موافقة القسم (بانتظار اعتماد السلامة والصحة المهنية)</div>` : ''}
       ${st === 'approved' ? `
         <div class="phc-msg approved">🟢 تم الاعتماد النهائي للتصريح — يمكنك الإغلاق بعد الانتهاء</div>
         <div class="closure-box" style="margin-top:8px;">
@@ -2677,28 +2952,78 @@ function getHazardCardHtml(h) {
   
   let statusStr = 'مفتوح 🔴';
   let statusClass = 'hz-status-open';
-  if (h.status === 'notified') { statusStr = 'تم الإبلاغ 📢'; statusClass = 'hz-status-in_progress'; }
+  if (h.status === 'assigned_to_maintenance') { statusStr = 'موجه للصيانة 📢'; statusClass = 'hz-status-in_progress'; }
   if (h.status === 'in_progress') { statusStr = 'قيد الإصلاح 🟡'; statusClass = 'hz-status-in_progress'; }
-  if (h.status === 'resolved' || h.status === 'closed') { statusStr = 'تم الحل والإغلاق 🟢'; statusClass = 'hz-status-resolved'; }
+  if (h.status === 'rejected_by_maintenance') { statusStr = 'مرفوض (صيانة) ❌'; statusClass = 'hz-status-rejected'; }
+  if (h.status === 'rejected_by_hse') { statusStr = 'مرفوض 🚫'; statusClass = 'hz-status-rejected'; }
+  if (h.status === 'resolved' || h.status === 'closed') { statusStr = 'تم الإصلاح والإغلاق 🟢'; statusClass = 'hz-status-resolved'; }
+  if (h.deleted) { statusStr = 'محذوف 🗑️'; statusClass = 'hz-status-resolved'; }
 
   let actionHtml = '';
-  if (h.status !== 'resolved' && h.status !== 'closed') {
-    actionHtml = `
-      <div class="note-box show" style="margin-top:12px;">
-        <label style="font-size:12px; font-weight:bold; display:block; margin-bottom:4px;">الإجراء المتخذ / ملاحظات الصيانة والسلامة:</label>
-        <textarea id="hz_action_${h.id}" placeholder="اكتب الإجراء الذي تم اتخاذه..."></textarea>
-        <div style="display:flex; gap:8px; margin-top:8px;">
-          <button onclick="updateHazardStatus('${h.id}', 'notified')" class="act-btn approve" style="background:#17a2b8; color:#fff;">📢 تم الإبلاغ</button>
-          <button onclick="updateHazardStatus('${h.id}', 'in_progress')" class="act-btn approve" style="background:#ffc107; color:#000;">🟡 قيد الإصلاح</button>
-          <button onclick="updateHazardStatus('${h.id}', 'resolved')" class="act-btn approve" style="background:#28a745; color:#fff;">🟢 تم الحل والإغلاق</button>
-        </div>
-      </div>
-    `;
-  } else {
-    if (h.actionTaken) {
+  if (!h.deleted) {
+    if (h.status === 'rejected_by_maintenance') {
+      actionHtml = `<div class="desc" style="margin-top:10px; background:#ffe5e5; padding:8px; border-radius:4px; border:1px solid #ffcccc;">
+        <strong>سبب رفض الصيانة (${escapeHtml(h.assignedToMaintenance || '')}):</strong><br>${escapeHtml(h.maintRejectReason || '')}
+        <br><span style="font-size:11px;color:var(--danger);">بواسطة: ${escapeHtml(h.maintRejectedBy || '')}</span>
+      </div>`;
+      if (currentUserRole === 'hse_admin' || currentUserRole === 'super_admin') {
+        actionHtml += `<div style="display:flex; gap:8px; margin-top:8px;">
+          <button onclick="openHzAssignModal('${h.id}')" class="act-btn approve" style="background:#17a2b8; color:#fff;">📢 إعادة التوجيه لقسم آخر</button>
+          <button onclick="openHzRejectHseModal('${h.id}')" class="act-btn approve" style="background:var(--danger); color:#fff;">🚫 رفض البلاغ نهائياً</button>
+        </div>`;
+      }
+    } else if (h.status === 'rejected_by_hse') {
+      actionHtml = `<div class="desc" style="margin-top:10px; background:#ffe5e5; padding:8px; border-radius:4px; border:1px solid #ffcccc;">
+        <strong>سبب رفض المشرف:</strong><br>${escapeHtml(h.hseRejectReason || '')}
+        <br><span style="font-size:11px;color:var(--danger);">بواسطة: ${escapeHtml(h.hseRejectedBy || '')}</span>
+      </div>`;
+    } else if (h.status === 'resolved' || h.status === 'closed') {
       actionHtml = `<div class="desc" style="margin-top:10px;">
-        <strong>الإجراء المتخذ:</strong><br>${escapeHtml(h.actionTaken)}
-        ${h.updatedBy ? `<br><br><span style="font-size:11px;color:var(--muted);">بواسطة: ${escapeHtml(h.updatedBy)}</span>` : ''}
+        <strong>تفاصيل الإصلاح (الصيانة):</strong><br>${escapeHtml(h.maintenanceAction || 'لا يوجد')}
+        ${h.maintenanceTeamNames ? `<br><strong>فريق الصيانة:</strong> ${escapeHtml(h.maintenanceTeamNames)}` : ''}
+        ${h.resolvedByMaintenanceName ? `<br><span style="font-size:11px;color:var(--muted);">بواسطة: ${escapeHtml(h.resolvedByMaintenanceName)}</span>` : ''}
+      </div>`;
+    } else {
+      actionHtml = `<div class="note-box show" style="margin-top:12px;"><div style="display:flex; gap:8px; flex-wrap:wrap;">`;
+      if (currentUserRole === 'hse_admin' || currentUserRole === 'super_admin') {
+        if (h.status === 'open') {
+          actionHtml += `<button onclick="openHzAssignModal('${h.id}')" class="act-btn approve" style="background:#17a2b8; color:#fff;">📢 توجيه البلاغ للصيانة</button>`;
+          actionHtml += `<button onclick="openHzRejectHseModal('${h.id}')" class="act-btn approve" style="background:var(--danger); color:#fff;">🚫 رفض البلاغ</button>`;
+        }
+      }
+      if ((currentUserRole === 'maint_admin' && h.assignedToMaintenance === currentUserDept) || currentUserRole === 'super_admin') {
+        if (h.status === 'assigned_to_maintenance') {
+          actionHtml += `<button onclick="startHzMaintenance('${h.id}')" class="act-btn approve" style="background:var(--amber); color:#000;">🟡 بدء الإصلاح</button>`;
+          actionHtml += `<button onclick="openHzRejectMaintModal('${h.id}')" class="act-btn approve" style="background:var(--danger); color:#fff;">❌ رفض الإصلاح</button>`;
+        }
+        if (h.status === 'assigned_to_maintenance' || h.status === 'in_progress') {
+          actionHtml += `<button onclick="openHzResolveModal('${h.id}')" class="act-btn approve" style="background:#28a745; color:#fff;">🟢 تأكيد الإصلاح والإغلاق</button>`;
+        }
+      }
+      actionHtml += `</div></div>`;
+    }
+    
+    // Assignment details
+    if (h.assignedToMaintenance && h.status !== 'rejected_by_maintenance' && h.status !== 'rejected_by_hse') {
+      actionHtml += `<div class="desc" style="margin-top:10px; background:#f0f8ff; padding:8px; border-radius:4px; border:1px solid #cce5ff;">
+        <strong>جهة الصيانة:</strong> ${escapeHtml(h.assignedToMaintenance)}
+        ${h.forwardedByHseName ? `<br><span style="font-size:11px;color:var(--muted);">توجيه بواسطة: ${escapeHtml(h.forwardedByHseName)}</span>` : ''}
+      </div>`;
+    }
+  }
+
+  let manageHtml = '';
+  if (h.deleted || (h.deletedByMaintenance && currentUserRole === 'maint_admin')) {
+    if (currentUserRole === 'super_admin' || currentUserRole === 'hse_admin' || (currentUserRole === 'maint_admin' && h.maintenanceDeletedDept === currentUserDept)) {
+      manageHtml = `<div style="display:flex; gap:8px; margin-top:12px; border-top:1px solid var(--paper-line); padding-top:12px;">
+        <button onclick="restoreHazard('${h.id}')" class="act-btn" style="flex:1; background:var(--success); color:#fff;">♻️ استعادة</button>
+        <button onclick="permanentDeleteHazard('${h.id}')" class="act-btn" style="flex:1; background:var(--danger); color:#fff;">🔥 حذف نهائي</button>
+      </div>`;
+    }
+  } else {
+    if (currentUserRole === 'super_admin' || currentUserRole === 'hse_admin' || (currentUserRole === 'maint_admin' && h.assignedToMaintenance === currentUserDept)) {
+      manageHtml = `<div style="display:flex; justify-content:flex-end; margin-top:12px; border-top:1px solid var(--paper-line); padding-top:12px;">
+        <button onclick="softDeleteHazard('${h.id}')" class="act-btn" style="background:var(--danger); color:#fff; padding:4px 8px; font-size:12px;">🗑️ حذف</button>
       </div>`;
     }
   }
@@ -2721,11 +3046,11 @@ function getHazardCardHtml(h) {
         </div>
       </div>
 
-      <div class="timeline-step ${h.inProgressAt ? 'done' : 'pending'}">
+      <div class="timeline-step ${h.startedAt ? 'done' : 'pending'}">
         <span class="step-icon">⚙️</span>
         <div class="step-info">
           <strong>وقت بدء المعالجة:</strong>
-          <span>${h.inProgressAt ? `${formatDateTime(h.inProgressAt)} (${h.inProgressBy || 'الصيانة'})` : 'بانتظار البدء'}</span>
+          <span>${h.startedAt ? `${formatDateTime(h.startedAt)} (${h.startedByName || 'الصيانة'})` : 'بانتظار البدء'}</span>
         </div>
       </div>
 
@@ -2763,6 +3088,7 @@ function getHazardCardHtml(h) {
       ${h.photoUrl ? `<div style="margin-top:8px;"><div class="hz-photo-badge" onclick="openLightbox('${h.photoUrl}')">🖼️ عرض الصورة</div></div>` : ''}
       ${actionHtml}
       ${timelineHtml}
+      ${manageHtml}
     </div>
   `;
 }
@@ -2795,13 +3121,27 @@ async function renderSupHazard(isSilent = false) {
     }
 
     // Apply filters
-    if (currentHzStatusFilter !== 'الكل') {
-       if (currentHzStatusFilter === 'مفتوح 🔴') hazards = hazards.filter(h => h.status === 'open');
-       else if (currentHzStatusFilter === 'تم الإبلاغ 📢') hazards = hazards.filter(h => h.status === 'notified');
-       else if (currentHzStatusFilter === 'قيد الإصلاح 🟡') hazards = hazards.filter(h => h.status === 'in_progress');
-       else if (currentHzStatusFilter === 'تم الحل والإغلاق 🟢') hazards = hazards.filter(h => h.status === 'resolved' || h.status === 'closed');
+    if (currentHzStatusFilter === '🗑️ المحذوفات') {
+       if (currentUserRole === 'maint_admin') {
+           hazards = hazards.filter(h => h.deletedByMaintenance && h.maintenanceDeletedDept === currentUserDept);
+       } else {
+           hazards = hazards.filter(h => h.deleted === true);
+       }
+    } else {
+       if (currentUserRole === 'maint_admin') {
+           hazards = hazards.filter(h => !h.deletedByMaintenance && !h.deleted);
+       } else {
+           hazards = hazards.filter(h => !h.deleted);
+       }
+       if (currentHzStatusFilter !== 'الكل') {
+         if (currentHzStatusFilter === 'مفتوح 🔴') hazards = hazards.filter(h => h.status === 'open');
+         else if (currentHzStatusFilter === 'موجه للصيانة 📢') hazards = hazards.filter(h => h.status === 'assigned_to_maintenance');
+         else if (currentHzStatusFilter === 'قيد الإصلاح 🟡') hazards = hazards.filter(h => h.status === 'in_progress');
+         else if (currentHzStatusFilter === 'مرفوض ❌') hazards = hazards.filter(h => h.status === 'rejected_by_maintenance' || h.status === 'rejected_by_hse');
+         else if (currentHzStatusFilter === 'تم الحل والإغلاق 🟢') hazards = hazards.filter(h => h.status === 'resolved' || h.status === 'closed');
+       }
     }
-    if (currentHzDeptFilter !== 'الكل') {
+    if (currentHzDeptFilter !== 'الكل' && currentUserRole !== 'maint_admin') {
        hazards = hazards.filter(h => h.department === currentHzDeptFilter);
     }
 
@@ -2828,12 +3168,12 @@ function renderHzFilters() {
   const dArea = document.getElementById('hzDeptFilters');
   const dToolbar = document.getElementById('hzDeptToolbar');
 
-  const statuses = ['الكل', 'مفتوح 🔴', 'تم الإبلاغ 📢', 'قيد الإصلاح 🟡', 'تم الحل والإغلاق 🟢'];
+  const statuses = ['الكل', 'مفتوح 🔴', 'موجه للصيانة 📢', 'قيد الإصلاح 🟡', 'مرفوض ❌', 'تم الحل والإغلاق 🟢', '🗑️ المحذوفات'];
   fArea.innerHTML = statuses.map(s => 
     `<div class="chip ${currentHzStatusFilter===s?'active':''}" onclick="setHzFilter('${s}')">${s}</div>`
   ).join('');
 
-  if (currentUserRole !== 'area_head') {
+  if (currentUserRole !== 'area_head' && currentUserRole !== 'maint_admin') {
     dToolbar.style.display = 'flex';
     const depts = ['الكل', ...DEPARTMENTS];
     dArea.innerHTML = depts.map(d => 
@@ -2885,6 +3225,222 @@ async function updateHazardStatus(id, newStatus) {
     }
   } catch(e) {
     showToast('خطأ في الاتصال بالخادم', 'error');
+  }
+}
+let currentHzAssignId = null;
+let currentHzResolveId = null;
+let currentHzRejectMaintId = null;
+let currentHzRejectHseId = null;
+
+async function startHzMaintenance(id) {
+  try {
+    const res = await authFetch(`/api/hazards/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'start_maintenance' })
+    });
+    if (res.ok) {
+      showToast('تم البدء بالإصلاح بنجاح', 'success');
+      renderSupHazard(true);
+    } else {
+      const d = await res.json();
+      showToast(d.error || 'حدث خطأ', 'error');
+    }
+  } catch (e) {
+    showToast('خطأ في الاتصال', 'error');
+  }
+}
+
+function openHzRejectMaintModal(id) {
+  currentHzRejectMaintId = id;
+  document.getElementById('hz_maint_reject_reason').value = '';
+  document.getElementById('hzRejectMaintModal').style.display = 'flex';
+}
+function closeHzRejectMaintModal() {
+  document.getElementById('hzRejectMaintModal').style.display = 'none';
+}
+async function submitHzRejectMaint() {
+  const reason = document.getElementById('hz_maint_reject_reason').value.trim();
+  if (!reason) return showToast('يرجى كتابة سبب الرفض', 'error');
+  try {
+    const res = await authFetch(`/api/hazards/${currentHzRejectMaintId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reject_maintenance', rejectReason: reason })
+    });
+    if (res.ok) {
+      showToast('تم رفض البلاغ وتم إشعار مشرف السلامة', 'success');
+      closeHzRejectMaintModal();
+      renderSupHazard(true);
+    } else {
+      const d = await res.json();
+      showToast(d.error || 'حدث خطأ', 'error');
+    }
+  } catch (e) { showToast('خطأ في الاتصال', 'error'); }
+}
+
+function openHzRejectHseModal(id) {
+  currentHzRejectHseId = id;
+  document.getElementById('hz_hse_reject_reason').value = '';
+  document.getElementById('hzRejectHseModal').style.display = 'flex';
+}
+function closeHzRejectHseModal() {
+  document.getElementById('hzRejectHseModal').style.display = 'none';
+}
+async function submitHzRejectHse() {
+  const reason = document.getElementById('hz_hse_reject_reason').value.trim();
+  if (!reason) return showToast('يرجى كتابة سبب الرفض', 'error');
+  try {
+    const res = await authFetch(`/api/hazards/${currentHzRejectHseId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reject_hse', rejectReason: reason })
+    });
+    if (res.ok) {
+      showToast('تم رفض البلاغ نهائياً', 'success');
+      closeHzRejectHseModal();
+      renderSupHazard(true);
+    } else {
+      const d = await res.json();
+      showToast(d.error || 'حدث خطأ', 'error');
+    }
+  } catch (e) { showToast('خطأ في الاتصال', 'error'); }
+}
+
+function openHzAssignModal(id) {
+  currentHzAssignId = id;
+  document.getElementById('hz_target_maint').value = '';
+  document.getElementById('hzAssignModal').style.display = 'flex';
+}
+function closeHzAssignModal() {
+  document.getElementById('hzAssignModal').style.display = 'none';
+}
+async function submitHzAssign() {
+  const target = document.getElementById('hz_target_maint').value;
+  if (!target) return showToast('يرجى اختيار قسم الصيانة المستهدف', 'error');
+  try {
+    const res = await authFetch(`/api/hazards/${currentHzAssignId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'assign_maintenance', targetMaintenance: target })
+    });
+    if (res.ok) {
+      showToast('تم التوجيه للصيانة بنجاح', 'success');
+      closeHzAssignModal();
+      renderSupHazard(true);
+    } else {
+      const d = await res.json();
+      showToast(d.error || 'حدث خطأ', 'error');
+    }
+  } catch(e) { showToast('خطأ في الاتصال', 'error'); }
+}
+
+function openHzResolveModal(id) {
+  currentHzResolveId = id;
+  document.getElementById('hz_resolve_action').value = '';
+  document.getElementById('hz_resolve_team').value = '';
+  document.getElementById('hzResolveModal').style.display = 'flex';
+}
+function closeHzResolveModal() {
+  document.getElementById('hzResolveModal').style.display = 'none';
+}
+async function submitHzResolve() {
+  const actionTaken = document.getElementById('hz_resolve_action').value.trim();
+  const team = document.getElementById('hz_resolve_team').value.trim();
+  if (!actionTaken || !team) return showToast('يرجى تعبئة كافة الحقول', 'error');
+  try {
+    const res = await authFetch(`/api/hazards/${currentHzResolveId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'resolve_maintenance', maintenanceAction: actionTaken, maintenanceTeamNames: team })
+    });
+    if (res.ok) {
+      showToast('تم الإصلاح والإغلاق بنجاح', 'success');
+      closeHzResolveModal();
+      renderSupHazard(true);
+    } else {
+      const d = await res.json();
+      showToast(d.error || 'حدث خطأ', 'error');
+    }
+  } catch(e) { showToast('خطأ في الاتصال', 'error'); }
+}
+
+async function softDeleteHazard(id) {
+  if (!confirm('هل أنت متأكد من حذف هذا البلاغ ونقله للمحذوفات؟')) return;
+  try {
+    const res = await authFetch(`/api/hazards/${id}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: 'حذف من لوحة التحكم' }) });
+    if (res.ok) {
+      showToast('تم النقل للمحذوفات بنجاح', 'success');
+      renderSupHazard(true);
+    } else { showToast('فشل الحذف', 'error'); }
+  } catch(e) { showToast('خطأ في الاتصال', 'error'); }
+}
+
+async function restoreHazard(id) {
+  if (!confirm('هل تريد استعادة هذا البلاغ؟')) return;
+  try {
+    const res = await authFetch(`/api/hazards/${id}/restore`, { method: 'POST' });
+    if (res.ok) {
+      showToast('تم الاستعادة بنجاح', 'success');
+      renderSupHazard(true);
+    } else { showToast('فشل الاستعادة', 'error'); }
+  } catch(e) { showToast('خطأ في الاتصال', 'error'); }
+}
+
+async function permanentDeleteHazard(id) {
+  if (!confirm('تنبيه هام! هل أنت متأكد من الحذف النهائي؟ لا يمكن التراجع عن هذا الإجراء.')) return;
+  try {
+    const res = await authFetch(`/api/hazards/${id}/permanent`, { method: 'DELETE' });
+    if (res.ok) {
+      showToast('تم الحذف النهائي بنجاح', 'success');
+      renderSupHazard(true);
+    } else { showToast('فشل الحذف', 'error'); }
+  } catch(e) { showToast('خطأ في الاتصال', 'error'); }
+}
+
+let isKpiVisible = false;
+function toggleHazardKPI() {
+  isKpiVisible = !isKpiVisible;
+  document.getElementById('hzKpiContainer').style.display = isKpiVisible ? 'block' : 'none';
+  if (isKpiVisible) renderHazardKPI();
+}
+
+async function renderHazardKPI() {
+  const container = document.getElementById('hzKpiList');
+  container.innerHTML = '<div class="loading">جارِ تحميل الإحصائيات...</div>';
+  try {
+    const res = await authFetch('/api/hazards/employee-stats');
+    if (!res.ok) throw new Error('Failed to fetch');
+    const data = await res.json();
+    let stats = data.stats || [];
+    if (stats.length === 0) {
+      container.innerHTML = '<div class="empty">لا توجد بيانات موظفين</div>';
+      return;
+    }
+    stats.sort((a, b) => b.count - a.count);
+    
+    let html = '';
+    stats.forEach(st => {
+      const pct = Math.min((st.count / st.target) * 100, 100);
+      const color = pct >= 100 ? 'var(--success)' : (pct > 0 ? 'var(--amber)' : 'var(--danger)');
+      html += `
+        <div style="margin-bottom:12px; display:flex; align-items:center; gap:12px;">
+          <div style="width:180px; font-size:13px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(st.name)}</div>
+          <div style="flex:1;">
+            <div style="font-size:11px; margin-bottom:4px; display:flex; justify-content:space-between;">
+              <span>${escapeHtml(st.department || 'بدون قسم')}</span>
+              <span style="font-weight:bold; color:${color}">${st.count} / ${st.target}</span>
+            </div>
+            <div style="background:var(--paper-line); height:8px; border-radius:4px; overflow:hidden;">
+              <div style="width:${pct}%; height:100%; background:${color}; border-radius:4px;"></div>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+    container.innerHTML = html;
+  } catch(e) {
+    container.innerHTML = '<div class="empty">فشل تحميل الإحصائيات</div>';
   }
 }
 
@@ -3455,6 +4011,7 @@ async function fetchNotifications() {
   const token = getToken();
   if (token && sessionRole !== 'worker' && sessionRole !== 'none') {
     params.append('role', sessionRole);
+    if (currentUserDept) params.append('department', currentUserDept);
   } else if (currentEmployee && currentEmployee.empCode) {
     params.append('role', 'worker');
     params.append('empCode', currentEmployee.empCode);

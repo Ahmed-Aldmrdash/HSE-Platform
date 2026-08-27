@@ -429,10 +429,9 @@
     font-size: 12px;
     flex-shrink: 0;
   }
-  .chip-avatar.superadmin { background: #991b1b; } /* Burgundy */
-  .chip-avatar.admin      { background: var(--amber); }
-  .chip-avatar.supervisor { background: #0284c7; } /* Blue */
-  .chip-avatar.area_head  { background: #6d28d9; } /* Purple */
+  .chip-avatar.super_admin { background: #991b1b; } /* Burgundy */
+  .chip-avatar.hse_admin   { background: var(--amber); }
+  .chip-avatar.dept_admin  { background: #6d28d9; } /* Purple */
 
   .chip-info {
     display: flex;
@@ -484,10 +483,9 @@
     display:inline-block;font-size:11px;font-weight:700;font-family:'Oswald',sans-serif;
     letter-spacing:0.8px;padding:3px 9px;border-radius:12px;text-transform:uppercase;
   }
-  .role-badge.superadmin{background:rgba(124,58,237,0.12);color:#7c3aed;border:1px solid rgba(124,58,237,0.3);}
-  .role-badge.admin{background:rgba(213,30,39,0.1);color:var(--amber);border:1px solid rgba(213,30,39,0.3);}
-  .role-badge.supervisor{background:rgba(31,122,61,0.1);color:var(--success);border:1px solid rgba(31,122,61,0.3);}
-  .role-badge.area_head{background:rgba(142,68,173,0.12);color:#8e44ad;border:1px solid rgba(142,68,173,0.3);}
+  .role-badge.super_admin{background:rgba(124,58,237,0.12);color:#7c3aed;border:1px solid rgba(124,58,237,0.3);}
+  .role-badge.hse_admin{background:rgba(213,30,39,0.1);color:var(--amber);border:1px solid rgba(213,30,39,0.3);}
+  .role-badge.dept_admin{background:rgba(142,68,173,0.12);color:#8e44ad;border:1px solid rgba(142,68,173,0.3);}
 
   .um-action-btns{display:flex;gap:6px;flex-wrap:wrap;}
   .um-btn{
@@ -975,8 +973,8 @@
     white-space: nowrap;
   }
   .emp-role-badge.worker     { background: rgba(31,122,61,0.1);   color: var(--success);  border: 1px solid rgba(31,122,61,0.3); }
-  .emp-role-badge.supervisor { background: rgba(2,132,199,0.1);   color: #0284c7;         border: 1px solid rgba(2,132,199,0.3); }
-  .emp-role-badge.area_head  { background: rgba(109,40,217,0.1);  color: #6d28d9;         border: 1px solid rgba(109,40,217,0.3); }
+  .emp-role-badge.hse_admin  { background: rgba(2,132,199,0.1);   color: #0284c7;         border: 1px solid rgba(2,132,199,0.3); }
+  .emp-role-badge.dept_admin { background: rgba(109,40,217,0.1);  color: #6d28d9;         border: 1px solid rgba(109,40,217,0.3); }
   .emp-role-badge.contractor { background: rgba(180,83,9,0.1);    color: #b45309;         border: 1px solid rgba(180,83,9,0.3); }
 
   /* Training Percentage Badges */
@@ -1041,6 +1039,7 @@
   .hz-status-open { background: rgba(220,53,69,0.1); color: #dc3545; border: 1px solid rgba(220,53,69,0.3); }
   .hz-status-in_progress { background: rgba(255,193,7,0.15); color: #856404; border: 1px solid rgba(255,193,7,0.3); }
   .hz-status-resolved { background: rgba(40,167,69,0.1); color: #28a745; border: 1px solid rgba(40,167,69,0.3); }
+  .hz-status-rejected { background: rgba(220,53,69,0.2); color: #c82333; border: 1px solid rgba(220,53,69,0.4); }
 
   .hazard-timeline {
     margin-top: 14px;
@@ -1317,11 +1316,10 @@
     to { opacity: 1; transform: translateY(0) scale(1); }
   }
 }
-}
 
 /* =========================================================
-   🔔 TOAST NOTIFICATIONS
-   ========================================================= */
+🔔 TOAST NOTIFICATI
+   ====================ONS===================================== */
 .notif-toast {
   position: fixed;
   top: 20px;
@@ -1400,3 +1398,47 @@
   50% { box-shadow: 0 0 0 4px rgba(213, 30, 39, 0.5), 0 0 10px rgba(213, 30, 39, 0.3); transform: scale(1); z-index: 10; position: relative; }
   100% { box-shadow: 0 0 0 0 transparent; transform: scale(1); z-index: auto; position: relative; }
 }
+
+/* SOFT ROUNDED CHECKBOX (MATCHING APP THEME) */
+.custom-pill-check {
+  position: relative;
+}
+
+.custom-pill-check .pill-checkbox-input {
+  display: none; /* إخفاء الإدخال الافتراضي */
+}
+
+.pill-checkbox-box {
+  width: 22px;
+  height: 22px;
+  background-color: #faf9f5;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px; /* نفس درجة الانحناء في الصورة */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease-in-out;
+  flex-shrink: 0;
+}
+
+.custom-pill-check:hover .pill-checkbox-box {
+  border-color: #cbd5e1;
+}
+
+/* عند التحديد - يظهر بنفس الشكل المنحني مع علامة الصح */
+.pill-checkbox-input:checked + .pill-checkbox-box {
+  background-color: #dc2626;
+  border-color: #dc2626;
+}
+
+.pill-checkbox-input:checked + .pill-checkbox-box::after {
+  content: '✓';
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+/* --- DELETED PERMITS --- */
+.sup-card.deleted { opacity: 0.7; filter: grayscale(1); border: 2px dashed var(--danger); }
+
