@@ -1520,6 +1520,7 @@ function formatTime12(time24) {
 }
 function statusFilterMatch(s){
   if(currentFilter==='الكل') return true;
+  if(currentFilter==='مرفوض' && s && s.startsWith('rejected')) return true;
   return statusLabel(s) === currentFilter;
 }
 function typeFilterMatch(p){
@@ -1899,13 +1900,21 @@ function escapeHtml(str){
 
 // ---------- excel export ----------
 function exportExcel(){
+  const isDeptAdmin = currentUserRole === 'dept_admin';
+  const isHSEAdmin = currentUserRole === 'hse_admin';
+  const isSuperAdmin = currentUserRole === 'super_admin';
+
+  let roleKey = 'worker';
+  if (isDeptAdmin) roleKey = 'areaAdmin';
+  if (isHSEAdmin) roleKey = 'safetyAdmin';
+  if (isSuperAdmin) roleKey = 'superAdmin';
+
   if (currentFilter === '🗑️ المحذوفات') {
     const list = [...permitsCache].reverse().filter(p => {
-      if (!p.deleted || !typeFilterMatch(p)) return false;
-      if (currentUserRole === 'super_admin') return true;
-      if (currentUserRole === 'dept_admin') return p.department === currentUserDept || p.deletedByUsername === currentUsername;
-      if (currentUserRole === 'hse_admin') return p.deletedByUsername === currentUsername || p.status === 'pending_hse' || p.status === 'approved' || (p.status && p.status.startsWith('closed'));
-      return false;
+      const deletedBy = p.deletedBy || { areaAdmin: !!p.deleted, safetyAdmin: !!p.deleted, superAdmin: !!p.deleted, worker: !!p.deleted };
+      if (isDeptAdmin && p.department !== currentUserDept) return false;
+      if (!deletedBy[roleKey] || !typeFilterMatch(p)) return false;
+      return true;
     });
 
     if(list.length === 0){
@@ -1930,7 +1939,25 @@ function exportExcel(){
     return;
   }
 
-  const list = [...permitsCache].reverse().filter(p => !p.deleted && statusFilterMatch(p.status) && typeFilterMatch(p));
+  const list = [...permitsCache].reverse().filter(p => {
+    const deletedBy = p.deletedBy || { areaAdmin: !!p.deleted, safetyAdmin: !!p.deleted, superAdmin: !!p.deleted, worker: !!p.deleted };
+    
+    if (isDeptAdmin && p.department !== currentUserDept) return false;
+    
+    if (isHSEAdmin) {
+      if (p.status === 'pending_hse' || p.status === 'approved' || (p.status && p.status.startsWith('rejected')) || (p.status && p.status.startsWith('closed'))) {
+         return !deletedBy[roleKey] && statusFilterMatch(p.status) && typeFilterMatch(p);
+      }
+      return false;
+    }
+    
+    if (isSuperAdmin) {
+      const isApprovedOrClosed = p.status === 'pending_hse' || p.status === 'approved' || (p.status && p.status.startsWith('rejected')) || (p.status && p.status.startsWith('closed'));
+      if (!isApprovedOrClosed) return false;
+    }
+    
+    return !deletedBy[roleKey] && statusFilterMatch(p.status) && typeFilterMatch(p);
+  });
   if(list.length === 0){
     alert('لا توجد بيانات لتصديرها بعد');
     return;
