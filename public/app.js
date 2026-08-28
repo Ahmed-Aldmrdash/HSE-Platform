@@ -19,6 +19,13 @@ function normalizeEmpCode(code) {
   return stripped === '' ? '0' : stripped;
 }
 
+function getRoleKey(role) {
+  if (role === 'dept_admin' || role === 'area_admin') return 'areaAdmin';
+  if (role === 'hse_admin' || role === 'safety_admin') return 'safetyAdmin';
+  if (role === 'super_admin') return 'superAdmin';
+  return 'worker';
+}
+
 
 /** حفظ الـ JWT Token في sessionStorage (يُمسح عند إغلاق التبويب) */
 function saveToken(token) {
@@ -1494,9 +1501,9 @@ async function pollPermitsForSupervisor(){
 function statusLabel(s){
   if(s==='pending' || s==='pending_dept' || s==='pending_area_head') return 'بانتظار أدمن القسم';
   if(s==='pending_hse') return 'بانتظار السلامة والصحة المهنية';
-  if(s==='approved') return 'موافق عليه';
+  if(s==='approved') return 'معتمد';
   if(s==='rejected') return 'مرفوض';
-  if(s==='rejected_area') return 'مرفوض من مدير المنطقة';
+  if(s==='rejected_area') return 'مرفوض من رئيس القسم';
   if(s==='rejected_high_management') return 'مرفوض من الإدارة العليا';
   if(s && s.startsWith('closed')) return 'مغلق';
   return s;
@@ -1529,49 +1536,52 @@ function typeFilterMatch(p){
 }
 
 function renderList(){
-  const isDeptAdmin = currentUserRole === 'dept_admin';
-  const isHSEAdmin = currentUserRole === 'hse_admin';
-  const isSuperAdmin = currentUserRole === 'super_admin';
+  const currentRoleKey = getRoleKey(currentUserRole);
 
-  let roleKey = 'worker';
-  if (isDeptAdmin) roleKey = 'areaAdmin';
-  if (isHSEAdmin) roleKey = 'safetyAdmin';
-  if (isSuperAdmin) roleKey = 'superAdmin';
-
-  const list = [...permitsCache].reverse().filter(p => {
-    // Normalize deletedBy mapping to handle old permits
-    const deletedBy = (typeof p.deletedBy === 'object' && p.deletedBy !== null) 
-      ? p.deletedBy 
-      : { areaAdmin: !!p.deleted, safetyAdmin: !!p.deleted, superAdmin: !!p.deleted, worker: !!p.deleted };
-
-    // 1. Dept Admin can only see their own department's permits
-    if (isDeptAdmin && p.department !== currentUserDept) {
-      return false;
-    }
-
-    // 2. Strict HSE Admin visibility rules
-    if (isHSEAdmin && currentFilter !== '🗑️ المحذوفات') {
-      if (p.status === 'pending_hse' || p.status === 'approved' || (p.status && p.status.startsWith('rejected')) || (p.status && p.status.startsWith('closed'))) {
-         return !deletedBy[roleKey] && typeFilterMatch(p) && (currentFilter === 'الكل' || statusFilterMatch(p.status) || p.status === 'pending_hse');
-      }
-      return false;
-    }
-
-    // 3. Super Admin visibility rules
-    if (isSuperAdmin && currentFilter !== '🗑️ المحذوفات') {
-      const isApprovedOrClosed = p.status === 'pending_hse' || p.status === 'approved' || (p.status && p.status.startsWith('rejected')) || (p.status && p.status.startsWith('closed'));
-      if (!isApprovedOrClosed) {
-        return false;
-      }
-    }
-
-    if (currentFilter === '🗑️ المحذوفات') {
-      if (!deletedBy[roleKey] || !typeFilterMatch(p)) return false;
-      return true; // if it's in their trash, they can see it. (Dept admin already filtered by department above)
-    } else {
-      return !deletedBy[roleKey] && statusFilterMatch(p.status) && typeFilterMatch(p);
-    }
+  // 1. Separate all permits strictly into Active and Trashed
+  const activePermits = [...permitsCache].reverse().filter(p => {
+    const deletedBy = (typeof p.deletedBy === 'object' && p.deletedBy !== null) ? p.deletedBy : {};
+    const isDeletedForMe = deletedBy[currentRoleKey] === true;
+    return !isDeletedForMe;
   });
+
+  const trashedPermits = [...permitsCache].reverse().filter(p => {
+    const deletedBy = (typeof p.deletedBy === 'object' && p.deletedBy !== null) ? p.deletedBy : {};
+    return deletedBy[currentRoleKey] === true;
+  });
+
+  // 2. Select base list according to current tab
+  let baseList = currentFilter === '🗑️ المحذوفات' ? trashedPermits : activePermits;
+
+  // 3. Apply role-specific visibility rules to active items only
+  if (currentFilter !== '🗑️ المحذوفات') {
+    baseList = baseList.filter(p => {
+      if (currentUserRole === 'dept_admin' && p.department !== currentUserDept) return false;
+      if (currentUserRole === 'hse_admin') {
+         if (p.status === 'pending_hse' || p.status === 'approved' || (p.status && p.status.startsWith('rejected')) || (p.status && p.status.startsWith('closed'))) return true;
+         return false;
+      }
+      if (currentUserRole === 'super_admin') {
+         const isApprovedOrClosed = p.status === 'pending_hse' || p.status === 'approved' || (p.status && p.status.startsWith('rejected')) || (p.status && p.status.startsWith('closed'));
+         return isApprovedOrClosed;
+      }
+      return true;
+    });
+  } else {
+      // In Trash bin, Dept Admin can still only see their department
+      baseList = baseList.filter(p => {
+         if (currentUserRole === 'dept_admin' && p.department !== currentUserDept) return false;
+         return true;
+      });
+  }
+
+  // 4. Apply status and type filters
+  const list = baseList.filter(p => {
+    if (currentFilter === '🗑️ المحذوفات') return typeFilterMatch(p);
+    return statusFilterMatch(p.status) && typeFilterMatch(p);
+  });
+
+
   const container = document.getElementById('supList');
 
   if(list.length === 0){
@@ -1603,10 +1613,19 @@ function renderList(){
       </div>
     `).join('') || `<div class="risk-summary" style="color:var(--muted);">لا توجد مخاطر مسجلة</div>`;
 
-    const deletedBy = (typeof p.deletedBy === 'object' && p.deletedBy !== null) 
-      ? p.deletedBy 
-      : { areaAdmin: !!p.deleted, safetyAdmin: !!p.deleted, superAdmin: !!p.deleted, worker: !!p.deleted };
-    const isTrashedForMe = deletedBy[roleKey] === true;
+    const deletedBy = (typeof p.deletedBy === 'object' && p.deletedBy !== null) ? p.deletedBy : {};
+    const isTrashedForMe = deletedBy[currentRoleKey] === true;
+    
+    // Status Badge Logic
+    let statusBadge = '';
+    if (p.status === 'rejected_area' || p.status === 'rejected_high_management' || p.status === 'rejected') {
+       statusBadge = `<span class="badge badge-rejected">${statusLabel(p.status)}</span>`;
+    } else if (p.status === 'approved' || (p.status && p.status.startsWith('closed'))) {
+       statusBadge = `<span class="badge badge-approved">${statusLabel(p.status)}${p.status.startsWith('closed') ? ' — '+closureLabel(p.closure) : ''}</span>`;
+    } else {
+       statusBadge = `<span class="stamp ${p.status}">${statusLabel(p.status)}</span>`;
+    }
+
     return `
     <div class="sup-card ${isTrashedForMe ? 'deleted' : ''}">
       <div class="sup-top">
@@ -1614,7 +1633,7 @@ function renderList(){
           <div class="worker"><span class="type-pill">${escapeHtml(p.typeLabel)}</span>${escapeHtml(p.workerName)}</div>
           <div class="tnum">${p.id} · ${p.date||''} · وردية ${escapeHtml(p.shift||'')}</div>
         </div>
-        <span class="stamp ${p.status.startsWith('closed')?'approved':(p.status.startsWith('rejected')?'rejected':p.status)}">${statusLabel(p.status)}${p.status.startsWith('closed')?' — '+closureLabel(p.closure):''}</span>
+        ${statusBadge}
       </div>
       <div class="meta-grid">
         <div><span>القسم</span>${escapeHtml(p.department)||'—'}</div>

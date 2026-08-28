@@ -207,11 +207,51 @@ function enqueueWrite(fn) {
 function readStorage() {
   if (!fs.existsSync(DATA_FILE)) return {};
   try {
-    return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    // Data Migration on Startup / Read
+    if (data['work-permits'] && typeof data['work-permits'] === 'string') {
+      try {
+        let permits = JSON.parse(data['work-permits']);
+        if (Array.isArray(permits)) {
+          let modified = false;
+          permits.forEach(p => {
+             // Always normalize
+             normalizePermitDeletedBy(p);
+          });
+          data['work-permits'] = JSON.stringify(permits);
+        }
+      } catch (e) {
+        console.error('Error migrating permits on load', e);
+      }
+    }
+    return data;
   } catch (err) {
     console.error('Error reading storage.json:', err);
     return {};
   }
+}
+
+function getRoleKey(role) {
+  if (role === 'dept_admin' || role === 'area_admin') return 'areaAdmin';
+  if (role === 'hse_admin' || role === 'safety_admin') return 'safetyAdmin';
+  if (role === 'super_admin') return 'superAdmin';
+  return 'worker';
+}
+
+function normalizePermitDeletedBy(permit) {
+  const db = permit.deletedBy;
+  permit.deletedBy = {
+    areaAdmin: Boolean(db?.areaAdmin),
+    safetyAdmin: Boolean(db?.safetyAdmin),
+    superAdmin: Boolean(db?.superAdmin),
+    worker: Boolean(db?.worker)
+  };
+  // Prevent legacy username strings from sticking around
+  if (typeof db === 'string') {
+    permit.lastDeletedByUsername = db;
+  }
+  // Fully delete the legacy top-level deleted boolean to prevent accidental matching
+  delete permit.deleted;
 }
 
 function writeStorage(data) {
@@ -2006,51 +2046,35 @@ app.delete('/api/permits/:id', authenticateToken, requireRole('super_admin', 'hs
       try { permits = JSON.parse(storage['work-permits']); } catch { permits = []; }
     }
 
-    const idx = permits.findIndex(p => p.id === permitId);
+    const idx = permits.findIndex(p => String(p.id) === String(permitId));
     if (idx === -1) {
-      result = { status: 404, body: { error: 'الطلب غير موجود' } };
+      result = { status: 404, body: { error: 'Permit not found' } };
       return;
     }
 
     const permit = permits[idx];
-    if (req.user.role === 'dept_admin') {
-      if (permit.department !== req.user.department) {
-        result = { status: 403, body: { error: 'ليس لديك صلاحية لحذف طلب تابع لقسم آخر' } };
-        return;
-      }
-    }
+    const role = req.user?.role || req.body?.role;
+    const roleKey = getRoleKey(role);
 
-    const roleKeyMap = {
-      dept_admin: 'areaAdmin',
-      hse_admin: 'safetyAdmin',
-      super_admin: 'superAdmin',
-      worker: 'worker'
-    };
-    const roleKey = roleKeyMap[req.user.role] || 'worker';
+    // Normalize deletedBy
+    permit.deletedBy = permit.deletedBy && typeof permit.deletedBy === 'object' 
+      ? permit.deletedBy 
+      : { areaAdmin: false, safetyAdmin: false, superAdmin: false, worker: false };
 
-    if (!permit.deletedBy) {
-      permit.deletedBy = { areaAdmin: !!permit.deleted, safetyAdmin: !!permit.deleted, superAdmin: !!permit.deleted, worker: false };
-    }
-
+    // Set soft-delete ONLY for the calling role
     permit.deletedBy[roleKey] = true;
-    permit.deletedAt = new Date().toISOString();
-    permit.deletedByUsername = req.user.username;
-    permit.deletedByRole = req.user.role;
-    permit.deletedByDept = req.user.department || '';
-    permit.deleteReason = reason;
+    permit.lastDeletedByUsername = req.user?.username || req.body?.username || 'Admin';
 
-    // Role-specific State Machine Rules
-    if (req.user.role === 'dept_admin') {
-      if (permit.status === 'pending' || permit.status === 'pending_dept' || permit.status === 'pending_area_head') {
+    // State transitions when deleted before approval
+    if (roleKey === 'areaAdmin') {
+      if (['pending', 'pending_dept', 'pending_area_head'].includes(permit.status)) {
         permit.status = 'rejected_area';
-        permit.rejectedByRole = req.user.role;
-        permit.reviewNote = reason;
+        permit.rejectionReason = 'مرفوض من رئيس القسم';
       }
-    } else if (req.user.role === 'hse_admin' || req.user.role === 'super_admin') {
-      if (permit.status === 'pending' || permit.status === 'pending_dept' || permit.status === 'pending_area_head' || permit.status === 'pending_hse') {
+    } else if (roleKey === 'safetyAdmin' || roleKey === 'superAdmin') {
+      if (['pending', 'pending_dept', 'pending_hse', 'approved_area'].includes(permit.status)) {
         permit.status = 'rejected_high_management';
-        permit.rejectedByRole = req.user.role;
-        permit.reviewNote = reason;
+        permit.rejectionReason = 'مرفوض من الإدارة العليا';
       }
     }
 
@@ -2088,13 +2112,8 @@ app.post('/api/permits/:id/restore', authenticateToken, requireRole('super_admin
       return;
     }
 
-    const roleKeyMap = {
-      dept_admin: 'areaAdmin',
-      hse_admin: 'safetyAdmin',
-      super_admin: 'superAdmin',
-      worker: 'worker'
-    };
-    const roleKey = roleKeyMap[req.user.role] || 'worker';
+    const role = req.user?.role;
+    const roleKey = getRoleKey(role);
     
     if (permits[idx].deletedBy) {
       permits[idx].deletedBy[roleKey] = false;
@@ -2104,9 +2123,6 @@ app.post('/api/permits/:id/restore', authenticateToken, requireRole('super_admin
     delete permits[idx].deleteReason;
     
     if (permits[idx].status === 'rejected_area' || permits[idx].status === 'rejected_high_management') {
-       // Optional: reset status to pending_dept, but realistically restore keeps it as rejected unless we do this
-       // Wait, a soft delete is usually an archive. The user only specified state changes upon *deletion*.
-       // For restore, we probably should restore it to pending if it was unapproved.
        permits[idx].status = 'pending_dept';
     }
 
@@ -2144,13 +2160,8 @@ app.delete('/api/permits/:id/permanent', authenticateToken, requireRole('super_a
         return;
     }
 
-    const roleKeyMap = {
-      dept_admin: 'areaAdmin',
-      hse_admin: 'safetyAdmin',
-      super_admin: 'superAdmin',
-      worker: 'worker'
-    };
-    const roleKey = roleKeyMap[req.user.role] || 'worker';
+    const role = req.user?.role;
+    const roleKey = getRoleKey(role);
 
     if (permits[idx].deletedBy && !permits[idx].deletedBy[roleKey]) {
       result = { status: 400, body: { error: 'الطلب ليس في سلة المحذوفات الخاصة بك' } };
