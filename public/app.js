@@ -1492,10 +1492,12 @@ async function pollPermitsForSupervisor(){
 }
 
 function statusLabel(s){
-  if(s==='pending' || s==='pending_dept') return 'بانتظار أدمن القسم';
+  if(s==='pending' || s==='pending_dept' || s==='pending_area_head') return 'بانتظار أدمن القسم';
   if(s==='pending_hse') return 'بانتظار السلامة والصحة المهنية';
   if(s==='approved') return 'موافق عليه';
   if(s==='rejected') return 'مرفوض';
+  if(s==='rejected_area') return 'مرفوض من مدير المنطقة';
+  if(s==='rejected_high_management') return 'مرفوض من الإدارة العليا';
   if(s && s.startsWith('closed')) return 'مغلق';
   return s;
 }
@@ -1531,6 +1533,14 @@ function renderList(){
     const isHSEAdmin = currentUserRole === 'hse_admin';
     const isSuperAdmin = currentUserRole === 'super_admin';
 
+    let roleKey = 'worker';
+    if (isDeptAdmin) roleKey = 'areaAdmin';
+    if (isHSEAdmin) roleKey = 'safetyAdmin';
+    if (isSuperAdmin) roleKey = 'superAdmin';
+
+    // Normalize deletedBy mapping to handle old permits
+    const deletedBy = p.deletedBy || { areaAdmin: !!p.deleted, safetyAdmin: !!p.deleted, superAdmin: !!p.deleted, worker: !!p.deleted };
+
     // 1. Dept Admin can only see their own department's permits
     if (isDeptAdmin && p.department !== currentUserDept) {
       return false;
@@ -1538,28 +1548,25 @@ function renderList(){
 
     // 2. Strict HSE Admin visibility rules
     if (isHSEAdmin && currentFilter !== '🗑️ المحذوفات') {
-      if (p.status === 'pending_hse' || p.status === 'approved' || (p.status === 'rejected' && p.rejectedByRole === 'hse_admin') || (p.status && p.status.startsWith('closed'))) {
-         return !p.deleted && typeFilterMatch(p) && (currentFilter === 'الكل' || statusFilterMatch(p.status) || p.status === 'pending_hse');
+      if (p.status === 'pending_hse' || p.status === 'approved' || (p.status && p.status.startsWith('rejected')) || (p.status && p.status.startsWith('closed'))) {
+         return !deletedBy[roleKey] && typeFilterMatch(p) && (currentFilter === 'الكل' || statusFilterMatch(p.status) || p.status === 'pending_hse');
       }
       return false;
     }
 
     // 3. Super Admin visibility rules
     if (isSuperAdmin && currentFilter !== '🗑️ المحذوفات') {
-      const isApprovedOrClosed = p.status === 'pending_hse' || p.status === 'approved' || (p.status && p.status.startsWith('closed'));
+      const isApprovedOrClosed = p.status === 'pending_hse' || p.status === 'approved' || (p.status && p.status.startsWith('rejected')) || (p.status && p.status.startsWith('closed'));
       if (!isApprovedOrClosed) {
         return false;
       }
     }
 
     if (currentFilter === '🗑️ المحذوفات') {
-      if (!p.deleted || !typeFilterMatch(p)) return false;
-      if (isSuperAdmin) return true;
-      if (isDeptAdmin) return p.department === currentUserDept || p.deletedByUsername === currentUsername;
-      if (isHSEAdmin) return p.deletedByUsername === currentUsername || p.status === 'pending_hse' || p.status === 'approved' || (p.status && p.status.startsWith('closed'));
-      return false;
+      if (!deletedBy[roleKey] || !typeFilterMatch(p)) return false;
+      return true; // if it's in their trash, they can see it. (Dept admin already filtered by department above)
     } else {
-      return !p.deleted && statusFilterMatch(p.status) && typeFilterMatch(p);
+      return !deletedBy[roleKey] && statusFilterMatch(p.status) && typeFilterMatch(p);
     }
   });
   const container = document.getElementById('supList');
@@ -2541,10 +2548,10 @@ const MY_HISTORY_FILTERS = ['الكل', 'بانتظار أدمن القسم', '�
 
 function myHistoryFilterMatch(p){
   if(myHistoryFilter === 'الكل') return true;
-  if(myHistoryFilter === 'بانتظار أدمن القسم') return p.status === 'pending' || p.status === 'pending_dept';
+  if(myHistoryFilter === 'بانتظار أدمن القسم') return p.status === 'pending' || p.status === 'pending_dept' || p.status === 'pending_area_head';
   if(myHistoryFilter === 'بانتظار السلامة والصحة المهنية') return p.status === 'pending_hse';
   if(myHistoryFilter === 'موافق عليه') return p.status === 'approved';
-  if(myHistoryFilter === 'مرفوض') return p.status === 'rejected';
+  if(myHistoryFilter === 'مرفوض') return p.status === 'rejected' || p.status === 'rejected_area' || p.status === 'rejected_high_management';
   if(myHistoryFilter === 'مغلق') return p.status && p.status.startsWith('closed');
   return true;
 }
@@ -2584,6 +2591,10 @@ async function renderMyHistory(isSilent = false){
   // فلترة بالكود الوظيفي لهذا الموظف فقط
   const myPermits = all
     .filter(p => p.employeeId && p.employeeId.toLowerCase() === currentEmployee.empCode.toLowerCase())
+    .filter(p => {
+      const deletedByWorker = p.deletedBy ? p.deletedBy.worker : !!p.deleted;
+      return !deletedByWorker;
+    })
     .filter(p => myHistoryFilterMatch(p))
     .reverse();
 

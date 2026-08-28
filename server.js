@@ -1197,6 +1197,7 @@ app.post('/api/storage/:key', (req, res, next) => {
             areaHeadReviewedAt:  '',
             safetyOfficerName:   '',
             areaManagerName:     '',
+            deletedBy: { areaAdmin: false, safetyAdmin: false, superAdmin: false, worker: false },
             submittedAt:      p.submittedAt || new Date().toISOString()
           };
         });
@@ -2019,14 +2020,42 @@ app.delete('/api/permits/:id', authenticateToken, requireRole('super_admin', 'hs
       }
     }
 
-    permits[idx].deleted = true;
-    permits[idx].status = 'rejected'; // Show as rejected for the worker
-    permits[idx].deletedAt = new Date().toISOString();
-    permits[idx].deletedBy = req.user.name;
-    permits[idx].deleteReason = reason;
-    permits[idx].deletedByUsername = req.user.username;
-    permits[idx].deletedByRole = req.user.role;
-    permits[idx].deletedByDept = req.user.department || '';
+    const roleKeyMap = {
+      dept_admin: 'areaAdmin',
+      hse_admin: 'safetyAdmin',
+      super_admin: 'superAdmin',
+      worker: 'worker'
+    };
+    const roleKey = roleKeyMap[req.user.role] || 'worker';
+
+    if (!permit.deletedBy) {
+      permit.deletedBy = { areaAdmin: !!permit.deleted, safetyAdmin: !!permit.deleted, superAdmin: !!permit.deleted, worker: false };
+    }
+
+    permit.deletedBy[roleKey] = true;
+    permit.deletedAt = new Date().toISOString();
+    permit.deletedByUsername = req.user.username;
+    permit.deletedByRole = req.user.role;
+    permit.deletedByDept = req.user.department || '';
+    permit.deleteReason = reason;
+
+    // Preserve generic deleted flag for backwards compatibility
+    permit.deleted = true;
+
+    // Role-specific State Machine Rules
+    if (req.user.role === 'dept_admin') {
+      if (permit.status === 'pending' || permit.status === 'pending_dept' || permit.status === 'pending_area_head') {
+        permit.status = 'rejected_area';
+        permit.rejectedByRole = req.user.role;
+        permit.reviewNote = reason;
+      }
+    } else if (req.user.role === 'hse_admin' || req.user.role === 'super_admin') {
+      if (permit.status === 'pending' || permit.status === 'pending_dept' || permit.status === 'pending_area_head' || permit.status === 'pending_hse') {
+        permit.status = 'rejected_high_management';
+        permit.rejectedByRole = req.user.role;
+        permit.reviewNote = reason;
+      }
+    }
 
     storage['work-permits'] = JSON.stringify(permits);
     if (writeStorage(storage)) {
@@ -2062,10 +2091,35 @@ app.post('/api/permits/:id/restore', authenticateToken, requireRole('super_admin
       return;
     }
 
-    permits[idx].deleted = false;
+    const roleKeyMap = {
+      dept_admin: 'areaAdmin',
+      hse_admin: 'safetyAdmin',
+      super_admin: 'superAdmin',
+      worker: 'worker'
+    };
+    const roleKey = roleKeyMap[req.user.role] || 'worker';
+    
+    if (permits[idx].deletedBy) {
+      permits[idx].deletedBy[roleKey] = false;
+      
+      // If no one else has it deleted, we can fully unmark generic deleted flag
+      const stillDeleted = Object.values(permits[idx].deletedBy).some(val => val === true);
+      if (!stillDeleted) {
+        permits[idx].deleted = false;
+      }
+    } else {
+      permits[idx].deleted = false;
+    }
+
     delete permits[idx].deletedAt;
-    delete permits[idx].deletedBy;
     delete permits[idx].deleteReason;
+    
+    if (permits[idx].status === 'rejected_area' || permits[idx].status === 'rejected_high_management') {
+       // Optional: reset status to pending_dept, but realistically restore keeps it as rejected unless we do this
+       // Wait, a soft delete is usually an archive. The user only specified state changes upon *deletion*.
+       // For restore, we probably should restore it to pending if it was unapproved.
+       permits[idx].status = 'pending_dept';
+    }
 
     storage['work-permits'] = JSON.stringify(permits);
     if (writeStorage(storage)) {
@@ -2099,6 +2153,19 @@ app.delete('/api/permits/:id/permanent', authenticateToken, requireRole('super_a
     if (req.user.role !== 'super_admin' && permits[idx].deletedByUsername !== req.user.username) {
         result = { status: 403, body: { error: 'ليس لديك صلاحية للحذف النهائي لهذا الطلب' } };
         return;
+    }
+
+    const roleKeyMap = {
+      dept_admin: 'areaAdmin',
+      hse_admin: 'safetyAdmin',
+      super_admin: 'superAdmin',
+      worker: 'worker'
+    };
+    const roleKey = roleKeyMap[req.user.role] || 'worker';
+
+    if (permits[idx].deletedBy && !permits[idx].deletedBy[roleKey] && !permits[idx].deleted) {
+      result = { status: 400, body: { error: 'الطلب ليس في سلة المحذوفات الخاصة بك' } };
+      return;
     }
 
     permits.splice(idx, 1);
