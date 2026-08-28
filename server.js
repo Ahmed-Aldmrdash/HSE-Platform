@@ -14,8 +14,10 @@ const bcrypt     = require('bcryptjs');
 const jwt        = require('jsonwebtoken');
 const rateLimit  = require('express-rate-limit');
 const webpush    = require('web-push');
+const compression = require('compression');
 
 const app  = express();
+app.use(compression());
 const PORT = process.env.PORT || 3000;
 
 // ── Security Constants ────────────────────────────────────────
@@ -107,6 +109,17 @@ app.use((req, res, next) => {
   next();
 });
 
+// ── SEO & AI Bots Endpoints ────────────────────────────────────
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain');
+  res.send("User-agent: *\nAllow: /\nDisallow: /api/\n");
+});
+
+app.get('/llms.txt', (req, res) => {
+  res.type('text/plain');
+  res.send("# Elsewedy Polymers Work Permits Platform\nAn enterprise HSE work permits management system.\n");
+});
+
 // ── Middleware ────────────────────────────────────────────────
 // Tighter payload limit — workers submit text only; 2 MB is generous
 app.use(express.json({ limit: '50mb' }));
@@ -149,16 +162,11 @@ const attendLimiter = rateLimit({
   message: { error: 'تجاوزت عدد محاولات تسجيل الحضور. حاول مجدداً بعد 15 دقيقة.' }
 });
 
-// ── Cache-Busting: prevent browsers/CDNs caching app-shell files ──────────
-// Must come BEFORE express.static so the headers are set on every response.
+// ── HTML Cache-Busting ─────────────────────────────────────────
+// Ensure index.html is never cached so new JS/CSS versions are always fetched.
 app.use((req, res, next) => {
   const p = req.path;
-  if (
-    p === '/' ||
-    p.endsWith('.html') ||
-    p.endsWith('.js')  ||
-    p.endsWith('.css')
-  ) {
+  if (p === '/' || p.endsWith('.html')) {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma',  'no-cache');
     res.setHeader('Expires', '0');
@@ -175,7 +183,8 @@ app.get('/api/work-permits', (req, res) => {
   res.redirect('/api/storage/work-permits');
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
+// Serve frontend static files with long Max-Age for images/JS/CSS (HTML is bypassed above)
+app.use(express.static(path.join(__dirname, 'public'), { maxAge: '31536000' }));
 
 
 // ============================================================
