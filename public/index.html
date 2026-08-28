@@ -64,48 +64,55 @@
 <div class="wrap" id="mainApp" style="display:none;">
 
   <div class="app-header">
-    <div class="header-logo-box">
-      <img src="icons/icon-192.png" alt="Elsewedy Polymers" onerror="this.style.display='none'">
-    </div>
-    <div>
-      <h1>HSE Platform</h1>
-      <p>Elsewedy Polymers</p>
-    </div>
-    <!-- بادج الموظف الحالي -->
-    <div id="empBadgeArea" style="display:none;margin-inline-start:auto;">
-      <div class="emp-badge-pill" id="empBadgePill"></div>
-    </div>
-    
-    <!-- GLOBAL SYNC & NOTIFICATION BELL -->
-    <div style="display:inline-flex; align-items:center; gap:8px; margin-inline-start:auto;">
-      <button type="button" id="btnGlobalSync" class="notif-bell-btn" onclick="globalSyncData()" title="تحديث البيانات">
-        🔄
-      </button>
-      
-      <div id="notifContainer" class="notif-wrapper" style="position: relative; display: inline-flex; align-items: center; margin-inline-end: 10px; display: none;">
-      <button type="button" id="btnNotifBell" class="notif-bell-btn" onclick="toggleNotifDrawer()" title="الإشعارات">
-        🔔
-        <span id="notifBadge" class="notif-badge" style="display: none;">0</span>
-      </button>
-      
-      <div id="notifDropdown" class="notif-drawer" style="display: none;">
-        <div class="notif-header">
-          <h3 style="margin: 0; font-size: 1.1rem; font-weight: bold;">الإشعارات</h3>
-          <button type="button" class="btn-mark-all" onclick="markAllNotificationsAsRead()">تحديد الكل كمقروء</button>
+    <div class="app-header-row1">
+      <div class="app-header-brand">
+        <div class="header-logo-box">
+          <img src="icons/icon-192.png" alt="Elsewedy Polymers" onerror="this.style.display='none'">
         </div>
-        <div class="notif-filters">
-          <button type="button" class="notif-pill active" onclick="setNotifFilter('all')">الكل</button>
-          <button type="button" class="notif-pill" onclick="setNotifFilter('unread')">غير المقروءة</button>
-          <button type="button" class="notif-pill" onclick="setNotifFilter('permit')">الطلبات</button>
-          <button type="button" class="notif-pill" onclick="setNotifFilter('hazard')">البلاغات</button>
-          <button type="button" class="notif-pill" onclick="setNotifFilter('training')">التدريب</button>
+        <div>
+          <h1>HSE Platform</h1>
+          <p>Elsewedy Polymers</p>
         </div>
-        <div id="notifList" class="notif-list"></div>
+      </div>
+      
+      <!-- GLOBAL SYNC & NOTIFICATION BELL -->
+      <div class="app-header-actions">
+        <button type="button" id="btnGlobalSync" class="notif-bell-btn" onclick="globalSyncData()" title="تحديث البيانات">
+          🔄
+        </button>
+        
+        <div id="notifContainer" class="notif-wrapper" style="position: relative; display: inline-flex; align-items: center; display: none;">
+          <button type="button" id="btnNotifBell" class="notif-bell-btn" onclick="toggleNotifDrawer()" title="الإشعارات">
+            🔔
+            <span id="notifBadge" class="notif-badge" style="display: none;">0</span>
+          </button>
+          
+          <div id="notifDropdown" class="notif-drawer" style="display: none;">
+            <div class="notif-header">
+              <h3 style="margin: 0; font-size: 1.1rem; font-weight: bold;">الإشعارات</h3>
+              <button type="button" class="btn-mark-all" onclick="markAllNotificationsAsRead()">تحديد الكل كمقروء</button>
+            </div>
+            <div class="notif-filters">
+              <button type="button" class="notif-pill active" onclick="setNotifFilter('all')">الكل</button>
+              <button type="button" class="notif-pill" onclick="setNotifFilter('unread')">غير المقروءة</button>
+              <button type="button" class="notif-pill" onclick="setNotifFilter('permit')">الطلبات</button>
+              <button type="button" class="notif-pill" onclick="setNotifFilter('hazard')">البلاغات</button>
+              <button type="button" class="notif-pill" onclick="setNotifFilter('training')">التدريب</button>
+            </div>
+            <div id="notifList" class="notif-list"></div>
+          </div>
+        </div>
       </div>
     </div>
+    
+    <div class="app-header-row2">
+      <!-- بادج الموظف الحالي -->
+      <div id="empBadgeArea" style="display:none;">
+        <div class="emp-badge-pill" id="empBadgePill"></div>
+      </div>
+      
+      <button id="installBtn" class="install-btn" style="display:none;" onclick="triggerInstall()">⬇ تثبيت التطبيق</button>
     </div>
-
-    <button id="installBtn" class="install-btn" style="display:none;" onclick="triggerInstall()">⬇ تثبيت التطبيق</button>
   </div>
   
   <audio id="notifChime" src="data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU5LjI3LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWgAAAAAP/7UATAAABcZgAD+AAAf/UIAIAAI/qAAEAAH/7UATAAABX1gAEGAAAR/AIAcAAgAAHgEA//tQBNgAAGJWAATYAAB4AAAwAAgAAAAAP/7UATQAABlZgAEGAAAR/AIAcAAgAAHgEA//tQBOAAAGY2AATYAAB4AAAwAAgAAAAAP/7UATwAABi1gAD+AAAf/UIAIAAI/qAAEAAH/7UATAAABX1gAEGAAAR/AIAcAAgAAHgEA" style="display:none;"></audio>
@@ -296,7 +303,7 @@
     <div class="toolbar">
       <div class="filters" id="hzFilters"></div>
       <button class="export-btn" onclick="renderSupHazard(false)" style="margin-inline-start:auto; background:var(--primary); color:#fff; display:flex; align-items:center; gap:6px;">🔄 تحديث البيانات</button>
-      <button class="export-btn" onclick="toggleHazardKPI()" style="margin-inline-start:8px; background:var(--amber); color:#fff;">📈 إحصائيات الموظفين</button>
+
     </div>
     <div class="toolbar" id="hzDeptToolbar" style="display:none;">
       <div class="filters" id="hzDeptFilters"></div>
@@ -305,13 +312,7 @@
       <button class="export-btn" onclick="exportHazardsExcel()" style="margin-inline-start:auto;">📊 تصدير سجل البلاغات Excel</button>
     </div>
     
-    <div id="hzKpiContainer" style="display:none; padding:16px; background:#fff; border-radius:12px; margin-bottom:16px; border:1px solid var(--paper-line); overflow-x:auto;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-        <h4 style="margin:0;">تارجت بلاغات الموظفين (الهدف: 2 لكل موظف شهرياً)</h4>
-        <button class="btn" onclick="toggleHazardKPI()" style="padding:4px 8px;">إخفاء</button>
-      </div>
-      <div id="hzKpiList"></div>
-    </div>
+
 
     <div id="hzList"><div class="loading">جارِ التحميل…</div></div>
   </div>
@@ -588,12 +589,7 @@
     <div id="trnAdminLiveSessions"></div>
   </div>
 
-  <!-- Global Employee Attendance Matrix -->
-  <h3 class="section-title" style="margin-top:24px;">🗂️ سجل الحضور العام للموظفين</h3>
-  <div class="field">
-    <input type="text" id="trnAdminSearch" placeholder="بحث بالاسم أو الكود الوظيفي..." oninput="filterTrnGlobalMatrix()" style="margin-bottom:12px;">
-  </div>
-  <div id="trnAdminGlobalMatrix"></div>
+
 </div>
 
 <!-- 🖼️ Full-Screen Image Lightbox Modal -->

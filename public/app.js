@@ -3431,50 +3431,6 @@ async function permanentDeleteHazard(id) {
 }
 
 let isKpiVisible = false;
-function toggleHazardKPI() {
-  isKpiVisible = !isKpiVisible;
-  document.getElementById('hzKpiContainer').style.display = isKpiVisible ? 'block' : 'none';
-  if (isKpiVisible) renderHazardKPI();
-}
-
-async function renderHazardKPI() {
-  const container = document.getElementById('hzKpiList');
-  container.innerHTML = '<div class="loading">جارِ تحميل الإحصائيات...</div>';
-  try {
-    const res = await authFetch('/api/hazards/employee-stats');
-    if (!res.ok) throw new Error('Failed to fetch');
-    const data = await res.json();
-    let stats = data.stats || [];
-    if (stats.length === 0) {
-      container.innerHTML = '<div class="empty">لا توجد بيانات موظفين</div>';
-      return;
-    }
-    stats.sort((a, b) => b.count - a.count);
-    
-    let html = '';
-    stats.forEach(st => {
-      const pct = Math.min((st.count / st.target) * 100, 100);
-      const color = pct >= 100 ? 'var(--success)' : (pct > 0 ? 'var(--amber)' : 'var(--danger)');
-      html += `
-        <div style="margin-bottom:12px; display:flex; align-items:center; gap:12px;">
-          <div style="width:180px; font-size:13px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(st.name)}</div>
-          <div style="flex:1;">
-            <div style="font-size:11px; margin-bottom:4px; display:flex; justify-content:space-between;">
-              <span>${escapeHtml(st.department || 'بدون قسم')}</span>
-              <span style="font-weight:bold; color:${color}">${st.count} / ${st.target}</span>
-            </div>
-            <div style="background:var(--paper-line); height:8px; border-radius:4px; overflow:hidden;">
-              <div style="width:${pct}%; height:100%; background:${color}; border-radius:4px;"></div>
-            </div>
-          </div>
-        </div>
-      `;
-    });
-    container.innerHTML = html;
-  } catch(e) {
-    container.innerHTML = '<div class="empty">فشل تحميل الإحصائيات</div>';
-  }
-}
 
 async function exportHazardsExcel() {
   try {
@@ -3741,26 +3697,7 @@ async function loadAdminTraining(isSilent = false) {
       }
     }
     
-    // 2. Fetch heavy stats array asynchronously without blocking the await
-    if (!isSilent) {
-      const matrixEl = document.getElementById('trnAdminGlobalMatrix');
-      if (matrixEl) matrixEl.innerHTML = '<div class="loading">جاري تحميل سجل الموظفين (يرجى الانتظار)...</div>';
-      authFetch('/api/trainings/stats/employees', { cache: 'no-store' })
-        .then(async (statsRes) => {
-          if (statsRes.ok) {
-            const sdata = await statsRes.json();
-            _adminGlobalMatrix = sdata.stats || [];
-            filterTrnGlobalMatrix();
-          } else {
-            if (matrixEl) matrixEl.innerHTML = '<div class="empty">فشل تحميل سجل الحضور (صلاحيات غير كافية أو خطأ في السيرفر).</div>';
-          }
-        })
-        .catch(e => {
-          console.error('Stats fetch error:', e);
-          if (matrixEl) matrixEl.innerHTML = '<div class="empty">فشل تحميل سجل الحضور.</div>';
-        });
-    }
-    
+
     // 3. Set or clear polling interval based on active sessions
     const hasActive = _allAdminTrainings.some(t => t.status === 'active');
     if (hasActive) {
@@ -3901,52 +3838,6 @@ function renderAdminLiveSessions(trainings) {
   liveEl.innerHTML = html;
 }
 
-function filterTrnGlobalMatrix() {
-  const q = (document.getElementById('trnAdminSearch')?.value || '').toLowerCase().trim();
-  const listEl = document.getElementById('trnAdminGlobalMatrix');
-  
-  const filtered = _adminGlobalMatrix.filter(e => 
-    (e.empCode || '').toLowerCase().includes(q) ||
-    (e.name || '').toLowerCase().includes(q)
-  );
-  
-  if (filtered.length === 0) {
-    listEl.innerHTML = '<div class="empty">لا توجد نتائج مطابقة</div>';
-    return;
-  }
-  
-  listEl.innerHTML = `
-    <div class="um-table-wrap">
-      <table class="um-table">
-        <thead>
-          <tr><th>الكود</th><th>الاسم</th><th>القسم</th><th>الساعات (الهدف: 8)</th><th>النسبة %</th></tr>
-        </thead>
-        <tbody>
-        ${filtered.map(e => {
-          let badgeClass = e.percentage >= 80 ? 'badge-green' : (e.percentage >= 50 ? 'badge-yellow' : 'badge-red');
-          return `
-          <tr>
-            <td style="font-family:monospace; font-weight:bold;">${escapeHtml(e.empCode)}</td>
-            <td style="font-weight:700; font-size:13px;">${escapeHtml(e.name)}</td>
-            <td style="font-size:12px;">${escapeHtml(e.department)}</td>
-            <td style="font-size:13px; font-weight:bold;">${e.attendanceHours} / 8 ساعات</td>
-            <td>
-              <div style="display:flex;align-items:center;gap:6px;">
-                <div style="flex:1;background:var(--paper-line);height:8px;border-radius:4px;overflow:hidden;min-width:50px;">
-                  <div style="height:100%;width:${e.percentage}%;background:var(--amber);"></div>
-                </div>
-                <span class="emp-role-badge ${badgeClass}" style="min-width:35px;text-align:center;">${e.percentage}%</span>
-              </div>
-            </td>
-          </tr>
-          `;
-        }).join('')}
-      </tbody>
-      </table>
-    </div>
-    <div style="font-size:11px; color:var(--muted); margin-top:8px;">عرض ${filtered.length} من إجمالي ${_adminGlobalMatrix.length} موظف</div>
-  `;
-}
 
 async function createTrainingSession() {
   const title = document.getElementById('trn_topic').value;
@@ -4481,20 +4372,35 @@ async function globalSyncData() {
   if (btn) btn.classList.add('spin');
   
   try {
+    if (typeof fetchNotifications === 'function') {
+      await fetchNotifications().catch(e => console.warn("Notifs sync bypassed:", e));
+    }
+    
     const tab = window.currentActiveTab;
-    if (tab === 'sup') await loadPermits();
-    else if (tab === 'supHazard') await loadAdminHazards();
-    else if (tab === 'users') await loadUsers();
-    else if (tab === 'employees') await loadEmployees();
-    else if (tab === 'trainingAdmin') await loadAdminTraining(false);
-    else if (tab === 'worker') await loadWorkerDashboard();
-    else if (tab === 'hazardWorker') await loadHazardWorkerDashboard();
-    else if (tab === 'myhistory') await loadMyHistory();
-    else if (tab === 'myhazards') await loadMyHazards();
-    else if (tab === 'trainingWorker') await loadWorkerTraining();
+    
+    if (tab === 'worker' || tab === 'hazardWorker') {
+      // Do nothing to avoid resetting inputs. Just refresh notifications.
+    } else if (tab === 'sup') {
+      if (typeof loadPermits === 'function') await loadPermits();
+    } else if (tab === 'supHazard') {
+      if (typeof loadAdminHazards === 'function') await loadAdminHazards();
+    } else if (tab === 'users') {
+      if (typeof loadUsers === 'function') await loadUsers();
+    } else if (tab === 'employees') {
+      if (typeof loadEmployees === 'function') await loadEmployees();
+    } else if (tab === 'trainingAdmin') {
+      if (typeof loadAdminTraining === 'function') await loadAdminTraining(false);
+    } else if (tab === 'myhistory') {
+      if (typeof loadMyHistory === 'function') await loadMyHistory();
+    } else if (tab === 'myhazards') {
+      if (typeof loadMyHazards === 'function') await loadMyHazards();
+    } else if (tab === 'trainingWorker') {
+      if (typeof loadWorkerTraining === 'function') await loadWorkerTraining();
+    }
     
     showToast('تم تحديث البيانات بنجاح ✅', 'success');
   } catch (err) {
+    console.error("Critical Sync Failure:", err);
     showToast('خطأ أثناء التحديث', 'error');
   } finally {
     if (btn) btn.classList.remove('spin');

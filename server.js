@@ -2598,6 +2598,7 @@ app.get('/api/employees',
     
     const hazardsMap = new Map();
     hazards.forEach(h => {
+      if (h.deleted || h.status === 'rejected' || h.status === 'rejected_by_maintenance') return;
       const code = normalizeEmpCode(h.empCode);
       if (code) {
         hazardsMap.set(code, (hazardsMap.get(code) || 0) + 1);
