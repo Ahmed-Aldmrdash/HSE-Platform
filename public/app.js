@@ -151,7 +151,7 @@ async function apiSet(key, value){
 const PERMIT_TYPES = {
   general: {
     label: "عام",
-    fullLabel: "تصريح عمل عام",
+    fullLabel: "طلب عمل عام",
     checklist: [
       "هل الاضاءة والتهوية كافية",
       "هل التاكد من توصيل الكابل الارضى للسيارة قبل التفريغ",
@@ -168,7 +168,7 @@ const PERMIT_TYPES = {
   },
   height: {
     label: "ارتفاع",
-    fullLabel: "تصريح عمل على ارتفاع",
+    fullLabel: "طلب عمل على ارتفاع",
     checklist: [
       "هل العمالة مدربة ومؤهلة للعمل المطلوب",
       "هل المشابك (الخطافات) خالية من أى عيوب",
@@ -187,7 +187,7 @@ const PERMIT_TYPES = {
   },
   confined: {
     label: "اماكن مغلقة",
-    fullLabel: "تصريح عمل أماكن مغلقة",
+    fullLabel: "طلب عمل أماكن مغلقة",
     checklist: [
       "هل توجد نوافذ واسعة للتهوية",
       "هل تم فحص الأجهزة الكهربائية والعدد اليدوية",
@@ -201,7 +201,7 @@ const PERMIT_TYPES = {
   },
   excavation: {
     label: "حفر",
-    fullLabel: "تصريح عمل حفر",
+    fullLabel: "طلب عمل حفر",
     checklist: [
       "هل تمت مراجعة قسم الميكانيكا لوجود مواسير سباكة في منطقة الحفر",
       "هل تمت مراجعة قسم الكهرباء لوجود كابلات في منطقة الحفر",
@@ -214,7 +214,7 @@ const PERMIT_TYPES = {
   },
   lifting: {
     label: "رفع",
-    fullLabel: "تصريح عمل رفع",
+    fullLabel: "طلب عمل رفع",
     checklist: [
       "هل يوجد شهادة معايرة للونش",
       "هل جميع العاملين المشتركين ملتزمين بكاب السيفتي",
@@ -230,7 +230,7 @@ const PERMIT_TYPES = {
   },
   hot: {
     label: "ساخن",
-    fullLabel: "تصريح عمل ساخن",
+    fullLabel: "طلب عمل ساخن",
     checklist: [
       "هل الاضاءة والتهوية كافية",
       "هل تم تعيين مراقب حريق",
@@ -246,7 +246,7 @@ const PERMIT_TYPES = {
   },
   loto: {
     label: "فصل وعزل",
-    fullLabel: "تصريح عمل فصل وعزل الطاقة (LOTO)",
+    fullLabel: "طلب عمل فصل وعزل الطاقة (LOTO)",
     checklist: [
       "هل للمعدة تعليمات عزل محددة، خاصة تفريغ الطاقة الكامنة",
       "هل العزل الجماعي لمصادر الطاقة مطبق",
@@ -1091,7 +1091,7 @@ function renderForm(){
 
   formArea.innerHTML = `
     <div class="type-picker">
-      <div class="type-picker-label">نوع التصريح <span class="req-star">*</span></div>
+      <div class="type-picker-label">نوع الطلب <span class="req-star">*</span></div>
       <div class="filters">${typeChips()}</div>
     </div>
 
@@ -1120,7 +1120,7 @@ function renderForm(){
             <input id="f_date" type="date">
           </div>
           <div class="field">
-            <label>رقم تصريح سابق لنفس العمل (إن وجد)</label>
+            <label>رقم طلب سابق لنفس العمل (إن وجد)</label>
             <input id="f_prev" type="text" placeholder="اختياري">
           </div>
         </div>
@@ -1428,18 +1428,18 @@ async function submitPermit(){
         <div class="tnum-big">${permit.id}</div>
         <span class="stamp pending big-stamp">قيد الانتظار</span>
         <p>${type.fullLabel} — هيوصل الطلب للمشرف على طول عشان يوافق عليه</p>
-        <p style="font-size:12.5px;color:var(--muted);margin-top:10px;">احتفظ برقم التصريح ده — اضغط زر "تتبع الطلب ده" أو افتح تاب "📁 سجل تصاريحي" عشان تعرف حالته أول ما المشرف يرد</p>
+        <p style="font-size:12.5px;color:var(--muted);margin-top:10px;">احتفظ برقم الطلب ده — اضغط زر "تتبع الطلب ده" أو افتح تاب "📁 سجل طلباتي" عشان تعرف حالته أول ما المشرف يرد</p>
         <button class="again-btn" onclick="renderForm()">+ طلب جديد</button>
-        <button class="again-btn" style="margin-inline-start:8px;border-color:var(--amber);color:var(--amber);" onclick="goTrackWithId('${permit.id}')">📁 سجل تصاريحي</button>
+        <button class="again-btn" style="margin-inline-start:8px;border-color:var(--amber);color:var(--amber);" onclick="goTrackWithId('${permit.id}')">📁 سجل طلباتي</button>
       </div>
     </div>
   `;
 }
 
-// [FIX-1] إصلاح goTrackWithId: التوجيه لتبويب "سجل تصاريحي" بدلاً من تبويب track المحذوف
+// [FIX-1] إصلاح goTrackWithId: التوجيه لتبويب "سجل طلباتي" بدلاً من تبويب track المحذوف
 function goTrackWithId(permitId){
   switchTab('myhistory');
-  // تمييز التصريح المحدد بعد تحميل القائمة
+  // تمييز الطلب المحدد بعد تحميل القائمة
   setTimeout(() => {
     const el = document.querySelector(`.phc-id`);
     if(el && el.textContent.trim() === permitId) {
@@ -1450,7 +1450,7 @@ function goTrackWithId(permitId){
 
 // [FIX-2] دوال trackPermits و pollTrackResults محذوفة — كانت تشير لعناصر HTML غير موجودة
 // (viewTrack, track_id, track_phone, trackResults)
-// منطق التتبع انتقل بالكامل لتبويب "سجل تصاريحي" (myhistory)
+// منطق التتبع انتقل بالكامل لتبويب "سجل طلباتي" (myhistory)
 // ---------- supervisor view ----------
 function renderFilters(){
   const opts = ['الكل','بانتظار أدمن القسم','بانتظار السلامة والصحة المهنية','موافق عليه','مرفوض','مغلق','🗑️ المحذوفات'];
@@ -1621,7 +1621,7 @@ function renderList(){
         ${(p.tools && (Array.isArray(p.tools) ? p.tools.length > 0 : p.tools)) ? `
           <div class="section-title" style="margin-top:10px;">الأدوات والعدد</div>
           <div class="tools-display">${Array.isArray(p.tools) ? p.tools.map(t=>`<span class="tool-tag">${escapeHtml(t)}</span>`).join('') : escapeHtml(p.tools)}</div>` : ''}
-        ${p.previousPermitNo ? `<div class="reviewed-by">رقم تصريح سابق: ${escapeHtml(p.previousPermitNo)}</div>`:''}
+        ${p.previousPermitNo ? `<div class="reviewed-by">رقم طلب سابق: ${escapeHtml(p.previousPermitNo)}</div>`:''}
         ${p.requesterPhone ? `<div class="reviewed-by">تليفون: ${escapeHtml(p.requesterPhone)}</div>`:''}
         <div class="doc-control-footer">SE-07-F02 &nbsp;|&nbsp; VER.NO.: 01 &nbsp;|&nbsp; VER. DATE: 01/01/2025</div>
       </div>
@@ -1640,7 +1640,7 @@ function renderList(){
             <button onclick="rejectPermit('${p.id}')">تأكيد الرفض</button>
           </div>
         ` : `
-          <div class="review-note">⏳ التصريح بانتظار موافقة أدمن قسم ${escapeHtml(p.department)}</div>
+          <div class="review-note">⏳ الطلب بانتظار موافقة أدمن قسم ${escapeHtml(p.department)}</div>
         `}
       ` : ''}
 
@@ -1659,7 +1659,7 @@ function renderList(){
             <button onclick="rejectPermit('${p.id}')">تأكيد الرفض</button>
           </div>
         ` : `
-          <div class="review-note">⏳ التصريح بانتظار اعتماد السلامة والصحة المهنية (HSE)</div>
+          <div class="review-note">⏳ الطلب بانتظار اعتماد السلامة والصحة المهنية (HSE)</div>
         `}
       ` : ''}
 
@@ -1669,7 +1669,7 @@ function renderList(){
         ${p.safetyOfficerName ? `<div class="reviewed-by">مشرف السلامة: ${escapeHtml(p.safetyOfficerName)}</div>`:''}
         ${p.areaManagerName ? `<div class="reviewed-by">مدير المنطقة: ${escapeHtml(p.areaManagerName)}</div>`:''}
         <div class="review-note" style="background-color: var(--card-bg); border: 1px dashed var(--success);">
-          🔒 التصريح معتمد ومفتوح. يمكن للموظف إغلاقه من حسابه.
+          🔒 الطلب معتمد ومفتوح. يمكن للموظف إغلاقه من حسابه.
         </div>
       ` : ''}
 
@@ -1740,7 +1740,7 @@ async function confirmDeletePermit() {
     });
     const data = await res.json();
     if (res.ok) {
-      msgEl.textContent = '✅ تم حذف التصريح ونقله للأرشيف';
+      msgEl.textContent = '✅ تم حذف الطلب ونقله للأرشيف';
       msgEl.className = 'um-msg success show';
       setTimeout(() => {
         closeDeletePermitModal();
@@ -1756,14 +1756,14 @@ async function confirmDeletePermit() {
   }
 }
 async function restorePermit(id) {
-  if(!confirm('هل أنت متأكد من استعادة هذا التصريح؟')) return;
+  if(!confirm('هل أنت متأكد من استعادة هذا الطلب؟')) return;
   try {
     const res = await authFetch(`/api/permits/${encodeURIComponent(id)}/restore`, { method: 'POST' });
     if(res.ok) {
       pollPermitsForSupervisor();
     } else {
       const data = await res.json();
-      alert(data.error || 'فشل استعادة التصريح');
+      alert(data.error || 'فشل استعادة الطلب');
     }
   } catch (e) {
     alert('خطأ في الاتصال بالسيرفر');
@@ -1771,7 +1771,7 @@ async function restorePermit(id) {
 }
 
 async function hardDeletePermit(id) {
-  if(!confirm('هل أنت متأكد من حذف هذا التصريح نهائياً من قاعدة البيانات؟ لا يمكن التراجع عن هذا الإجراء')) return;
+  if(!confirm('هل أنت متأكد من حذف هذا الطلب نهائياً من قاعدة البيانات؟ لا يمكن التراجع عن هذا الإجراء')) return;
   try {
     const res = await authFetch(`/api/permits/${encodeURIComponent(id)}/permanent`, { method: 'DELETE' });
     if(res.ok) {
@@ -1905,7 +1905,7 @@ function exportExcel(){
     }
 
     const rows = list.map(p => ({
-      'كود التصريح': p.id,
+      'كود الطلب': p.id,
       'اسم مقدم الطلب': p.workerName,
       'القسم': p.department,
       'تاريخ الحذف': p.deletedAt ? new Date(p.deletedAt).toLocaleString('ar-EG') : '',
@@ -1926,12 +1926,12 @@ function exportExcel(){
     alert('لا توجد بيانات لتصديرها بعد');
     return;
   }
-  // main sheet mirrors the official "سجل متابعة تصاريح العمل" column layout
+  // main sheet mirrors the official "سجل متابعة الطلبات" column layout
   const rows = list.map(p => ({
-    'نوع التصريح': p.typeLabel,
+    'نوع الطلب': p.typeLabel,
     'القسم': p.department,
     'الوردية': p.shift,
-    'رقم التصريح': p.id,
+    'رقم الطلب': p.id,
     'وصف العمل': p.description,
     'من': p.timeFrom,
     'الي': p.timeTo,
@@ -1953,9 +1953,9 @@ function exportExcel(){
   ws['!cols'] = Object.keys(rows[0]).map(()=>({wch:20}));
 
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'سجل متابعة تصاريح العمل');
+  XLSX.utils.book_append_sheet(wb, ws, 'سجل متابعة الطلبات');
   const dateStr = new Date().toISOString().split('T')[0];
-  XLSX.writeFile(wb, `سجل_تصاريح_العمل_${dateStr}.xlsx`);
+  XLSX.writeFile(wb, `سجل_طلبات_العمل_${dateStr}.xlsx`);
 }
 
 // ---------- PWA install prompt (Android/Chrome "أضف للشاشة الرئيسية") ----------
@@ -2532,7 +2532,7 @@ async function exportEmployeesExcel() {
 
 
 // ================================================================
-// === تبويب "سجل تصاريحي" (My Permits History) ===
+// === تبويب "سجل طلباتي" (My Permits History) ===
 // ================================================================
 
 const MY_HISTORY_FILTERS = ['الكل', 'بانتظار أدمن القسم', 'بانتظار السلامة والصحة المهنية', 'موافق عليه', 'مرفوض', 'مغلق'];
@@ -2555,7 +2555,7 @@ function setMyHistoryFilter(f){
 async function renderMyHistory(isSilent = false){
   if(!currentEmployee){
     const list = document.getElementById('myHistoryList');
-    if(list) list.innerHTML = `<div class="empty"><div class="icon">🔒</div>سجّل دخولك أولاً لعرض سجل تصاريحك</div>`;
+    if(list) list.innerHTML = `<div class="empty"><div class="icon">🔒</div>سجّل دخولك أولاً لعرض سجل طلباتك</div>`;
     return;
   }
 
@@ -2588,7 +2588,7 @@ async function renderMyHistory(isSilent = false){
   if(!listEl) return;
 
   if(myPermits.length === 0){
-    listEl.innerHTML = `<div class="empty"><div class="icon">📂</div>لا توجد تصاريح ${myHistoryFilter !== 'الكل' ? 'بهذا الفلتر' : 'بعد'}</div>`;
+    listEl.innerHTML = `<div class="empty"><div class="icon">📂</div>لا توجد طلبات ${myHistoryFilter !== 'الكل' ? 'بهذا الفلتر' : 'بعد'}</div>`;
     return;
   }
 
@@ -2614,7 +2614,7 @@ async function renderMyHistory(isSilent = false){
       ${(st === 'pending' || st === 'pending_dept') ? `<div class="phc-msg pending">⏳ بانتظار موافقة أدمن القسم</div>` : ''}
       ${st === 'pending_hse' ? `<div class="phc-msg pending">✅ تمت موافقة القسم (بانتظار اعتماد السلامة والصحة المهنية)</div>` : ''}
       ${st === 'approved' ? `
-        <div class="phc-msg approved">🟢 تم الاعتماد النهائي للتصريح — يمكنك الإغلاق بعد الانتهاء</div>
+        <div class="phc-msg approved">🟢 تم الاعتماد النهائي للطلب — يمكنك الإغلاق بعد الانتهاء</div>
         <div class="closure-box" style="margin-top:8px;">
           <div class="field"><input id="myhistory-closereason-${p.id}" type="text" placeholder="سبب عدم الاكتمال أو الإغلاق الجبري (إن وجد)" style="font-size:12px;padding:6px;"></div>
           <div class="closure-actions" style="margin-top:4px;">

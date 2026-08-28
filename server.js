@@ -128,7 +128,7 @@ const submitLimiter = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'تجاوزت الحد المسموح لتقديم التصاريح. حاول مجدداً بعد 15 دقيقة.' }
+  message: { error: 'تجاوزت الحد المسموح لتقديم الطلبات. حاول مجدداً بعد 15 دقيقة.' }
 });
 
 /** Employee registration: max 20 per 15 min per IP */
@@ -899,7 +899,7 @@ async function syncExcelFromPermits(permitsJsonString) {
     if (fs.existsSync(EXCEL_FILE)) {
       try {
         await workbook.xlsx.readFile(EXCEL_FILE);
-        worksheet = workbook.getWorksheet('سجل التصاريح');
+        worksheet = workbook.getWorksheet('سجل الطلبات');
       } catch (readErr) {
         console.warn('Excel sync: could not read existing file (may be open), creating fresh.', readErr.message);
         workbook = new ExcelJS.Workbook();
@@ -908,10 +908,10 @@ async function syncExcelFromPermits(permitsJsonString) {
     }
 
     if (!worksheet) {
-      worksheet = workbook.addWorksheet('سجل التصاريح');
+      worksheet = workbook.addWorksheet('سجل الطلبات');
       worksheet.columns = [
-        { header: 'رقم التصريح',   key: 'id',                width: 18 },
-        { header: 'نوع التصريح',   key: 'typeLabel',         width: 20 },
+        { header: 'رقم الطلب',   key: 'id',                width: 18 },
+        { header: 'نوع الطلب',   key: 'typeLabel',         width: 20 },
         { header: 'القسم',         key: 'department',        width: 15 },
         { header: 'الوردية',       key: 'shift',             width: 12 },
         { header: 'تاريخ التنفيذ', key: 'date',              width: 15 },
@@ -1112,7 +1112,7 @@ app.post('/api/storage/:key', (req, res, next) => {
             targetRole: 'dept_admin',
             targetDept: p.department,
             type: 'permit',
-            title: 'تصريح جديد 📋',
+            title: 'طلب جديد 📋',
             message: `مقدم من ${p.workerName || 'موظف'} نوع ${p.typeLabel || 'غير محدد'} في ${p.location || 'غير محدد'}`,
             link: 'tabPermits'
           });
@@ -1121,8 +1121,8 @@ app.post('/api/storage/:key', (req, res, next) => {
             createNotification({
               targetEmpCode: p.employeeId,
               type: 'permit',
-              title: 'استلام طلب تصريح ✅',
-              message: 'تم استلام طلب تصريحك بنجاح وهو قيد المراجعة',
+              title: 'استلام طلب طلب ✅',
+              message: 'تم استلام طلب طلبك بنجاح وهو قيد المراجعة',
               link: 'tabMyHistory'
             });
           }
@@ -1210,7 +1210,7 @@ app.get('/api/export-excel',
   requireRole('super_admin', 'hse_admin', 'dept_admin'),
   (req, res) => {
     if (fs.existsSync(EXCEL_FILE)) {
-      res.download(EXCEL_FILE, 'سجل_تصاريح_العمل.xlsx');
+      res.download(EXCEL_FILE, 'سجل_طلبات_العمل.xlsx');
     } else {
       res.status(404).send('لا يوجد سجل حالياً');
     }
@@ -1268,7 +1268,7 @@ app.patch(
 
       const idx = permits.findIndex(p => p.id === permitId);
       if (idx === -1) {
-        result = { status: 404, body: { error: 'التصريح غير موجود' } };
+        result = { status: 404, body: { error: 'الطلب غير موجود' } };
         return;
       }
 
@@ -1277,12 +1277,12 @@ app.patch(
 
       if (action === 'dept_approve') {
         if (permits[idx].status !== 'pending_dept' && permits[idx].status !== 'pending_area_head' && permits[idx].status !== 'pending') {
-          result = { status: 409, body: { error: 'لا يمكن موافقة رئيس القسم إلا على تصاريح قيد انتظار القسم' } };
+          result = { status: 409, body: { error: 'لا يمكن موافقة رئيس القسم إلا على طلبات قيد انتظار القسم' } };
           return;
         }
         if (req.user.role === 'dept_admin' && req.user.department &&
             permits[idx].department && req.user.department !== permits[idx].department) {
-          result = { status: 403, body: { error: 'رئيس القسم لا يملك صلاحية الموافقة على تصاريح قسم آخر' } };
+          result = { status: 403, body: { error: 'رئيس القسم لا يملك صلاحية الموافقة على طلبات قسم آخر' } };
           return;
         }
         permits[idx].status              = 'pending_hse';
@@ -1301,7 +1301,7 @@ app.patch(
         permits[idx].safetyOfficerName = sanitizeStr(reviewerName, 100);
       } else if (action === 'reject') {
         if (permits[idx].status !== 'pending_dept' && permits[idx].status !== 'pending_hse') {
-          result = { status: 409, body: { error: 'لا يمكن الرفض إلا على التصاريح قيد الانتظار' } };
+          result = { status: 409, body: { error: 'لا يمكن الرفض إلا على الطلبات قيد الانتظار' } };
           return;
         }
         permits[idx].status     = 'rejected';
@@ -1312,7 +1312,7 @@ app.patch(
       } else if (action === 'close') {
         if (!permits[idx].status || !permits[idx].status.startsWith('approved')) {
           if (req.user.role !== 'super_admin' && permits[idx].status !== 'approved') {
-            result = { status: 409, body: { error: 'لا يمكن إغلاق إلا التصاريح الموافق عليها' } };
+            result = { status: 409, body: { error: 'لا يمكن إغلاق إلا الطلبات الموافق عليها' } };
             return;
           }
         }
@@ -1335,55 +1335,55 @@ app.patch(
             createNotification({
               targetEmpCode: permits[idx].employeeId,
               type: 'permit',
-              title: 'تم اعتماد التصريح النهائي 🎉',
-              message: `تم اعتماد تصريحك النهائي برقم ${permits[idx].id} من إدارة السلامة، يمكنك بدء العمل`,
+              title: 'تم اعتماد الطلب النهائي 🎉',
+              message: `تم اعتماد طلبك النهائي برقم ${permits[idx].id} من إدارة السلامة، يمكنك بدء العمل`,
               link: 'tabMyHistory'
             });
             createNotification({
               targetRole: 'dept_admin',
               targetDept: permits[idx].department,
               type: 'permit',
-              title: 'تم اعتماد التصريح النهائي 🎉',
-              message: `تم اعتماد تصريح قسمك النهائي برقم ${permits[idx].id} من إدارة السلامة`,
+              title: 'تم اعتماد الطلب النهائي 🎉',
+              message: `تم اعتماد طلب قسمك النهائي برقم ${permits[idx].id} من إدارة السلامة`,
               link: 'tabPermits'
             });
           } else if (action === 'dept_approve') {
             createNotification({
               targetRole: 'hse_admin',
               type: 'permit',
-              title: 'تصريح بانتظار مراجعة السلامة 🛡️',
-              message: `تم موافقة رئيس القسم على التصريح رقم ${permits[idx].id} وبانتظار اعتماد HSE`,
+              title: 'طلب بانتظار مراجعة السلامة 🛡️',
+              message: `تم موافقة رئيس القسم على الطلب رقم ${permits[idx].id} وبانتظار اعتماد HSE`,
               link: 'tabPermits'
             });
             createNotification({
               targetRole: 'super_admin',
               type: 'permit',
-              title: 'تصريح بانتظار مراجعة السلامة 🛡️',
-              message: `تم موافقة رئيس القسم على التصريح رقم ${permits[idx].id} وبانتظار اعتماد HSE`,
+              title: 'طلب بانتظار مراجعة السلامة 🛡️',
+              message: `تم موافقة رئيس القسم على الطلب رقم ${permits[idx].id} وبانتظار اعتماد HSE`,
               link: 'tabPermits'
             });
           } else if (action === 'reject') {
             createNotification({
               targetEmpCode: permits[idx].employeeId,
               type: 'permit',
-              title: 'رفض التصريح ❌',
-              message: `تم رفض تصريحك رقم ${permits[idx].id} - السبب: ${reviewNote || 'غير محدد'}`,
+              title: 'رفض الطلب ❌',
+              message: `تم رفض طلبك رقم ${permits[idx].id} - السبب: ${reviewNote || 'غير محدد'}`,
               link: 'tabMyHistory'
             });
             createNotification({
               targetRole: 'dept_admin',
               targetDept: permits[idx].department,
               type: 'permit',
-              title: 'رفض التصريح ❌',
-              message: `تم رفض تصريح قسمك رقم ${permits[idx].id} - السبب: ${reviewNote || 'غير محدد'}`,
+              title: 'رفض الطلب ❌',
+              message: `تم رفض طلب قسمك رقم ${permits[idx].id} - السبب: ${reviewNote || 'غير محدد'}`,
               link: 'tabPermits'
             });
           } else if (action === 'close') {
             createNotification({
               targetEmpCode: permits[idx].employeeId,
               type: 'permit',
-              title: 'إغلاق التصريح 🔒',
-              message: `تم إنهاء وإغلاق التصريح رقم ${permits[idx].id}`,
+              title: 'إغلاق الطلب 🔒',
+              message: `تم إنهاء وإغلاق الطلب رقم ${permits[idx].id}`,
               link: 'tabMyHistory'
             });
           }
@@ -1970,7 +1970,7 @@ app.get('/api/export-hazards', authenticateToken, requireRole('super_admin', 'hs
     return res.status(500).json({ error: 'فشل تصدير البيانات' });
   }
 });
-// ── DELETE /api/permits/:id — Soft Delete التصريح
+// ── DELETE /api/permits/:id — Soft Delete الطلب
 app.delete('/api/permits/:id', authenticateToken, requireRole('super_admin', 'hse_admin', 'dept_admin'), async (req, res) => {
   const permitId = req.params.id;
   const { reason } = req.body;
@@ -1988,14 +1988,14 @@ app.delete('/api/permits/:id', authenticateToken, requireRole('super_admin', 'hs
 
     const idx = permits.findIndex(p => p.id === permitId);
     if (idx === -1) {
-      result = { status: 404, body: { error: 'التصريح غير موجود' } };
+      result = { status: 404, body: { error: 'الطلب غير موجود' } };
       return;
     }
 
     const permit = permits[idx];
     if (req.user.role === 'dept_admin') {
       if (permit.department !== req.user.department) {
-        result = { status: 403, body: { error: 'ليس لديك صلاحية لحذف تصريح تابع لقسم آخر' } };
+        result = { status: 403, body: { error: 'ليس لديك صلاحية لحذف طلب تابع لقسم آخر' } };
         return;
       }
     }
@@ -2020,7 +2020,7 @@ app.delete('/api/permits/:id', authenticateToken, requireRole('super_admin', 'hs
   res.status(result.status).json(result.body);
 });
 
-// ── POST /api/permits/:id/restore — استعادة التصريح المحذوف
+// ── POST /api/permits/:id/restore — استعادة الطلب المحذوف
 app.post('/api/permits/:id/restore', authenticateToken, requireRole('super_admin', 'hse_admin', 'dept_admin'), async (req, res) => {
   const permitId = req.params.id;
   
@@ -2034,12 +2034,12 @@ app.post('/api/permits/:id/restore', authenticateToken, requireRole('super_admin
 
     const idx = permits.findIndex(p => p.id === permitId);
     if (idx === -1) {
-      result = { status: 404, body: { error: 'التصريح غير موجود' } };
+      result = { status: 404, body: { error: 'الطلب غير موجود' } };
       return;
     }
 
     if (req.user.role !== 'super_admin' && permits[idx].deletedByUsername !== req.user.username) {
-      result = { status: 403, body: { error: 'ليس لديك صلاحية لاستعادة هذا التصريح' } };
+      result = { status: 403, body: { error: 'ليس لديك صلاحية لاستعادة هذا الطلب' } };
       return;
     }
 
@@ -2052,14 +2052,14 @@ app.post('/api/permits/:id/restore', authenticateToken, requireRole('super_admin
     if (writeStorage(storage)) {
       result = { status: 200, body: { success: true } };
     } else {
-      result = { status: 500, body: { error: 'فشل استعادة التصريح' } };
+      result = { status: 500, body: { error: 'فشل استعادة الطلب' } };
     }
   });
 
   res.status(result.status).json(result.body);
 });
 
-// ── DELETE /api/permits/:id/permanent — الحذف النهائي للتصريح
+// ── DELETE /api/permits/:id/permanent — الحذف النهائي للطلب
 app.delete('/api/permits/:id/permanent', authenticateToken, requireRole('super_admin', 'hse_admin', 'dept_admin'), async (req, res) => {
   const permitId = req.params.id;
   
@@ -2073,12 +2073,12 @@ app.delete('/api/permits/:id/permanent', authenticateToken, requireRole('super_a
 
     const idx = permits.findIndex(p => p.id === permitId);
     if (idx === -1) {
-      result = { status: 404, body: { error: 'التصريح غير موجود' } };
+      result = { status: 404, body: { error: 'الطلب غير موجود' } };
       return;
     }
 
     if (req.user.role !== 'super_admin' && permits[idx].deletedByUsername !== req.user.username) {
-        result = { status: 403, body: { error: 'ليس لديك صلاحية للحذف النهائي لهذا التصريح' } };
+        result = { status: 403, body: { error: 'ليس لديك صلاحية للحذف النهائي لهذا الطلب' } };
         return;
     }
 
@@ -2099,7 +2099,7 @@ app.delete('/api/permits/:id/permanent', authenticateToken, requireRole('super_a
 // 🔑 API ROUTES — AUTH
 // ============================================================
 
-// ── PATCH /api/permits/:id/worker-close — إغلاق التصريح من قِبل الموظف
+// ── PATCH /api/permits/:id/worker-close — إغلاق الطلب من قِبل الموظف
 // لا يتطلب JWT — التحقق من الملكية يتم عبر employeeId
 app.patch('/api/permits/:id/worker-close', async (req, res) => {
   const permitId = req.params.id;
@@ -2123,20 +2123,20 @@ app.patch('/api/permits/:id/worker-close', async (req, res) => {
 
     const idx = permits.findIndex(p => p.id === permitId);
     if (idx === -1) {
-      result = { status: 404, body: { error: 'التصريح غير موجود' } };
+      result = { status: 404, body: { error: 'الطلب غير موجود' } };
       return;
     }
 
     // Ownership check: only the worker who submitted can close it
     if (!permits[idx].employeeId ||
         permits[idx].employeeId.toLowerCase() !== String(employeeId).toLowerCase()) {
-      result = { status: 403, body: { error: 'غير مصرح لك بإغلاق هذا التصريح' } };
+      result = { status: 403, body: { error: 'غير مصرح لك بإغلاق هذا الطلب' } };
       return;
     }
 
     // Only approved permits can be closed by workers
     if (permits[idx].status !== 'approved') {
-      result = { status: 409, body: { error: 'يمكن إغلاق التصاريح الموافق عليها فقط' } };
+      result = { status: 409, body: { error: 'يمكن إغلاق الطلبات الموافق عليها فقط' } };
       return;
     }
 
@@ -2157,16 +2157,16 @@ app.patch('/api/permits/:id/worker-close', async (req, res) => {
       createNotification({
         targetRole: 'admin',
         type: 'permit',
-        title: 'إغلاق تصريح من العامل 🔒',
-        message: `تم إنهاء وإغلاق التصريح رقم ${permits[idx].id} من قِبل ${permits[idx].workerName || employeeId}`,
+        title: 'إغلاق طلب من العامل 🔒',
+        message: `تم إنهاء وإغلاق الطلب رقم ${permits[idx].id} من قِبل ${permits[idx].workerName || employeeId}`,
         link: 'tabPermits'
       });
       
       createNotification({
         targetEmpCode: permits[idx].employeeId,
         type: 'permit',
-        title: 'تأكيد إغلاق التصريح ✅',
-        message: 'تم إغلاق التصريح بسلامة',
+        title: 'تأكيد إغلاق الطلب ✅',
+        message: 'تم إغلاق الطلب بسلامة',
         link: 'tabMyHistory'
       });
       

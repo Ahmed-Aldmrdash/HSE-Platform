@@ -7,9 +7,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="HSE Platform - تصاريح العمل">
-<meta name="description" content="HSE Platform - تصاريح العمل - Elsewedy Polymers. أرسل وتابع طلبات تصاريح العمل بسهولة.">
-<title>HSE Platform - تصاريح العمل - Elsewedy Polymers</title>
+<meta name="apple-mobile-web-app-title" content="HSE Platform - Elsewedy Polymers">
+<meta name="description" content="HSE Platform - Elsewedy Polymers. أرسل وتابع الطلبات بسهولة.">
+<title>HSE Platform - Elsewedy Polymers</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -29,7 +29,7 @@
       <img src="icons/icon-192.png" alt="Elsewedy Polymers" onerror="this.style.display='none'">
     </div>
     <div class="wl-title">مرحباً بك</div>
-    <div class="wl-sub">HSE Platform - تصاريح العمل · Elsewedy Polymers</div>
+    <div class="wl-sub">HSE Platform · Elsewedy Polymers</div>
 
     <!-- Single-step: code input only -->
     <div id="wl-step1">
@@ -68,8 +68,8 @@
       <img src="icons/icon-192.png" alt="Elsewedy Polymers" onerror="this.style.display='none'">
     </div>
     <div>
-      <h1>HSE Platform - تصاريح العمل</h1>
-      <p>Elsewedy Polymers · Work Permit System</p>
+      <h1>HSE Platform</h1>
+      <p>Elsewedy Polymers</p>
     </div>
     <!-- بادج الموظف الحالي -->
     <div id="empBadgeArea" style="display:none;margin-inline-start:auto;">
@@ -96,7 +96,7 @@
         <div class="notif-filters">
           <button type="button" class="notif-pill active" onclick="setNotifFilter('all')">الكل</button>
           <button type="button" class="notif-pill" onclick="setNotifFilter('unread')">غير المقروءة</button>
-          <button type="button" class="notif-pill" onclick="setNotifFilter('permit')">التصاريح</button>
+          <button type="button" class="notif-pill" onclick="setNotifFilter('permit')">الطلبات</button>
           <button type="button" class="notif-pill" onclick="setNotifFilter('hazard')">البلاغات</button>
           <button type="button" class="notif-pill" onclick="setNotifFilter('training')">التدريب</button>
         </div>
@@ -111,9 +111,9 @@
   <audio id="notifChime" src="data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU5LjI3LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWgAAAAAP/7UATAAABcZgAD+AAAf/UIAIAAI/qAAEAAH/7UATAAABX1gAEGAAAR/AIAcAAgAAHgEA//tQBNgAAGJWAATYAAB4AAAwAAgAAAAAP/7UATQAABlZgAEGAAAR/AIAcAAgAAHgEA//tQBOAAAGY2AATYAAB4AAAwAAgAAAAAP/7UATwAABi1gAD+AAAf/UIAIAAI/qAAEAAH/7UATAAABX1gAEGAAAR/AIAcAAgAAHgEA" style="display:none;"></audio>
 
   <div class="tabs" id="mainTabs">
-    <div class="tab active" id="tabWorker" onclick="switchTab('worker')">📝 تصاريح العمل</div>
+    <div class="tab active" id="tabWorker" onclick="switchTab('worker')">📝 الطلبات</div>
     <div class="tab" id="tabHazardWorker" onclick="switchTab('hazardWorker')">⚠️ الإبلاغ عن خطورة</div>
-    <div class="tab" id="tabMyHistory" onclick="switchTab('myhistory')">📁 سجل تصاريحي</div>
+    <div class="tab" id="tabMyHistory" onclick="switchTab('myhistory')">📁 سجل طلباتي</div>
     <div class="tab" id="tabMyHazards" onclick="switchTab('myhazards')">📋 سجل بلاغاتي</div>
     <div class="tab" id="tabSup" onclick="switchTab('sup')">🛡️ لوحة المشرف</div>
     <div class="tab" id="tabSupHazard" onclick="switchTab('supHazard')" style="display:none;">
@@ -245,7 +245,7 @@
   <!-- MY HISTORY VIEW -->
   <div id="viewMyHistory" style="display:none;">
     <div class="my-history-header">
-      <div class="my-history-title">📁 سجل تصاريحي</div>
+      <div class="my-history-title">📁 سجل طلباتي</div>
       <div class="my-history-sub" id="myHistorySub"></div>
     </div>
     <div class="my-history-filter-bar" id="myHistoryFilters"></div>
@@ -611,16 +611,16 @@
 <!-- 🗑️ Delete Permit Modal -->
 <div id="deletePermitModal" class="um-modal-overlay" style="display:none; z-index: 9999;">
   <div class="um-modal-card">
-    <div class="section-title" style="margin-top:0; color:var(--danger);">🗑️ حذف التصريح</div>
-    <p style="color:var(--muted);font-size:13px;margin:0 0 12px;">تأكيد حذف التصريح ونقله للأرشيف.</p>
+    <div class="section-title" style="margin-top:0; color:var(--danger);">🗑️ حذف الطلب</div>
+    <p style="color:var(--muted);font-size:13px;margin:0 0 12px;">تأكيد حذف الطلب ونقله للأرشيف.</p>
     
     <div class="field">
       <label>سبب الحذف <span class="req-star">*</span></label>
-      <input id="deletePermitReason" type="text" placeholder="مثال: تصريح مكرر، تصريح خاطئ...">
+      <input id="deletePermitReason" type="text" placeholder="مثال: طلب مكرر، طلب خاطئ...">
     </div>
 
     <div style="display:flex;gap:8px;margin-top:12px;">
-      <button class="submit-btn" style="flex:1; background-color:var(--danger); border-color:var(--danger);" onclick="confirmDeletePermit()">حذف التصريح</button>
+      <button class="submit-btn" style="flex:1; background-color:var(--danger); border-color:var(--danger);" onclick="confirmDeletePermit()">حذف الطلب</button>
       <button class="logout-btn" style="flex:1;" onclick="closeDeletePermitModal()">إلغاء</button>
     </div>
     <div id="deletePermitMsg" class="um-msg"></div>

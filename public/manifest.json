@@ -1,7 +1,7 @@
 {
-  "name": "تصاريح العمل - Elsewedy Polymers",
-  "short_name": "تصاريح العمل",
-  "description": "نظام طلب ومراجعة تصاريح العمل - Elsewedy Polymers",
+  "name": "HSE Platform - Elsewedy Polymers",
+  "short_name": "HSE Platform",
+  "description": "HSE Platform - Elsewedy Polymers",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
