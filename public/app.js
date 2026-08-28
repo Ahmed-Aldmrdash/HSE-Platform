@@ -411,11 +411,11 @@ function applyRbacUI() {
   if (tabUsers) tabUsers.style.display = (isSup && currentUserRole === 'super_admin') ? '' : 'none';
   // Employees tab: all supervisor-session roles
   const tabEmployees = document.getElementById('tabEmployees');
-  if (tabEmployees) tabEmployees.style.display = (isSup && !isMaintAdmin) ? '' : 'none';
+  if (tabEmployees) tabEmployees.style.display = isSup ? '' : 'none';
   
   // Training Tabs
   setDisplay('tabTrainingWorker', isWorker);
-  setDisplay('tabTrainingAdmin', isSup && !isMaintAdmin);
+  setDisplay('tabTrainingAdmin', isSup && (currentUserRole === 'super_admin' || currentUserRole === 'hse_admin'));
 
   // Badge areas
   const empArea  = document.getElementById('empBadgeArea');
@@ -448,6 +448,7 @@ function genId(list){
 
 // ---------- tabs ----------
 function switchTab(which){
+  window.currentActiveTab = which;
   // ── RBAC Guard: block CROSS-ROLE navigation only ───────────────────
   // Workers cannot jump to supervisor tabs; supervisors cannot jump to
   // worker tabs.  Pre-auth state ('none') is allowed to reach the
@@ -2285,26 +2286,56 @@ function renderEmployeesTable(list) {
         <thead>
           <tr>
             <th>#</th>
-            <th>الكود الوظيفي</th>
+            <th>الكود</th>
             <th>الاسم الكامل</th>
-            <th>القسم</th>
-            <th>المسمى الوظيفي</th>
-            <th>الصلاحية</th>
+            <th>القسم / المسمى</th>
+            <th>⚠️ البلاغات</th>
+            <th>🎓 المحاضرات</th>
             <th>إجراءات</th>
           </tr>
         </thead>
         <tbody>
-          ${list.map((e, i) => `
+          ${list.map((e, i) => {
+            // Hazard calculations
+            const hCount = e.hazardCount || 0;
+            const hTarget = 2; // Target per month/period
+            const hPerc = Math.min(100, Math.round((hCount / hTarget) * 100));
+            const hBadgeClass = hPerc >= 100 ? 'badge-green' : (hPerc >= 50 ? 'badge-yellow' : 'badge-red');
+            
+            // Training calculations
+            const tHours = e.trainingHours || 0;
+            const tTarget = 8;
+            const tPerc = Math.min(100, Math.round((tHours / tTarget) * 100));
+            const tBadgeClass = tPerc >= 100 ? 'badge-green' : (tPerc >= 50 ? 'badge-yellow' : 'badge-red');
+
+            return `
             <tr>
               <td style="color:var(--muted);font-size:12px;">${i + 1}</td>
               <td style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;color:var(--amber);">
                 ${escapeHtml(e.empCode)}
               </td>
               <td style="font-weight:700;">${escapeHtml(e.name || '—')}</td>
-              <td style="font-size:13px;">${escapeHtml(e.department || '—')}</td>
-              <td style="font-size:13px;color:var(--muted);">${escapeHtml(e.jobTitle || '—')}</td>
               <td>
-                <span class="emp-role-badge ${e.role || 'worker'}">${empRoleLabel(e.role)}</span>
+                <div style="font-size:13px;">${escapeHtml(e.department || '—')}</div>
+                <div style="font-size:11px;color:var(--muted);">${escapeHtml(e.jobTitle || '—')}</div>
+              </td>
+              <td>
+                <div style="font-size:12px; font-weight:bold; margin-bottom:4px;">${hCount} / ${hTarget} بلاغ</div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <div style="flex:1;background:var(--paper-line);height:8px;border-radius:4px;overflow:hidden;min-width:40px;">
+                    <div style="height:100%;width:${hPerc}%;background:var(--amber);"></div>
+                  </div>
+                  <span class="emp-role-badge ${hBadgeClass}" style="min-width:35px;text-align:center;font-size:10px;">${hPerc}%</span>
+                </div>
+              </td>
+              <td>
+                <div style="font-size:12px; font-weight:bold; margin-bottom:4px;">${tHours} / ${tTarget} ساعات</div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <div style="flex:1;background:var(--paper-line);height:8px;border-radius:4px;overflow:hidden;min-width:40px;">
+                    <div style="height:100%;width:${tPerc}%;background:var(--amber);"></div>
+                  </div>
+                  <span class="emp-role-badge ${tBadgeClass}" style="min-width:35px;text-align:center;font-size:10px;">${tPerc}%</span>
+                </div>
               </td>
               <td>
                 <div class="um-action-btns">
@@ -2313,7 +2344,8 @@ function renderEmployeesTable(list) {
                 </div>
               </td>
             </tr>
-          `).join('')}
+            `;
+          }).join('')}
         </tbody>
       </table>
     </div>
@@ -3617,18 +3649,20 @@ async function loadWorkerTraining(isSilent = false) {
       historyList.innerHTML = '<div class="empty">لم تسجل حضور في أي محاضرة حتى الآن.</div>';
     } else {
       historyList.innerHTML = `
-        <table class="um-table">
-          <thead><tr><th>التاريخ</th><th>الموضوع</th><th>الحالة</th></tr></thead>
-          <tbody>
-            ${myHistory.map(h => `
-              <tr>
-                <td style="font-size:12px; color:var(--muted);">${escapeHtml(h.date)}</td>
-                <td style="font-weight:700; font-size:13px;">${escapeHtml(h.title)}</td>
-                <td style="font-size:12px; font-weight:700; color:${h.verified ? 'var(--success)' : 'var(--amber)'};">${h.status}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>`;
+        <div class="um-table-wrap">
+          <table class="um-table">
+            <thead><tr><th>التاريخ</th><th>الموضوع</th><th>الحالة</th></tr></thead>
+            <tbody>
+              ${myHistory.map(h => `
+                <tr>
+                  <td style="font-size:12px; color:var(--muted);">${escapeHtml(h.date)}</td>
+                  <td style="font-weight:700; font-size:13px;">${escapeHtml(h.title)}</td>
+                  <td style="font-size:12px; font-weight:700; color:${h.verified ? 'var(--success)' : 'var(--amber)'};">${h.status}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>`;
     }
   } catch (e) {
     console.error(e);
@@ -3673,6 +3707,14 @@ async function loadAdminTraining(isSilent = false) {
       clearInterval(window.trnAdminPollTimer);
       window.trnAdminPollTimer = null;
     }
+    
+    // Hide create lecture card and live sessions if not hse_admin or super_admin
+    const isSafetyOrSuper = (currentUserRole === 'hse_admin' || currentUserRole === 'super_admin');
+    const createCard = document.getElementById('createLectureCard');
+    const liveSection = document.getElementById('liveSessionsSection');
+    
+    if (createCard) createCard.style.display = isSafetyOrSuper ? 'block' : 'none';
+    if (liveSection) liveSection.style.display = isSafetyOrSuper ? 'block' : 'none';
   }
 
   // Load topics if not loaded
@@ -3689,7 +3731,7 @@ async function loadAdminTraining(isSilent = false) {
 
   try {
     // 1. Fetch live sessions first for immediate render
-    const trnRes = await authFetch('/api/trainings');
+    const trnRes = await authFetch('/api/trainings?_t=' + Date.now(), { cache: 'no-store' });
     if (trnRes.ok) {
       const tdata = await trnRes.json();
       const raw = JSON.stringify(tdata.trainings);
@@ -3703,12 +3745,14 @@ async function loadAdminTraining(isSilent = false) {
     if (!isSilent) {
       const matrixEl = document.getElementById('trnAdminGlobalMatrix');
       if (matrixEl) matrixEl.innerHTML = '<div class="loading">جاري تحميل سجل الموظفين (يرجى الانتظار)...</div>';
-      authFetch('/api/trainings/stats/employees')
+      authFetch('/api/trainings/stats/employees', { cache: 'no-store' })
         .then(async (statsRes) => {
           if (statsRes.ok) {
             const sdata = await statsRes.json();
             _adminGlobalMatrix = sdata.stats || [];
             filterTrnGlobalMatrix();
+          } else {
+            if (matrixEl) matrixEl.innerHTML = '<div class="empty">فشل تحميل سجل الحضور (صلاحيات غير كافية أو خطأ في السيرفر).</div>';
           }
         })
         .catch(e => {
@@ -3717,9 +3761,17 @@ async function loadAdminTraining(isSilent = false) {
         });
     }
     
-    // 3. Set polling interval safely
-    if (!window.trnAdminPollTimer && !isSilent) {
-      window.trnAdminPollTimer = setInterval(() => loadAdminTraining(true), 5000);
+    // 3. Set or clear polling interval based on active sessions
+    const hasActive = _allAdminTrainings.some(t => t.status === 'active');
+    if (hasActive) {
+      if (!window.trnAdminPollTimer) {
+        window.trnAdminPollTimer = setInterval(() => loadAdminTraining(true), 3000);
+      }
+    } else {
+      if (window.trnAdminPollTimer) {
+        clearInterval(window.trnAdminPollTimer);
+        window.trnAdminPollTimer = null;
+      }
     }
   } catch (e) {
     console.error('loadAdminTraining Error:', e);
@@ -3729,7 +3781,8 @@ async function loadAdminTraining(isSilent = false) {
 function renderAdminLiveSessions(trainings) {
   const liveEl = document.getElementById('trnAdminLiveSessions');
   const activeSessions = trainings.filter(t => t.status === 'active');
-  const closedSessions = trainings.filter(t => t.status === 'closed').sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const closedSessions = trainings.filter(t => t.status === 'closed' && !t.isDeleted).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const trashSessions = trainings.filter(t => t.isDeleted).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
   
   let html = '';
   if (activeSessions.length > 0) {
@@ -3749,13 +3802,38 @@ function renderAdminLiveSessions(trainings) {
           </div>
           
           <h4 style="margin:16px 0 8px 0; padding-top:16px; border-top:1px solid var(--paper-line);">📋 الحضور (${trn.attendees.length})</h4>
-          <table class="um-table" style="margin-bottom:16px;">
-            <thead><tr><th>الكود</th><th>الاسم</th><th>القسم</th><th>الوقت</th><th>التحقق</th></tr></thead>
-            <tbody>
-              ${trn.attendees.map(a => `
+          <div class="um-table-wrap" style="margin-bottom:16px;">
+            <table class="um-table">
+              <thead><tr><th>الكود</th><th>الاسم</th><th>القسم</th><th>الوقت</th><th>التحقق</th></tr></thead>
+              <tbody>
+              ${trn.attendees.map(a => {
+                // Check if employee attended this same topic in the last 90 days
+                let duplicateWarning = '';
+                if (_allAdminTrainings) {
+                  const now = Date.now();
+                  const ninetyDays = 90 * 24 * 60 * 60 * 1000;
+                  const pastAttendedList = _allAdminTrainings.filter(t => 
+                    t.id !== trn.id && 
+                    t.title === trn.title && 
+                    (now - new Date(t.createdAt).getTime()) <= ninetyDays &&
+                    t.attendees.some(att => att.empCode === a.empCode && att.verified)
+                  );
+                  if (pastAttendedList.length > 0) {
+                    const count = pastAttendedList.length;
+                    const dates = pastAttendedList.map(t => new Date(t.createdAt).toISOString().split('T')[0]).join(' ، ');
+                    const countText = count === 1 ? 'مرة واحدة' : `${count} مرات`;
+                    const dateLabel = count === 1 ? 'بتاريخ:' : 'بتواريخ:';
+                    duplicateWarning = `<div style="margin-top:4px;font-size:11px;color:#fff;background:var(--amber);padding:2px 6px;border-radius:4px;display:inline-block;">⚠️ تنبيه: حضر الموظف هذه المحاضرة مسبقاً (${countText}) ${dateLabel} [${dates}]</div>`;
+                  }
+                }
+                
+                return `
                 <tr>
                   <td style="font-family:monospace; font-weight:bold;">${escapeHtml(a.empCode)}</td>
-                  <td>${escapeHtml(a.name)}</td>
+                  <td>
+                    ${escapeHtml(a.name)}
+                    ${duplicateWarning}
+                  </td>
                   <td>${escapeHtml(a.department)}</td>
                   <td style="font-size:12px; color:var(--muted);">${new Date(a.attendedAt).toLocaleTimeString('ar-EG')}</td>
                   <td>
@@ -3764,10 +3842,12 @@ function renderAdminLiveSessions(trainings) {
                     </button>
                   </td>
                 </tr>
-              `).join('')}
+                `;
+              }).join('')}
               ${trn.attendees.length === 0 ? '<tr><td colspan="5" style="text-align:center; color:var(--muted);">لا يوجد حضور حتى الآن. رمز الجلسة ظاهر للعمال.</td></tr>' : ''}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
           
           <div style="display:flex; gap:8px;">
             <button class="submit-btn" style="flex:1; background:var(--danger);" onclick="closeTrainingSession('${trn.id}')">🛑 إنهاء وإغلاق المحاضرة</button>
@@ -3790,7 +3870,29 @@ function renderAdminLiveSessions(trainings) {
             <div style="font-weight:700;">${escapeHtml(trn.title)}</div>
             <div style="font-size:12px; color:var(--muted);">${escapeHtml(trn.date)} | حضور: ${trn.attendees.filter(a=>a.verified).length}</div>
           </div>
-          <button class="um-btn" onclick="exportTrainingExcel('${trn.id}')" style="padding:6px 12px; font-size:12px;">📥 Excel</button>
+          <div>
+            <button class="um-btn" onclick="exportTrainingExcel('${trn.id}')" style="padding:6px 12px; font-size:12px;">📥 Excel</button>
+            <button class="um-btn del" onclick="softDeleteTraining('${trn.id}')" style="padding:6px 12px; font-size:12px; margin-inline-start:4px;">🗑️ حذف</button>
+          </div>
+        </div>
+      </div>`;
+    });
+  }
+
+  if (trashSessions.length > 0) {
+    html += '<h4 style="margin-top:24px; color:var(--danger);">🗑️ سلة محذوفات المحاضرات</h4>';
+    trashSessions.forEach(trn => {
+      html += `
+      <div class="ticket" style="margin-bottom:8px; border-color:var(--danger); opacity:0.8;">
+        <div class="ticket-body" style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-weight:700; text-decoration:line-through;">${escapeHtml(trn.title)}</div>
+            <div style="font-size:12px; color:var(--muted);">${escapeHtml(trn.date)} | حُذفت في: ${trn.deletedAt ? new Date(trn.deletedAt).toLocaleDateString('ar-EG') : ''}</div>
+          </div>
+          <div>
+            <button class="um-btn pass" onclick="restoreTraining('${trn.id}')" style="padding:6px 12px; font-size:12px;">🔄 استعادة</button>
+            <button class="um-btn del" onclick="permanentDeleteTraining('${trn.id}')" style="padding:6px 12px; font-size:12px; margin-inline-start:4px;">❌ نهائي</button>
+          </div>
         </div>
       </div>`;
     });
@@ -3814,11 +3916,12 @@ function filterTrnGlobalMatrix() {
   }
   
   listEl.innerHTML = `
-    <table class="um-table">
-      <thead>
-        <tr><th>الكود</th><th>الاسم</th><th>القسم</th><th>الحضور</th><th>النسبة %</th></tr>
-      </thead>
-      <tbody>
+    <div class="um-table-wrap">
+      <table class="um-table">
+        <thead>
+          <tr><th>الكود</th><th>الاسم</th><th>القسم</th><th>الساعات (الهدف: 8)</th><th>النسبة %</th></tr>
+        </thead>
+        <tbody>
         ${filtered.map(e => {
           let badgeClass = e.percentage >= 80 ? 'badge-green' : (e.percentage >= 50 ? 'badge-yellow' : 'badge-red');
           return `
@@ -3826,13 +3929,21 @@ function filterTrnGlobalMatrix() {
             <td style="font-family:monospace; font-weight:bold;">${escapeHtml(e.empCode)}</td>
             <td style="font-weight:700; font-size:13px;">${escapeHtml(e.name)}</td>
             <td style="font-size:12px;">${escapeHtml(e.department)}</td>
-            <td style="font-size:13px; font-weight:bold;">${e.attendedCount} / ${e.totalTrainings}</td>
-            <td><span class="emp-role-badge ${badgeClass}">${e.percentage}%</span></td>
+            <td style="font-size:13px; font-weight:bold;">${e.attendanceHours} / 8 ساعات</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <div style="flex:1;background:var(--paper-line);height:8px;border-radius:4px;overflow:hidden;min-width:50px;">
+                  <div style="height:100%;width:${e.percentage}%;background:var(--amber);"></div>
+                </div>
+                <span class="emp-role-badge ${badgeClass}" style="min-width:35px;text-align:center;">${e.percentage}%</span>
+              </div>
+            </td>
           </tr>
           `;
         }).join('')}
       </tbody>
-    </table>
+      </table>
+    </div>
     <div style="font-size:11px; color:var(--muted); margin-top:8px;">عرض ${filtered.length} من إجمالي ${_adminGlobalMatrix.length} موظف</div>
   `;
 }
@@ -4359,5 +4470,84 @@ async function subscribeUserToPush() {
     console.log('[Web Push] Subscribed successfully');
   } catch (err) {
     console.error('[Web Push] Failed to subscribe', err);
+  }
+}
+
+// ============================================================
+// 🔄 GLOBAL SYNC BUTTON
+// ============================================================
+async function globalSyncData() {
+  const btn = document.getElementById('btnGlobalSync');
+  if (btn) btn.classList.add('spin');
+  
+  try {
+    const tab = window.currentActiveTab;
+    if (tab === 'sup') await loadPermits();
+    else if (tab === 'supHazard') await loadAdminHazards();
+    else if (tab === 'users') await loadUsers();
+    else if (tab === 'employees') await loadEmployees();
+    else if (tab === 'trainingAdmin') await loadAdminTraining(false);
+    else if (tab === 'worker') await loadWorkerDashboard();
+    else if (tab === 'hazardWorker') await loadHazardWorkerDashboard();
+    else if (tab === 'myhistory') await loadMyHistory();
+    else if (tab === 'myhazards') await loadMyHazards();
+    else if (tab === 'trainingWorker') await loadWorkerTraining();
+    
+    showToast('تم تحديث البيانات بنجاح ✅', 'success');
+  } catch (err) {
+    showToast('خطأ أثناء التحديث', 'error');
+  } finally {
+    if (btn) btn.classList.remove('spin');
+  }
+}
+
+// ============================================================
+// 🗑️ LECTURE TRASH SYSTEM
+// ============================================================
+async function softDeleteTraining(id) {
+  if (!confirm('هل أنت متأكد من نقل المحاضرة إلى سلة المحذوفات؟')) return;
+  try {
+    const res = await authFetch('/api/trainings/' + id, { method: 'DELETE' });
+    if (res.ok) {
+      showToast('تم النقل إلى سلة المحذوفات', 'success');
+      loadAdminTraining(true);
+    } else {
+      const data = await res.json();
+      showToast(data.error || 'فشل الحذف', 'error');
+    }
+  } catch (e) {
+    showToast('خطأ اتصال', 'error');
+  }
+}
+
+async function restoreTraining(id) {
+  if (!confirm('هل أنت متأكد من استعادة المحاضرة؟ سيعود رصيد الساعات للموظفين.')) return;
+  try {
+    const res = await authFetch('/api/trainings/' + id + '/restore', { method: 'PUT' });
+    if (res.ok) {
+      showToast('تمت استعادة المحاضرة', 'success');
+      loadAdminTraining(true);
+    } else {
+      const data = await res.json();
+      showToast(data.error || 'فشل الاستعادة', 'error');
+    }
+  } catch (e) {
+    showToast('خطأ اتصال', 'error');
+  }
+}
+
+async function permanentDeleteTraining(id) {
+  if (!confirm('تنبيه هام ⚠️: هل أنت متأكد من حذف المحاضرة نهائياً؟ لا يمكن التراجع عن هذا الإجراء!')) return;
+  try {
+    const res = await authFetch('/api/trainings/' + id + '/permanent', { method: 'DELETE' });
+    if (res.ok) {
+      showToast('تم الحذف نهائياً', 'success');
+      loadAdminTraining(true);
+    } else {
+      const data = await res.json();
+      showToast(data.error || 'فشل الحذف النهائي', 'error');
+    }
+  } catch (e) {
+    showToast('خطأ اتصال', 'error');
   }
 }

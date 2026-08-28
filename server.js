@@ -2581,8 +2581,52 @@ app.post('/api/employees/import-excel',
 // ── GET /api/employees — جلب كل الموظفين (محمي)
 app.get('/api/employees',
   authenticateToken,
-  requireRole('super_admin', 'hse_admin', 'dept_admin', 'issuer'),
-  (req, res) => res.json({ employees: readEmployees() })
+  requireRole('super_admin', 'hse_admin', 'dept_admin', 'maint_admin', 'issuer'),
+  (req, res) => {
+    let employees = readEmployees();
+    
+    // Department Isolation for Dept Admins and Maint Admins
+    if (req.user.role === 'dept_admin' || req.user.role === 'maint_admin') {
+      if (req.user.department) {
+        employees = employees.filter(e => e.department === req.user.department);
+      }
+    }
+    
+    // Compute Hazards and Training Metrics
+    const hazards = readHazards();
+    const trainings = readTrainings();
+    
+    const hazardsMap = new Map();
+    hazards.forEach(h => {
+      const code = normalizeEmpCode(h.empCode);
+      if (code) {
+        hazardsMap.set(code, (hazardsMap.get(code) || 0) + 1);
+      }
+    });
+
+    const trainingsMap = new Map();
+    trainings.filter(t => !t.isDeleted).forEach(trn => {
+      trn.attendees.forEach(att => {
+        if (att.verified) {
+          const code = normalizeEmpCode(att.empCode);
+          if (code) {
+            trainingsMap.set(code, (trainingsMap.get(code) || 0) + 0.5); // 0.5 hours per session
+          }
+        }
+      });
+    });
+
+    const enrichedEmployees = employees.map(emp => {
+      const code = normalizeEmpCode(emp.code || emp.empCode);
+      return {
+        ...emp,
+        hazardCount: hazardsMap.get(code) || 0,
+        trainingHours: trainingsMap.get(code) || 0
+      };
+    });
+
+    res.json({ employees: enrichedEmployees });
+  }
 );
 
 // ── POST /api/employees — إضافة موظف (محمي) أو تسجيل ذاتي (عام)
@@ -2752,7 +2796,7 @@ app.get('/api/trainings/worker/:empCode', (req, res) => {
   });
 });
 
-app.post('/api/trainings', authenticateToken, requireRole('superadmin', 'admin', 'supervisor', 'area_head'), async (req, res) => {
+app.post('/api/trainings', authenticateToken, requireRole('super_admin', 'hse_admin'), async (req, res) => {
   const { title, targetGroup, location, date, startTime, endTime, sessionPin } = req.body;
   if (!title || !date || !startTime || !endTime || !sessionPin) {
     return res.status(400).json({ error: 'البيانات الأساسية مطلوبة' });
@@ -2795,7 +2839,7 @@ app.post('/api/trainings', authenticateToken, requireRole('superadmin', 'admin',
   res.status(result.status).json(result.body);
 });
 
-app.put('/api/trainings/:id/close', authenticateToken, requireRole('superadmin', 'admin', 'supervisor', 'area_head'), async (req, res) => {
+app.put('/api/trainings/:id/close', authenticateToken, requireRole('super_admin', 'hse_admin'), async (req, res) => {
   let result;
   await enqueueWrite(async () => {
     const trainings = readTrainings();
@@ -2816,6 +2860,64 @@ app.put('/api/trainings/:id/close', authenticateToken, requireRole('superadmin',
       result = { status: 200, body: { success: true, training: trainings[idx] } };
     } else {
       result = { status: 500, body: { error: 'فشل إغلاق المحاضرة' } };
+    }
+  });
+  res.status(result.status).json(result.body);
+});
+
+app.delete('/api/trainings/:id', authenticateToken, requireRole('super_admin', 'hse_admin'), async (req, res) => {
+  let result;
+  await enqueueWrite(async () => {
+    const trainings = readTrainings();
+    const idx = trainings.findIndex(t => t.id === req.params.id);
+    if (idx === -1) return result = { status: 404, body: { error: 'المحاضرة غير موجودة' } };
+    
+    trainings[idx].isDeleted = true;
+    trainings[idx].deletedAt = new Date().toISOString();
+    
+    if (writeTrainings(trainings)) {
+      result = { status: 200, body: { success: true } };
+    } else {
+      result = { status: 500, body: { error: 'فشل عملية الحذف المؤقت' } };
+    }
+  });
+  res.status(result.status).json(result.body);
+});
+
+app.put('/api/trainings/:id/restore', authenticateToken, requireRole('super_admin', 'hse_admin'), async (req, res) => {
+  let result;
+  await enqueueWrite(async () => {
+    const trainings = readTrainings();
+    const idx = trainings.findIndex(t => t.id === req.params.id);
+    if (idx === -1) return result = { status: 404, body: { error: 'المحاضرة غير موجودة' } };
+    
+    trainings[idx].isDeleted = false;
+    trainings[idx].deletedAt = null;
+    
+    if (writeTrainings(trainings)) {
+      result = { status: 200, body: { success: true } };
+    } else {
+      result = { status: 500, body: { error: 'فشل عملية الاستعادة' } };
+    }
+  });
+  res.status(result.status).json(result.body);
+});
+
+app.delete('/api/trainings/:id/permanent', authenticateToken, requireRole('super_admin', 'hse_admin'), async (req, res) => {
+  let result;
+  await enqueueWrite(async () => {
+    let trainings = readTrainings();
+    const initialLength = trainings.length;
+    trainings = trainings.filter(t => t.id !== req.params.id);
+    
+    if (trainings.length < initialLength) {
+      if (writeTrainings(trainings)) {
+        result = { status: 200, body: { success: true } };
+      } else {
+        result = { status: 500, body: { error: 'فشل عملية الحذف النهائي' } };
+      }
+    } else {
+      result = { status: 404, body: { error: 'المحاضرة غير موجودة' } };
     }
   });
   res.status(result.status).json(result.body);
@@ -2888,7 +2990,7 @@ app.post('/api/trainings/:id/attend', attendLimiter, async (req, res) => {
   res.status(result.status).json(result.body);
 });
 
-app.put('/api/trainings/:id/verify-attendee', authenticateToken, requireRole('superadmin', 'admin', 'supervisor', 'area_head'), async (req, res) => {
+app.put('/api/trainings/:id/verify-attendee', authenticateToken, requireRole('super_admin', 'hse_admin'), async (req, res) => {
   const { empCode, verified } = req.body;
   let result;
   await enqueueWrite(async () => {
@@ -2915,7 +3017,7 @@ app.put('/api/trainings/:id/verify-attendee', authenticateToken, requireRole('su
   res.status(result.status).json(result.body);
 });
 
-app.get('/api/trainings/:id/export-excel', authenticateToken, requireRole('superadmin', 'admin', 'supervisor', 'area_head'), async (req, res) => {
+app.get('/api/trainings/:id/export-excel', authenticateToken, requireRole('super_admin', 'hse_admin', 'dept_admin'), async (req, res) => {
   try {
     const trainings = readTrainings();
     const trn = trainings.find(t => t.id === req.params.id);
@@ -2954,10 +3056,15 @@ app.get('/api/trainings/:id/export-excel', authenticateToken, requireRole('super
   }
 });
 
-app.get('/api/trainings/stats/employees', authenticateToken, requireRole('superadmin', 'admin', 'supervisor', 'area_head'), (req, res) => {
-  const employees = readEmployees();
+app.get('/api/trainings/stats/employees', authenticateToken, requireRole('super_admin', 'hse_admin', 'dept_admin'), (req, res) => {
+  let employees = readEmployees();
+  
+  // Department Admin Isolation
+  if (req.user.role === 'dept_admin' && req.user.department) {
+    employees = employees.filter(e => e.department === req.user.department);
+  }
+
   const trainings = readTrainings();
-  const totalTrainings = trainings.length;
 
   const statsMap = new Map();
   employees.forEach(e => {
@@ -2968,13 +3075,13 @@ app.get('/api/trainings/stats/employees', authenticateToken, requireRole('supera
         name: e.name || 'غير معروف',
         department: e.department || 'غير محدد',
         attendedCount: 0,
-        totalTrainings: totalTrainings,
+        attendanceHours: 0,
         percentage: 0
       });
     }
   });
 
-  trainings.forEach(trn => {
+  trainings.filter(t => !t.isDeleted).forEach(trn => {
     trn.attendees.forEach(att => {
       if (att.verified) {
         const code = normalizeEmpCode(att.empCode);
@@ -2986,11 +3093,13 @@ app.get('/api/trainings/stats/employees', authenticateToken, requireRole('supera
   });
 
   const statsList = Array.from(statsMap.values()).map(stat => {
-    stat.percentage = totalTrainings > 0 ? Math.round((stat.attendedCount / totalTrainings) * 100) : 0;
+    stat.attendanceHours = stat.attendedCount * 0.5;
+    // Calculate percentage based on 8 hours target
+    stat.percentage = Math.min(100, Math.round((stat.attendanceHours / 8) * 100));
     return stat;
   });
 
-  res.json({ stats: statsList, totalTrainings });
+  res.json({ stats: statsList });
 });
 
 // ============================================================
