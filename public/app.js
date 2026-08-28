@@ -123,7 +123,8 @@ function showToast(msg, type = 'error') {
 // ────────────────────────────────────────────────────────────
 async function apiGet(key){
   try{
-    const res = await fetch(`/api/storage/${encodeURIComponent(key)}`);
+    const cleanKey = key.startsWith('/') ? key.substring(1) : key;
+    const res = await fetch(`/api/storage/${cleanKey}`);
     if(!res.ok) return null;
     return await res.json();
   }catch(e){
@@ -134,7 +135,8 @@ async function apiGet(key){
 }
 async function apiSet(key, value){
   try{
-    const res = await fetch(`/api/storage/${encodeURIComponent(key)}`, {
+    const cleanKey = key.startsWith('/') ? key.substring(1) : key;
+    const res = await fetch(`/api/storage/${cleanKey}`, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ value })
@@ -3993,7 +3995,7 @@ function startNotificationPolling() {
   }
 
   fetchNotifications(); // Initial fetch
-  notifPollTimer = setInterval(fetchNotifications, 5000); // Poll every 5s instead of 10s
+  notifPollTimer = setInterval(fetchNotifications, 60000); // Poll every 60s to reduce spam
   
   // Also fetch immediately when user returns to the tab to bypass background throttling
   window.removeEventListener('focus', fetchNotifications);

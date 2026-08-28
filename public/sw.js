@@ -50,6 +50,14 @@ self.addEventListener('fetch', (event) => {
   // Only handle same-origin GET requests
   if (event.request.method !== 'GET' || url.origin !== self.location.origin) return;
 
+  // Serve icon directly from cache to prevent network request on every notification
+  if (url.pathname.includes('icon-192.png')) {
+    event.respondWith(
+      caches.match(event.request).then((response) => response || fetch(event.request))
+    );
+    return;
+  }
+
   event.respondWith(
     // Network-first: always try the network so updated JS/CSS loads immediately
     fetch(event.request)
