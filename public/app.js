@@ -1540,7 +1540,9 @@ function renderList(){
 
   const list = [...permitsCache].reverse().filter(p => {
     // Normalize deletedBy mapping to handle old permits
-    const deletedBy = p.deletedBy || { areaAdmin: !!p.deleted, safetyAdmin: !!p.deleted, superAdmin: !!p.deleted, worker: !!p.deleted };
+    const deletedBy = (typeof p.deletedBy === 'object' && p.deletedBy !== null) 
+      ? p.deletedBy 
+      : { areaAdmin: !!p.deleted, safetyAdmin: !!p.deleted, superAdmin: !!p.deleted, worker: !!p.deleted };
 
     // 1. Dept Admin can only see their own department's permits
     if (isDeptAdmin && p.department !== currentUserDept) {
@@ -1601,7 +1603,9 @@ function renderList(){
       </div>
     `).join('') || `<div class="risk-summary" style="color:var(--muted);">لا توجد مخاطر مسجلة</div>`;
 
-    const deletedBy = p.deletedBy || { areaAdmin: !!p.deleted, safetyAdmin: !!p.deleted, superAdmin: !!p.deleted, worker: !!p.deleted };
+    const deletedBy = (typeof p.deletedBy === 'object' && p.deletedBy !== null) 
+      ? p.deletedBy 
+      : { areaAdmin: !!p.deleted, safetyAdmin: !!p.deleted, superAdmin: !!p.deleted, worker: !!p.deleted };
     const isTrashedForMe = deletedBy[roleKey] === true;
     return `
     <div class="sup-card ${isTrashedForMe ? 'deleted' : ''}">
@@ -1610,7 +1614,7 @@ function renderList(){
           <div class="worker"><span class="type-pill">${escapeHtml(p.typeLabel)}</span>${escapeHtml(p.workerName)}</div>
           <div class="tnum">${p.id} · ${p.date||''} · وردية ${escapeHtml(p.shift||'')}</div>
         </div>
-        <span class="stamp ${p.status.startsWith('closed')?'approved':p.status}">${statusLabel(p.status)}${p.status.startsWith('closed')?' — '+closureLabel(p.closure):''}</span>
+        <span class="stamp ${p.status.startsWith('closed')?'approved':(p.status.startsWith('rejected')?'rejected':p.status)}">${statusLabel(p.status)}${p.status.startsWith('closed')?' — '+closureLabel(p.closure):''}</span>
       </div>
       <div class="meta-grid">
         <div><span>القسم</span>${escapeHtml(p.department)||'—'}</div>
@@ -1913,7 +1917,9 @@ function exportExcel(){
 
   if (currentFilter === '🗑️ المحذوفات') {
     const list = [...permitsCache].reverse().filter(p => {
-      const deletedBy = p.deletedBy || { areaAdmin: !!p.deleted, safetyAdmin: !!p.deleted, superAdmin: !!p.deleted, worker: !!p.deleted };
+      const deletedBy = (typeof p.deletedBy === 'object' && p.deletedBy !== null) 
+        ? p.deletedBy 
+        : { areaAdmin: !!p.deleted, safetyAdmin: !!p.deleted, superAdmin: !!p.deleted, worker: !!p.deleted };
       if (isDeptAdmin && p.department !== currentUserDept) return false;
       if (!deletedBy[roleKey] || !typeFilterMatch(p)) return false;
       return true;
@@ -1942,7 +1948,9 @@ function exportExcel(){
   }
 
   const list = [...permitsCache].reverse().filter(p => {
-    const deletedBy = p.deletedBy || { areaAdmin: !!p.deleted, safetyAdmin: !!p.deleted, superAdmin: !!p.deleted, worker: !!p.deleted };
+    const deletedBy = (typeof p.deletedBy === 'object' && p.deletedBy !== null) 
+      ? p.deletedBy 
+      : { areaAdmin: !!p.deleted, safetyAdmin: !!p.deleted, superAdmin: !!p.deleted, worker: !!p.deleted };
     
     if (isDeptAdmin && p.department !== currentUserDept) return false;
     
@@ -2621,7 +2629,8 @@ async function renderMyHistory(isSilent = false){
   const myPermits = all
     .filter(p => p.employeeId && p.employeeId.toLowerCase() === currentEmployee.empCode.toLowerCase())
     .filter(p => {
-      const deletedByWorker = p.deletedBy ? p.deletedBy.worker : !!p.deleted;
+      const deletedBy = (typeof p.deletedBy === 'object' && p.deletedBy !== null) ? p.deletedBy : {};
+      const deletedByWorker = deletedBy.worker !== undefined ? deletedBy.worker : !!p.deleted;
       return !deletedByWorker;
     })
     .filter(p => myHistoryFilterMatch(p))
