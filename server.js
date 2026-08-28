@@ -2039,9 +2039,6 @@ app.delete('/api/permits/:id', authenticateToken, requireRole('super_admin', 'hs
     permit.deletedByDept = req.user.department || '';
     permit.deleteReason = reason;
 
-    // Preserve generic deleted flag for backwards compatibility
-    permit.deleted = true;
-
     // Role-specific State Machine Rules
     if (req.user.role === 'dept_admin') {
       if (permit.status === 'pending' || permit.status === 'pending_dept' || permit.status === 'pending_area_head') {
@@ -2101,14 +2098,6 @@ app.post('/api/permits/:id/restore', authenticateToken, requireRole('super_admin
     
     if (permits[idx].deletedBy) {
       permits[idx].deletedBy[roleKey] = false;
-      
-      // If no one else has it deleted, we can fully unmark generic deleted flag
-      const stillDeleted = Object.values(permits[idx].deletedBy).some(val => val === true);
-      if (!stillDeleted) {
-        permits[idx].deleted = false;
-      }
-    } else {
-      permits[idx].deleted = false;
     }
 
     delete permits[idx].deletedAt;
@@ -2163,7 +2152,7 @@ app.delete('/api/permits/:id/permanent', authenticateToken, requireRole('super_a
     };
     const roleKey = roleKeyMap[req.user.role] || 'worker';
 
-    if (permits[idx].deletedBy && !permits[idx].deletedBy[roleKey] && !permits[idx].deleted) {
+    if (permits[idx].deletedBy && !permits[idx].deletedBy[roleKey]) {
       result = { status: 400, body: { error: 'الطلب ليس في سلة المحذوفات الخاصة بك' } };
       return;
     }

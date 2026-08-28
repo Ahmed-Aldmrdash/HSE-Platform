@@ -1529,16 +1529,16 @@ function typeFilterMatch(p){
 }
 
 function renderList(){
+  const isDeptAdmin = currentUserRole === 'dept_admin';
+  const isHSEAdmin = currentUserRole === 'hse_admin';
+  const isSuperAdmin = currentUserRole === 'super_admin';
+
+  let roleKey = 'worker';
+  if (isDeptAdmin) roleKey = 'areaAdmin';
+  if (isHSEAdmin) roleKey = 'safetyAdmin';
+  if (isSuperAdmin) roleKey = 'superAdmin';
+
   const list = [...permitsCache].reverse().filter(p => {
-    const isDeptAdmin = currentUserRole === 'dept_admin';
-    const isHSEAdmin = currentUserRole === 'hse_admin';
-    const isSuperAdmin = currentUserRole === 'super_admin';
-
-    let roleKey = 'worker';
-    if (isDeptAdmin) roleKey = 'areaAdmin';
-    if (isHSEAdmin) roleKey = 'safetyAdmin';
-    if (isSuperAdmin) roleKey = 'superAdmin';
-
     // Normalize deletedBy mapping to handle old permits
     const deletedBy = p.deletedBy || { areaAdmin: !!p.deleted, safetyAdmin: !!p.deleted, superAdmin: !!p.deleted, worker: !!p.deleted };
 
@@ -1601,8 +1601,10 @@ function renderList(){
       </div>
     `).join('') || `<div class="risk-summary" style="color:var(--muted);">لا توجد مخاطر مسجلة</div>`;
 
+    const deletedBy = p.deletedBy || { areaAdmin: !!p.deleted, safetyAdmin: !!p.deleted, superAdmin: !!p.deleted, worker: !!p.deleted };
+    const isTrashedForMe = deletedBy[roleKey] === true;
     return `
-    <div class="sup-card ${p.deleted ? 'deleted' : ''}">
+    <div class="sup-card ${isTrashedForMe ? 'deleted' : ''}">
       <div class="sup-top">
         <div>
           <div class="worker"><span class="type-pill">${escapeHtml(p.typeLabel)}</span>${escapeHtml(p.workerName)}</div>
@@ -1700,7 +1702,7 @@ function renderList(){
           <button class="act-btn" style="background:var(--success); color:white; border:none; padding:6px 12px; border-radius:4px;" onclick="restorePermit('${p.id}')">استعادة ↩️</button>
           <button class="act-btn" style="background:var(--danger); color:white; border:none; padding:6px 12px; border-radius:4px; margin-inline-start: 8px;" onclick="hardDeletePermit('${p.id}')">🔥 حذف نهائي</button>
           ` : ''}
-          <div style="font-size:12px; color:var(--danger); margin-top:6px;">حُذف بواسطة: ${escapeHtml(p.deletedBy||'')} | السبب: ${escapeHtml(p.deleteReason||'')}</div>
+          <div style="font-size:12px; color:var(--danger); margin-top:6px;">حُذف بواسطة: ${escapeHtml(p.deletedByUsername||'')} | السبب: ${escapeHtml(p.deleteReason||'')}</div>
         </div>
       ` : ''}
       ${currentFilter !== '🗑️ المحذوفات' && (currentUserRole === 'super_admin' || currentUserRole === 'hse_admin' || currentUserRole === 'dept_admin') ? `
@@ -1927,7 +1929,7 @@ function exportExcel(){
       'اسم مقدم الطلب': p.workerName,
       'القسم': p.department,
       'تاريخ الحذف': p.deletedAt ? new Date(p.deletedAt).toLocaleString('ar-EG') : '',
-      'اسم من قام بالحذف': p.deletedBy || '',
+      'اسم من قام بالحذف': p.deletedByUsername || '',
       'سبب الحذف': p.deleteReason || ''
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
