@@ -167,6 +167,14 @@ app.use((req, res, next) => {
   next();
 });
 
+// Fallback routes for work-permits to prevent 404
+app.get('/work-permits', (req, res) => {
+  res.redirect('/api/storage/work-permits');
+});
+app.get('/api/work-permits', (req, res) => {
+  res.redirect('/api/storage/work-permits');
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 
@@ -1024,13 +1032,7 @@ async function syncHazardsExcelFromData(hazards) {
 // 📦 API ROUTES — STORAGE (Generic Key/Value)
 // ============================================================
 
-// Fallback routes for work-permits to prevent 404
-app.get('/work-permits', (req, res) => {
-  res.redirect('/api/storage/work-permits');
-});
-app.get('/api/work-permits', (req, res) => {
-  res.redirect('/api/storage/work-permits');
-});
+
 
 // ── GET /api/storage/:key — جلب قيمة (مفتوح للجميع)
 app.get('/api/storage/:key', (req, res) => {
