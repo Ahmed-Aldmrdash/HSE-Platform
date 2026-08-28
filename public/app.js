@@ -1498,7 +1498,8 @@ async function pollPermitsForSupervisor(){
   }
 }
 
-function statusLabel(s){
+function statusLabel(raw){
+  const s = raw ? String(raw).toLowerCase() : '';
   if(s==='pending' || s==='pending_dept' || s==='pending_area_head') return 'بانتظار أدمن القسم';
   if(s==='pending_hse') return 'بانتظار السلامة والصحة المهنية';
   if(s==='approved') return 'معتمد';
@@ -1506,7 +1507,7 @@ function statusLabel(s){
   if(s==='rejected_area') return 'مرفوض من رئيس القسم';
   if(s==='rejected_high_management') return 'مرفوض من الإدارة العليا';
   if(s && s.startsWith('closed')) return 'مغلق';
-  return s;
+  return raw || '';
 }
 function closureLabel(c){
   if(!c) return '';
@@ -1616,12 +1617,13 @@ function renderList(){
     const deletedBy = (typeof p.deletedBy === 'object' && p.deletedBy !== null) ? p.deletedBy : {};
     const isTrashedForMe = deletedBy[currentRoleKey] === true;
     
+    const normalizedStatus = p.status ? String(p.status).toLowerCase() : '';
     // Status Badge Logic
     let statusBadge = '';
-    if (p.status === 'rejected_area' || p.status === 'rejected_high_management' || p.status === 'rejected') {
+    if (normalizedStatus === 'rejected_area' || normalizedStatus === 'rejected_high_management' || normalizedStatus === 'rejected') {
        statusBadge = `<span class="badge badge-rejected">${statusLabel(p.status)}</span>`;
-    } else if (p.status === 'approved' || (p.status && p.status.startsWith('closed'))) {
-       statusBadge = `<span class="badge badge-approved">${statusLabel(p.status)}${p.status.startsWith('closed') ? ' — '+closureLabel(p.closure) : ''}</span>`;
+    } else if (normalizedStatus === 'approved' || normalizedStatus.startsWith('closed')) {
+       statusBadge = `<span class="badge badge-approved">${statusLabel(p.status)}${normalizedStatus.startsWith('closed') ? ' — '+closureLabel(p.closure) : ''}</span>`;
     } else {
        statusBadge = `<span class="stamp ${p.status}">${statusLabel(p.status)}</span>`;
     }
@@ -1777,6 +1779,13 @@ async function confirmDeletePermit() {
     if (res.ok) {
       msgEl.textContent = '✅ تم حذف الطلب ونقله للأرشيف';
       msgEl.className = 'um-msg success show';
+      
+      if (data.permit) {
+         const idx = permitsCache.findIndex(p => String(p.id) === String(permitToDelete));
+         if (idx !== -1) permitsCache[idx] = data.permit;
+      }
+      renderList();
+
       setTimeout(() => {
         closeDeletePermitModal();
         pollPermitsForSupervisor();
