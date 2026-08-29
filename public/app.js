@@ -2490,8 +2490,8 @@ function renderEmployeesPanelUI() {
   };
   
   window.setLeaderboardTimeframe = function(timeframe) {
-    window._lbTimeframe = timeframe;
-    renderEmployeesTable(window._allEmployees || _allEmployees || []);
+    window.currentLeaderboardTimeframe = timeframe;
+    renderEmployeesPanelUI();
   };
 
   // 2. Generate Filter Bar HTML
@@ -2543,7 +2543,7 @@ function renderEmployeesPanelUI() {
     </div>
   `;
 
-  // 3. Generate Leaderboard HTML
+  // 4. Generate Leaderboard HTML
   let sortedLb = [...processedList];
   if (lbFilter === 'hazards') {
     sortedLb.sort((a, b) => b.hCount - a.hCount);
@@ -2553,9 +2553,8 @@ function renderEmployeesPanelUI() {
     sortedLb.sort((a, b) => b.score - a.score);
   }
   
-  // 4. Generate Leaderboard HTML
   const top10 = sortedLb.slice(0, 10);
-  const champ = top10[0] || { name: '—', department: '—', tHours: 0, hCount: 0, score: 0 };
+  const champ = top10[0] || { name: '—', department: '—', empCode: '—', tHours: 0, hCount: 0, score: 0 };
   
   const lbHtml = `
     <div class="emp-leaderboard-wrap">
@@ -2566,12 +2565,12 @@ function renderEmployeesPanelUI() {
         <div class="lb-champion-card">
           <div class="lb-champion-crown">👑</div>
           <div class="lb-champion-title">الموظف المثالي</div>
-          <div class="lb-champion-name">${escapeHtml(champ.name || '—')}</div>
-          <div class="lb-champion-dept">${escapeHtml(champ.department || '—')}</div>
+          <div class="lb-champion-name">${escapeHtml(champ?.name || '—')}</div>
+          <div class="lb-champion-dept">${escapeHtml(champ?.department || '—')} | ${escapeHtml(champ?.empCode || champ?.code || '—')}</div>
           <div class="lb-champion-stats">
-            <div class="lb-stat"><span class="lb-stat-val">${champ.tHours || 0}</span><span class="lb-stat-lbl">ساعة تدريب</span></div>
-            <div class="lb-stat"><span class="lb-stat-val">${champ.hCount || 0}</span><span class="lb-stat-lbl">بلاغ خطورة</span></div>
-            <div class="lb-stat"><span class="lb-stat-val" style="color:#d97706">${champ.score || 0}</span><span class="lb-stat-lbl">نقطة تميز</span></div>
+            <div class="lb-stat"><span class="lb-stat-val">${champ?.tHours || 0}</span><span class="lb-stat-lbl">ساعة تدريب</span></div>
+            <div class="lb-stat"><span class="lb-stat-val">${champ?.hCount || 0}</span><span class="lb-stat-lbl">بلاغ خطورة</span></div>
+            <div class="lb-stat"><span class="lb-stat-val" style="color:#d97706">${champ?.score || 0}</span><span class="lb-stat-lbl">نقطة تميز</span></div>
           </div>
         </div>
         <div class="lb-list">
@@ -2597,97 +2596,146 @@ function renderEmployeesPanelUI() {
     </div>
   `;
 
-  listEl.innerHTML = filtersHtml + analyticsHtml + lbHtml + `
-    <div class="um-table-wrap">
-      <table class="um-table emp-dir-table">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>الكود</th>
-            <th>الاسم الكامل</th>
-            <th>القسم / المسمى</th>
-            <th>⚠️ البلاغات</th>
-            <th>🎓 المحاضرات</th>
-            <th>إجراءات</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${processedList.map((e, i) => {
-            const hTarget = 2; // Target per month/period
-            const tTarget = 8;
-            const hCount = e.hCount;
-            const tHours = e.tHours;
-            const hPerc = e.hPerc;
-            const tPerc = e.tPerc;
-            const hBadgeClass = e.hPerc >= 100 ? 'badge-green' : (e.hPerc >= 50 ? 'badge-yellow' : 'badge-red');
-            const tBadgeClass = e.tPerc >= 100 ? 'badge-green' : (e.tPerc >= 50 ? 'badge-yellow' : 'badge-red');
+  dashEl.innerHTML = filtersHtml + analyticsHtml + lbHtml;
+}
 
-            return `
+/** Render (or re-render) the table from a given list */
+function renderEmployeesTable(list) {
+  const listEl = document.getElementById('empDirList');
+  if (!listEl) return;
+  
+  // Set up the static table shell ONCE if it doesn't exist
+  if (!document.getElementById('empTableBody')) {
+    listEl.innerHTML = `
+      <div class="um-table-wrap">
+        <table class="um-table emp-dir-table">
+          <thead>
             <tr>
-              <td style="color:var(--muted);font-size:12px;">${i + 1}</td>
-              <td style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;color:var(--amber);">
-                ${escapeHtml(e.empCode)}
-              </td>
-              <td style="font-weight:700;">${escapeHtml(e.name || '—')}</td>
-              <td>
-                <div style="font-size:13px;">${escapeHtml(e.department || '—')}</div>
-                <div style="font-size:11px;color:var(--muted);">${escapeHtml(e.jobTitle || '—')}</div>
-              </td>
-              <td>
-                <div style="font-size:12px; font-weight:bold; margin-bottom:4px;">${hCount} / ${hTarget} بلاغ</div>
-                <div style="display:flex;align-items:center;gap:6px;">
-                  <div style="flex:1;background:var(--paper-line);height:8px;border-radius:4px;overflow:hidden;min-width:40px;">
-                    <div style="height:100%;width:${hPerc}%;background:var(--amber);"></div>
-                  </div>
-                  <span class="emp-role-badge ${hBadgeClass}" style="min-width:35px;text-align:center;font-size:10px;">${hPerc}%</span>
-                </div>
-              </td>
-              <td>
-                <div style="font-size:12px; font-weight:bold; margin-bottom:4px;">${tHours} / ${tTarget} ساعات</div>
-                <div style="display:flex;align-items:center;gap:6px;">
-                  <div style="flex:1;background:var(--paper-line);height:8px;border-radius:4px;overflow:hidden;min-width:40px;">
-                    <div style="height:100%;width:${tPerc}%;background:var(--amber);"></div>
-                  </div>
-                  <span class="emp-role-badge ${tBadgeClass}" style="min-width:35px;text-align:center;font-size:10px;">${tPerc}%</span>
-                </div>
-              </td>
-              <td>
-                <div class="um-action-btns">
-                  <button class="um-btn pass" onclick="openEmpModal('${escapeHtml(e.empCode)}')">✏️ تعديل</button>
-                  <button class="um-btn del"  onclick="deleteEmployee('${escapeHtml(e.empCode)}','${escapeHtml(e.name||'')}')">🗑 حذف</button>
-                </div>
-              </td>
+              <th>#</th>
+              <th>الكود</th>
+              <th>الاسم الكامل</th>
+              <th>القسم / المسمى</th>
+              <th>⚠️ البلاغات</th>
+              <th>🎓 المحاضرات</th>
+              <th>إجراءات</th>
             </tr>
-            `;
-          }).join('')}
-        </tbody>
-      </table>
-    </div>
-    <div style="font-size:12px;color:var(--muted);margin-top:8px;text-align:left;">
-      إجمالي: ${list.length} موظف
-    </div>
-  `;
+          </thead>
+          <tbody id="empTableBody">
+          </tbody>
+        </table>
+      </div>
+      <div id="empTableCount" style="font-size:12px;color:var(--muted);margin-top:8px;text-align:left;"></div>
+    `;
+  }
+  
+  renderEmployeesTableRows(list);
 }
 
-/** Real-time search filter */
-function filterEmployeesTable() {
-  const rawInput = document.getElementById('empSearchInput')?.value;
-  const q = (rawInput || '').toLowerCase().trim();
-  if (!q) { renderEmployeesTable(_allEmployees); return; }
+window.handleEmployeeSearch = function(query) {
+  const q = (query || '').trim().toLowerCase();
+  const all = window._masterEmployeesList || [];
   
-  const cleanCode = String(rawInput || '').trim().replace(/^0+/, '') || '0';
+  if (!q) {
+    renderEmployeesTableRows(all);
+    return;
+  }
+
+  const cleanCode = String(query || '').trim().replace(/^0+/, '') || '0';
   
-  const filtered = _allEmployees.filter(e =>
-    (e.empCode    || '').toLowerCase().includes(q) ||
-    (e.empCode    || '').toLowerCase().includes(cleanCode) ||
-    (e.name       || '').toLowerCase().includes(q) ||
-    (e.department || '').toLowerCase().includes(q) ||
-    (e.jobTitle   || '').toLowerCase().includes(q)
-  );
-  renderEmployeesTable(filtered);
+  const filtered = all.filter(emp => {
+    const eName = (emp.name || '').toLowerCase();
+    const eCode = String(emp.code || emp.empCode || '').toLowerCase();
+    const eDept = (emp.department || '').toLowerCase();
+    const eJob = (emp.jobTitle || '').toLowerCase();
+    
+    if (/^\d+$/.test(query)) {
+      const eCodeNoZero = eCode.replace(/^0+/, '');
+      return eCodeNoZero === cleanCode || eCode.includes(q);
+    }
+    
+    return eName.includes(q) || eCode.includes(q) || eDept.includes(q) || eJob.includes(q);
+  });
+
+  renderEmployeesTableRows(filtered);
+};
+
+function renderEmployeesTableRows(list) {
+  const tbody = document.getElementById('empTableBody');
+  const countEl = document.getElementById('empTableCount');
+  if (!tbody) return;
+  
+  if (!Array.isArray(list)) list = [];
+  
+  if (list.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty" style="padding:20px;text-align:center;"><div class="icon">👤</div>لا توجد نتائج مطابقة للبحث</div></td></tr>';
+    if (countEl) countEl.innerText = 'إجمالي: 0 موظف';
+    return;
+  }
+  
+  // Re-process just the raw stats for the table rendering
+  const processedList = list.map(e => {
+    const eCode = normalizeEmpCode(e.code || e.empCode || '');
+    const hCount = (window._allHazardsCache || []).filter(h => normalizeEmpCode(h.empCode || h.submittedByCode || '') === eCode).length;
+    const tHours = e.trainingHours || 0;
+    const hTarget = 2;
+    const tTarget = 8;
+    const hPerc = Math.min(100, Math.round((hCount / hTarget) * 100));
+    const tPerc = Math.min(100, Math.round((tHours / tTarget) * 100));
+    return { ...e, hCount, hPerc, tHours, tPerc };
+  });
+
+  tbody.innerHTML = processedList.map((e, i) => {
+    const hTarget = 2; // Target per month/period
+    const tTarget = 8;
+    const hCount = e.hCount;
+    const tHours = e.tHours;
+    const hPerc = e.hPerc;
+    const tPerc = e.tPerc;
+    const hBadgeClass = e.hPerc >= 100 ? 'badge-green' : (e.hPerc >= 50 ? 'badge-yellow' : 'badge-red');
+    const tBadgeClass = e.tPerc >= 100 ? 'badge-green' : (e.tPerc >= 50 ? 'badge-yellow' : 'badge-red');
+
+    return `
+    <tr>
+      <td style="color:var(--muted);font-size:12px;">${i + 1}</td>
+      <td style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;color:var(--amber);">
+        ${escapeHtml(e.empCode)}
+      </td>
+      <td style="font-weight:700;">${escapeHtml(e.name || '—')}</td>
+      <td>
+        <div style="font-size:13px;">${escapeHtml(e.department || '—')}</div>
+        <div style="font-size:11px;color:var(--muted);">${escapeHtml(e.jobTitle || '—')}</div>
+      </td>
+      <td>
+        <div style="font-size:12px; font-weight:bold; margin-bottom:4px;">${hCount} / ${hTarget} بلاغ</div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div style="flex:1;background:var(--paper-line);height:8px;border-radius:4px;overflow:hidden;min-width:40px;">
+            <div style="height:100%;width:${hPerc}%;background:var(--amber);"></div>
+          </div>
+          <span class="emp-role-badge ${hBadgeClass}" style="min-width:35px;text-align:center;font-size:10px;">${hPerc}%</span>
+        </div>
+      </td>
+      <td>
+        <div style="font-size:12px; font-weight:bold; margin-bottom:4px;">${tHours} / ${tTarget} ساعات</div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div style="flex:1;background:var(--paper-line);height:8px;border-radius:4px;overflow:hidden;min-width:40px;">
+            <div style="height:100%;width:${tPerc}%;background:var(--amber);"></div>
+          </div>
+          <span class="emp-role-badge ${tBadgeClass}" style="min-width:35px;text-align:center;font-size:10px;">${tPerc}%</span>
+        </div>
+      </td>
+      <td>
+        <div class="um-action-btns">
+          <button class="um-btn pass" onclick="openEmpModal('${escapeHtml(e.empCode)}')">✏️ تعديل</button>
+          <button class="um-btn del"  onclick="deleteEmployee('${escapeHtml(e.empCode)}','${escapeHtml(e.name||'')}')">🗑 حذف</button>
+        </div>
+      </td>
+    </tr>
+    `;
+  }).join('');
+  
+  if (countEl) countEl.innerText = `إجمالي: ${list.length} موظف`;
 }
 
-/** Open Add or Edit modal */
 function openEmpModal(code = null) {
   _empEditCode = code;
   const titleEl = document.getElementById('empModalTitle');
@@ -4796,8 +4844,8 @@ async function restoreTraining(id) {
 }
 
 async function permanentDeleteTraining(id) {
-  if (!confirm('تنبيه هام ⚠️: هل أنت متأكد من حذف المحاضرة نهائياً؟ لا يمكن التراجع عن هذا الإجراء!')) return;
-  try {
+  try {  if (!confirm('تنبيه هام ⚠️: هل أنت متأكد من حذف المحاضرة نهائياً؟ لا يمكن التراجع عن هذا الإجراء!')) return;
+
     const res = await authFetch('/api/trainings/' + id + '/permanent', { method: 'DELETE' });
     if (res.ok) {
       showToast('تم الحذف نهائياً', 'success');
