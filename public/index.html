@@ -16,7 +16,7 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=2.17.0">
+<link rel="stylesheet" href="style.css?v=2.19.0">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 </head>
 <body data-session="none">
@@ -444,21 +444,27 @@
       </div>
     </div>
 
-    <!-- Action Bar -->
-    <div class="emp-dir-topbar">
-      <button class="emp-dir-btn primary" onclick="openEmpModal()">➕ إضافة موظف</button>
-      <label class="emp-dir-btn secondary" style="cursor:pointer;" title="استيراد من Excel">
-        📥 استيراد Excel
-        <input type="file" id="empImportFile" accept=".xlsx,.xls" style="display:none;" onchange="importEmployeesExcel(this)">
-      </label>
-      <button class="emp-dir-btn secondary" onclick="exportEmployeesExcel()">📤 تصدير Excel</button>
-      <div class="emp-dir-search-wrap">
-        <input id="empSearchInput" type="text" class="emp-dir-search" placeholder="🔍 بحث بالاسم أو الكود أو القسم…" oninput="filterEmployeesTable()">
-      </div>
-    </div>
+    <!-- Dashboard Container (Filters, KPIs, Leaderboard) -->
+    <div id="empDashboardWrap"></div>
 
-    <!-- Employees Table -->
-    <div id="empDirList"><div class="loading">جارِ التحميل…</div></div>
+    <!-- Table Container (Search, Actions, Table) -->
+    <div id="empTableWrap">
+      <!-- Action Bar -->
+      <div class="emp-dir-topbar">
+        <button class="emp-dir-btn primary" onclick="openEmpModal()">➕ إضافة موظف</button>
+        <label class="emp-dir-btn secondary" style="cursor:pointer;" title="استيراد من Excel">
+          📥 استيراد Excel
+          <input type="file" id="empImportFile" accept=".xlsx,.xls" style="display:none;" onchange="importEmployeesExcel(this)">
+        </label>
+        <button class="emp-dir-btn secondary" onclick="exportEmployeesExcel()">📤 تصدير Excel</button>
+        <div class="emp-dir-search-wrap">
+          <input id="empSearchInput" type="text" class="emp-dir-search" placeholder="🔍 بحث بالاسم أو الكود أو القسم…" oninput="filterEmployeesTable()">
+        </div>
+      </div>
+
+      <!-- Employees Table -->
+      <div id="empDirList"><div class="loading">جارِ التحميل…</div></div>
+    </div>
 
     <!-- Add / Edit Modal -->
     <div id="empModal" class="um-modal-overlay" style="display:none;">
@@ -691,7 +697,7 @@
   </div>
 </div>
 
-<script src="app.js?v=2.17.0" defer></script>
+<script src="app.js?v=2.19.0" defer></script>
 </body>
 </html>
 

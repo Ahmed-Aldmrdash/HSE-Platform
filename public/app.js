@@ -2375,9 +2375,11 @@ function empRoleLabel(r){ return EMP_ROLE_LABELS[r] || r || 'عامل'; }
 
 /** Render the employees table panel (fetches from server) */
 async function renderEmployeesPanel() {
+  const tableWrap = document.getElementById('empTableWrap');
+  if (tableWrap) tableWrap.style.display = 'block';
+  
   const listEl = document.getElementById('empDirList');
-  if (!listEl) return;
-  listEl.innerHTML = '<div class="loading">جارِ تحميل الموظفين…</div>';
+  if (listEl) listEl.innerHTML = '<div class="loading">جارِ تحميل الموظفين…</div>';
 
   // Sync user badge
   const emArea = document.getElementById('emUserProfileChip');
@@ -2411,28 +2413,31 @@ async function renderEmployeesPanel() {
       window._trainingsCache = [];
     }
 
-    window._allEmployees = Array.isArray(empData) ? empData : (empData.employees || []);
-    renderEmployeesTable(window._allEmployees);
+    const rawList = Array.isArray(empData) ? empData : (empData.employees || []);
+    window._masterEmployeesList = Object.freeze([...rawList]);
+    
+    renderEmployeesPanelUI();
+    renderEmployeesTable(window._masterEmployeesList);
   } catch (err) {
     console.error('Error in renderEmployeesPanel:', err);
-    document.getElementById('empDirList').innerHTML = `<p style="color:var(--danger); text-align:center; padding:2rem;">فشل تحميل الموظفين: ${err.message}</p>`;
+    if (listEl) listEl.innerHTML = `<p style="color:var(--danger); text-align:center; padding:2rem;">فشل تحميل الموظفين: ${err.message}</p>`;
   }
 }
 
-/** Render (or re-render) the table from a given list */
-function renderEmployeesTable(list) {
-  const listEl = document.getElementById('empDirList');
-  if (!listEl) return;
+/** Renders the Dashboard (Filters, KPIs, Leaderboard) independently of the main table */
+function renderEmployeesPanelUI() {
+  const dashEl = document.getElementById('empDashboardWrap');
+  if (!dashEl) return;
   
-  if (!Array.isArray(list)) list = [];
-  
-  if (list.length === 0) {
-    listEl.innerHTML = '<div class="empty"><div class="icon">👤</div>لا يوجد موظفون بعد — أضف موظفاً أو استورد ملف Excel</div>';
+  const fullList = window._masterEmployeesList ? [...window._masterEmployeesList] : [];
+  if (fullList.length === 0) {
+    dashEl.innerHTML = '';
     return;
   }
   
-  const lbFilter = typeof window._lbFilter !== 'undefined' ? window._lbFilter : 'overall';
-  const lbTimeframe = typeof window._lbTimeframe !== 'undefined' ? window._lbTimeframe : 'all';
+  const lbFilter = typeof window.currentLeaderboardFilter !== 'undefined' ? window.currentLeaderboardFilter : 'overall';
+  const lbTimeframe = typeof window.currentLeaderboardTimeframe !== 'undefined' ? window.currentLeaderboardTimeframe : 'all';
+  
   let cutoffDate = null;
   if (lbTimeframe !== 'all') {
     cutoffDate = new Date();
@@ -2444,7 +2449,7 @@ function renderEmployeesTable(list) {
   let totalHCount = 0;
   let totalTPerc = 0;
   
-  const processedList = list.map(e => {
+  const processedList = fullList.map(e => {
     const eCode = normalizeEmpCode(e.code || e.empCode || '');
     
     // Filter hazards by timeframe
@@ -2480,8 +2485,8 @@ function renderEmployeesTable(list) {
   const avgTPerc = processedList.length > 0 ? Math.round(totalTPerc / processedList.length) : 0;
   
   window.setLeaderboardFilter = function(filterType) {
-    window._lbFilter = filterType;
-    renderEmployeesTable(window._allEmployees || _allEmployees || []);
+    window.currentLeaderboardFilter = filterType;
+    renderEmployeesPanelUI();
   };
   
   window.setLeaderboardTimeframe = function(timeframe) {
