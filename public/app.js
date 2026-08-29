@@ -4467,45 +4467,31 @@ function zoomOutLightbox() {
 // ============================================================
 // 🔔 SMART IN-APP NOTIFICATION CENTER
 // ============================================================
-let notifPollTimer = null;
-let unreadNotifsIds = new Set();
-let isNotifDrawerOpen = false;
+// ============================================================
+// 📡 NOTIFICATIONS & WEB PUSH MODULE
+// ============================================================
 
+let notifEventSource = null;
 let currentNotifications = [];
 let currentNotifFilter = 'all';
+let isNotifDrawerOpen = false;
 
 function toggleNotifDrawer() {
   const drawer = document.getElementById('notifDropdown');
-  if(!drawer) return;
   isNotifDrawerOpen = !isNotifDrawerOpen;
-  drawer.style.display = isNotifDrawerOpen ? 'flex' : 'none';
+  if (isNotifDrawerOpen) {
+    drawer.classList.add('show');
+    drawer.style.display = 'flex';
+  } else {
+    drawer.classList.remove('show');
+    setTimeout(() => { if (!isNotifDrawerOpen) drawer.style.display = 'none'; }, 300);
+  }
 }
 
-function startNotificationPolling() {
-  if (notifPollTimer) clearInterval(notifPollTimer);
-  
-  // Request Native Notification Permission
-  if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
-    Notification.requestPermission();
-  }
-
+async function startNotificationPolling() {
+  stopNotificationPolling();
   fetchNotifications(); // Initial fetch
-  notifPollTimer = setInterval(fetchNotifications, 60000); // Poll every 60s to reduce spam
   
-  // Also fetch immediately when user returns to the tab to bypass background throttling
-  window.removeEventListener('focus', fetchNotifications);
-  window.addEventListener('focus', fetchNotifications);
-}
-
-function stopNotificationPolling() {
-  if (notifPollTimer) {
-    clearInterval(notifPollTimer);
-    notifPollTimer = null;
-  }
-}
-
-async function fetchNotifications() {
-  // Determine identifier
   let params = new URLSearchParams();
   const token = getToken();
   if (token && sessionRole !== 'worker' && sessionRole !== 'none') {
@@ -4515,7 +4501,97 @@ async function fetchNotifications() {
     params.append('role', 'worker');
     params.append('empCode', currentEmployee.empCode);
   } else {
-    return; // Not logged in
+    return;
+  }
+
+  // Setup Server-Sent Events (SSE)
+  notifEventSource = new EventSource(`/api/notifications/poll?${params.toString()}`);
+  notifEventSource.onmessage = function(event) {
+    try {
+      const newNotif = JSON.parse(event.data);
+      // Prepend to current list
+      currentNotifications.unshift(newNotif);
+      renderNotifications();
+      
+      // Play Chime
+      const audio = document.getElementById('notifChime');
+      if (audio) {
+        audio.currentTime = 0;
+        audio.play().catch(e => console.log('Audio blocked by browser:', e));
+      }
+      
+      // Show Mobile/Desktop Toast
+      showAppToast(newNotif.title, newNotif.message, () => handleNotificationClick(newNotif.id, newNotif.link, newNotif.targetId, newNotif.type));
+    } catch(e) {}
+  };
+  
+  // Register Web Push Service Worker
+  subscribeToPushNotifications();
+}
+
+function stopNotificationPolling() {
+  if (notifEventSource) {
+    notifEventSource.close();
+    notifEventSource = null;
+  }
+}
+
+async function subscribeToPushNotifications() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  
+  try {
+    const swReg = await navigator.serviceWorker.register('/sw.js');
+    
+    // Request Permission
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return;
+    
+    // Get VAPID Key
+    const vapidRes = await fetch('/api/vapid-public-key');
+    const vapidData = await vapidRes.json();
+    if (!vapidData.publicKey) return;
+    
+    const applicationServerKey = urlB64ToUint8Array(vapidData.publicKey);
+    
+    const subscription = await swReg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: applicationServerKey
+    });
+    
+    // Send to Backend
+    const empCode = currentEmployee ? currentEmployee.empCode : (sessionRole !== 'none' ? 'admin' : '');
+    await fetch('/api/notifications/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription, role: sessionRole, empCode: empCode })
+    });
+  } catch (error) {
+    console.error('Push Subscription Failed:', error);
+  }
+}
+
+function urlB64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+async function fetchNotifications() {
+  let params = new URLSearchParams();
+  const token = getToken();
+  if (token && sessionRole !== 'worker' && sessionRole !== 'none') {
+    params.append('role', sessionRole);
+    if (currentUserDept) params.append('department', currentUserDept);
+  } else if (currentEmployee && currentEmployee.empCode) {
+    params.append('role', 'worker');
+    params.append('empCode', currentEmployee.empCode);
+  } else {
+    return;
   }
 
   try {
@@ -4525,19 +4601,14 @@ async function fetchNotifications() {
       currentNotifications = data.notifications || [];
       renderNotifications();
     }
-  } catch(e) {
-    console.error('Error fetching notifications:', e);
-  }
+  } catch(e) {}
 }
 
 function setNotifFilter(type) {
   currentNotifFilter = type;
-  
-  // Update active pill UI
   document.querySelectorAll('.notif-pill').forEach(btn => btn.classList.remove('active'));
   const targetBtn = Array.from(document.querySelectorAll('.notif-pill')).find(b => b.getAttribute('onclick').includes(`'${type}'`));
   if (targetBtn) targetBtn.classList.add('active');
-  
   renderNotifications();
 }
 
@@ -4545,7 +4616,6 @@ function timeAgo(isoString) {
   if (!isoString) return '';
   const date = new Date(isoString);
   const seconds = Math.floor((new Date() - date) / 1000);
-  
   let interval = seconds / 31536000;
   if (interval > 1) return Math.floor(interval) + " سنة";
   interval = seconds / 2592000;
@@ -4559,6 +4629,13 @@ function timeAgo(isoString) {
   return "الآن";
 }
 
+function getIdentifier() {
+  const token = getToken();
+  if (token && sessionRole !== 'worker' && sessionRole !== 'none') return sessionRole;
+  if (currentEmployee && currentEmployee.empCode) return currentEmployee.empCode;
+  return 'unknown';
+}
+
 function renderNotifications() {
   const listEl = document.getElementById('notifList');
   const badgeEl = document.getElementById('notifBadge');
@@ -4566,42 +4643,12 @@ function renderNotifications() {
   if (!listEl || !badgeEl || !container) return;
 
   container.style.display = 'inline-flex';
-
-  // Identifier for read status
-  let identifier = 'unknown';
-  const token = getToken();
-  if (token && sessionRole !== 'worker' && sessionRole !== 'none') {
-    identifier = sessionRole;
-  } else if (currentEmployee && currentEmployee.empCode) {
-    identifier = currentEmployee.empCode;
-  }
-
+  const identifier = getIdentifier();
   let unreadCount = 0;
-  let newUnreadFound = false;
 
-  // Apply Filter
   const filteredNotifications = currentNotifications.filter(n => {
     const isUnread = !n.readBy.includes(identifier);
     if (isUnread) unreadCount++;
-    
-    // Check for new unread notifications regardless of filter
-    if (isUnread && !unreadNotifsIds.has(n.id)) {
-      unreadNotifsIds.add(n.id);
-      newUnreadFound = true;
-      
-      // Trigger Native Push Notification
-      if ("Notification" in window && Notification.permission === "granted") {
-        const nativeNotif = new Notification(n.title, { body: n.message, icon: 'icons/icon-192.png' });
-        nativeNotif.onclick = function() {
-          window.focus();
-          handleNotificationClick(n.id, n.link, n.targetId, n.type);
-        };
-      }
-      
-      // Also show an immediate in-app Toast alert
-      showInAppToast(n.title, n.message, () => handleNotificationClick(n.id, n.link, n.targetId, n.type));
-    }
-
     if (currentNotifFilter === 'all') return true;
     if (currentNotifFilter === 'unread') return isUnread;
     return n.type === currentNotifFilter;
@@ -4609,48 +4656,50 @@ function renderNotifications() {
 
   const html = filteredNotifications.map(n => {
     const isUnread = !n.readBy.includes(identifier);
-    
-    // Type-based styling and icons
-    let typeClass = 'type-system';
     let iconEmoji = '🔔';
-    if (n.type === 'hazard') { typeClass = 'type-hazard'; iconEmoji = '⚠️'; }
-    if (n.type === 'permit') { typeClass = 'type-permit'; iconEmoji = '📝'; }
-    if (n.type === 'training') { typeClass = 'type-training'; iconEmoji = '🎓'; }
+    if (n.type === 'hazard') iconEmoji = '⚠️';
+    if (n.type === 'permit') iconEmoji = '📝';
+    if (n.type === 'training') iconEmoji = '🎓';
 
     return `
-      <div class="notif-item ${isUnread ? 'unread' : ''} ${typeClass}" onclick="handleNotificationClick('${n.id}', '${n.link}', '${n.targetId || ''}', '${n.type || ''}')">
-        <div class="notif-icon">${iconEmoji}</div>
-        <div class="notif-body">
-          <div class="notif-title">${escapeHtml(n.title)}</div>
-          <div class="notif-msg">${escapeHtml(n.message)}</div>
-          <div class="notif-time">${timeAgo(n.createdAt)}</div>
+      <li class="notif-item ${isUnread ? 'unread' : ''}" onclick="handleNotificationClick('${n.id}', '${n.link}', '${n.targetId || ''}', '${n.type || ''}')">
+        <div class="notif-icon-wrap">${iconEmoji}</div>
+        <div class="notif-content">
+          <div class="notif-title-row">
+            <h4 class="notif-title"><span class="pulse-dot" style="display:${isUnread ? 'inline-block' : 'none'};"></span>${escapeHtml(n.title)}</h4>
+            <span class="notif-time">${timeAgo(n.createdAt)}</span>
+          </div>
+          <p class="notif-message">${escapeHtml(n.message)}</p>
         </div>
-        <div class="unread-dot" style="${isUnread ? 'display:block;' : 'display:none;'}"></div>
-      </div>
+      </li>
     `;
   }).join('');
 
-  if (filteredNotifications.length === 0) {
-    listEl.innerHTML = '<div class="notif-empty">لا توجد إشعارات تطابق التصفية الحالية</div>';
-  } else {
-    listEl.innerHTML = html;
-  }
-
+  listEl.innerHTML = filteredNotifications.length === 0 ? '<li style="padding:16px; text-align:center; color:var(--muted);">لا توجد إشعارات</li>' : html;
+  
   if (unreadCount > 0) {
     badgeEl.textContent = unreadCount;
     badgeEl.style.display = 'inline-block';
-    if (newUnreadFound) {
-      playNotificationChime();
-      showToast('يوجد إشعار جديد 🔔', 'info');
-    }
   } else {
     badgeEl.style.display = 'none';
   }
 }
 
 async function handleNotificationClick(id, link, targetId, type) {
-  // Mark read
-  await markReadAPI(id);
+  // Mark read API
+  const identifier = getIdentifier();
+  await fetch(`/api/notifications/read/${id}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ empCode: identifier })
+  });
+  
+  // Local Update
+  const notif = currentNotifications.find(n => n.id === id);
+  if (notif && !notif.readBy.includes(identifier)) {
+    notif.readBy.push(identifier);
+    renderNotifications();
+  }
   
   if (isNotifDrawerOpen) toggleNotifDrawer();
   
@@ -4670,197 +4719,58 @@ async function handleNotificationClick(id, link, targetId, type) {
     
     if (targetId) {
       setTimeout(() => {
-        let targetEl = null;
         if (type === 'permit') {
-          // Open the details section if it exists
           const detailsEl = document.getElementById('details-' + targetId);
           if (detailsEl) detailsEl.classList.add('show');
-          
-          // Search in permits table or history
-          const els = document.querySelectorAll('.tnum, .phc-id');
-          for (const el of Array.from(els)) {
-            if (el.textContent.trim().includes(targetId)) {
-              targetEl = el.closest('.sup-card') || el.closest('.permit-history-card');
-              break;
-            }
-          }
         } else if (type === 'hazard') {
-          // Search in hazards table
-          const els = document.querySelectorAll('.tnum');
-          for (const el of Array.from(els)) {
-            if (el.textContent.trim().includes(targetId)) {
-              targetEl = el.closest('.sup-card');
-              break;
-            }
-          }
-        } else if (type === 'training') {
-          // Focus on PIN input if in training worker view
-          targetEl = document.getElementById('trnWorkerPin');
+          if (typeof showHazardModal === 'function') showHazardModal(targetId);
         }
-        
-        if (targetEl) {
-          targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          targetEl.classList.remove('highlight-focus');
-          void targetEl.offsetWidth; // trigger reflow
-          targetEl.classList.add('highlight-focus');
-          
-          if (type === 'training' && targetEl.tagName === 'INPUT') {
-            targetEl.focus();
-          }
-        }
-      }, 800); // Give it some time to load the tab content
+      }, 500);
     }
   }
-  
-  fetchNotifications();
 }
 
 async function markAllNotificationsAsRead() {
-  await markReadAPI('all');
-  unreadNotifsIds.clear();
-  fetchNotifications();
-  if (isNotifDrawerOpen) toggleNotifDrawer();
-}
-
-async function markReadAPI(id) {
-  let body = { id };
-  const token = localStorage.getItem('ep_token');
-  if (token && sessionRole !== 'worker' && sessionRole !== 'none') {
-    body.role = sessionRole;
-  } else if (currentEmployee && currentEmployee.empCode) {
-    body.empCode = currentEmployee.empCode;
-  }
+  const identifier = getIdentifier();
+  await fetch('/api/notifications/read-all', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ empCode: identifier })
+  });
   
-  try {
-    await fetch('/api/notifications/mark-read', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-  } catch(e) {
-    console.error('Error marking notification read:', e);
-  }
+  currentNotifications.forEach(n => {
+    if (!n.readBy.includes(identifier)) n.readBy.push(identifier);
+  });
+  renderNotifications();
 }
 
-/**
- * Shows an immediate visual Toast notification in the app
- */
-function showInAppToast(title, message, onClickCallback) {
+function showAppToast(title, message, onClick) {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
   const toast = document.createElement('div');
-  toast.className = 'notif-toast';
+  toast.className = 'app-toast';
   toast.innerHTML = `
-    <div class="toast-icon">🔔</div>
-    <div class="toast-content">
-      <strong>${escapeHtml(title)}</strong>
-      <p>${escapeHtml(message)}</p>
+    <div style="font-size: 24px;">🔔</div>
+    <div style="flex:1;">
+      <div style="font-weight:700; margin-bottom:4px; font-size:14px;">${escapeHtml(title)}</div>
+      <div style="font-size:12px; color:var(--muted);">${escapeHtml(message)}</div>
     </div>
   `;
-  
-  if (onClickCallback) {
+  if (onClick) {
     toast.style.cursor = 'pointer';
-    toast.onclick = () => {
-      onClickCallback();
-      toast.remove();
-    };
+    toast.onclick = () => { onClick(); toast.classList.remove('show'); };
   }
+  container.appendChild(toast);
   
-  document.body.appendChild(toast);
+  requestAnimationFrame(() => {
+    toast.classList.add('show');
+  });
   
-  // Play a simple beep sound using Web Audio API
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gainNode = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(880, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.1);
-    gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-    osc.connect(gainNode);
-    gainNode.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.5);
-  } catch (e) { /* ignore */ }
-
-  // Auto remove after 5 seconds
   setTimeout(() => {
-    if (document.body.contains(toast)) {
-      toast.style.animation = 'slideOutRight 0.3s forwards';
-      setTimeout(() => toast.remove(), 300);
-    }
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
   }, 5000);
 }
-
-// ── Web Push & Service Worker Registration ───────────────────────
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then(reg => {
-        console.log('[SW] Registered successfully:', reg.scope);
-      })
-      .catch(err => {
-        console.warn('[SW] Registration failed:', err);
-      });
-  });
-}
-
-async function subscribeUserToPush() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    return;
-  }
-  
-  try {
-    const registration = await navigator.serviceWorker.ready;
-    
-    // Check existing subscription
-    let subscription = await registration.pushManager.getSubscription();
-    
-    if (!subscription) {
-      // Get public key
-      const response = await fetch('/api/vapid-publicKey');
-      if (!response.ok) return;
-      const vapidPublicKey = await response.text();
-      
-      // Convert VAPID key
-      const urlB64ToUint8Array = (base64String) => {
-        const padding = '='.repeat((4 - base64String.length % 4) % 4);
-        const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
-        const rawData = window.atob(base64);
-        const outputArray = new Uint8Array(rawData.length);
-        for (let i = 0; i < rawData.length; ++i) {
-          outputArray[i] = rawData.charCodeAt(i);
-        }
-        return outputArray;
-      };
-      
-      const convertedVapidKey = urlB64ToUint8Array(vapidPublicKey);
-      
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: convertedVapidKey
-      });
-    }
-    
-    // Send subscription to server
-    const payload = { subscription };
-    if (sessionRole !== 'none' && sessionRole !== 'worker') {
-      payload.role = sessionRole;
-    } else if (currentEmployee && currentEmployee.empCode) {
-      payload.empCode = currentEmployee.empCode;
-    }
-    
-    await fetch('/api/notifications/subscribe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    
-    console.log('[Web Push] Subscribed successfully');
-  } catch (err) {
-    console.error('[Web Push] Failed to subscribe', err);
-  }
-}
-
 // ============================================================
 // 🔄 GLOBAL SYNC BUTTON
 // ============================================================

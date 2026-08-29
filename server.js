@@ -474,6 +474,26 @@ function createNotification({ targetRole, targetEmpCode, targetGroup, type, titl
         writeSubscriptions(validSubscriptions);
       }
     });
+    
+    // Broadcast via Server-Sent Events
+    sseClients.forEach(client => {
+      let shouldSend = false;
+      if (newNotif.targetRole === 'all') shouldSend = true;
+      if (newNotif.targetEmpCode && client.empCode && normalizeEmpCode(newNotif.targetEmpCode) === normalizeEmpCode(client.empCode)) shouldSend = true;
+      if (newNotif.targetRole && client.role) {
+        if (newNotif.targetRole === 'admin' && ['superadmin', 'admin', 'supervisor', 'area_head'].includes(client.role)) shouldSend = true;
+        if (newNotif.targetRole === client.role) shouldSend = true;
+      }
+      
+      if (shouldSend) {
+        try {
+          client.res.write(`data: ${JSON.stringify(newNotif)}\n\n`);
+        } catch (e) {
+           // Client disconnected
+        }
+      }
+    });
+
   });
 }
 
