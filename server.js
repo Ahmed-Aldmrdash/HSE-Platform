@@ -2756,7 +2756,8 @@ app.get('/api/employees',
         if (att.verified) {
           const code = normalizeEmpCode(att.empCode);
           if (code) {
-            trainingsMap.set(code, (trainingsMap.get(code) || 0) + 0.5); // 0.5 hours per session
+            if (!trainingsMap.has(code)) trainingsMap.set(code, []);
+            trainingsMap.get(code).push(trn.date || trn.createdAt);
           }
         }
       });
@@ -2764,10 +2765,12 @@ app.get('/api/employees',
 
     const enrichedEmployees = employees.map(emp => {
       const code = normalizeEmpCode(emp.code || emp.empCode);
+      const empTrainings = trainingsMap.get(code) || [];
       return {
         ...emp,
         hazardCount: hazardsMap.get(code) || 0,
-        trainingHours: trainingsMap.get(code) || 0
+        trainingDates: empTrainings,
+        trainingHours: empTrainings.length * 0.5
       };
     });
 

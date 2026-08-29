@@ -10,6 +10,19 @@
     },
     "role": "supervisor",
     "empCode": null,
-    "updatedAt": "2026-08-29T14:59:01.927Z"
+    "updatedAt": "2026-08-29T15:04:38.005Z"
+  },
+  {
+    "subscription": {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/dxCOh_wtGN8:APA91bGrjEBhhBDga6wOXQoEwE9p3u2yj4XOvfJCwzzL9d4WGlW4O1rwtwQ_qGUihRj4l5s6b9hacLdVyev4fNAhlFOqdGB2hRaDyIjsz95fjb4OhwWMERAM55rECkPjYaKW-SAP7EBa",
+      "expirationTime": null,
+      "keys": {
+        "p256dh": "BBrHLFPtNFL4u89uT_5wXSgmOEppEAaBmQUvquHjHTRiN_QzqZTfOEVSDPiJdmUjTkv00Z7Gp5pL-PynZkRxgq4",
+        "auth": "gUqsPme1pFhLuELAom4gBw"
+      }
+    },
+    "role": "supervisor",
+    "empCode": null,
+    "updatedAt": "2026-08-29T15:45:22.966Z"
   }
 ]

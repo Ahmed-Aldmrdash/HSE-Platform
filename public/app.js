@@ -2385,20 +2385,37 @@ async function renderEmployeesPanel() {
   if (emArea && supChip) emArea.innerHTML = supChip.innerHTML;
 
   try {
-    const [empRes, hzRes] = await Promise.all([
+    const [empRes, hazRes, trainRes] = await Promise.allSettled([
       authFetch('/api/employees'),
-      authFetch('/api/hazards')
+      authFetch('/api/hazards'),
+      authFetch('/api/trainings')
     ]);
-    if (!empRes.ok) throw new Error('fetch failed');
-    const data = await empRes.json();
-    _allEmployees = Array.isArray(data) ? data : (data.employees || data.data || []);
-    if (hzRes.ok) {
-       const hzData = await hzRes.json();
-       _allHazardsCache = hzData.hazards || [];
+
+    let empData = [];
+    if (empRes.status === 'fulfilled' && empRes.value.ok) {
+      empData = await empRes.value.json();
+    } else {
+      throw new Error('Failed to load employees from API');
     }
-    renderEmployeesTable(_allEmployees);
-  } catch(e) {
-    listEl.innerHTML = '<div class="empty" style="color:var(--danger);">فشل تحميل الموظفين</div>';
+
+    if (hazRes.status === 'fulfilled' && hazRes.value.ok) {
+      const hzData = await hazRes.value.json();
+      window._allHazardsCache = hzData.hazards || [];
+    } else {
+      window._allHazardsCache = [];
+    }
+
+    if (trainRes.status === 'fulfilled' && trainRes.value.ok) {
+      window._trainingsCache = await trainRes.value.json();
+    } else {
+      window._trainingsCache = [];
+    }
+
+    window._allEmployees = Array.isArray(empData) ? empData : (empData.employees || []);
+    renderEmployeesTable(window._allEmployees);
+  } catch (err) {
+    console.error('Error in renderEmployeesPanel:', err);
+    document.getElementById('empDirList').innerHTML = `<p style="color:var(--danger); text-align:center; padding:2rem;">فشل تحميل الموظفين: ${err.message}</p>`;
   }
 }
 
@@ -2406,11 +2423,165 @@ async function renderEmployeesPanel() {
 function renderEmployeesTable(list) {
   const listEl = document.getElementById('empDirList');
   if (!listEl) return;
+  
+  if (!Array.isArray(list)) list = [];
+  
   if (list.length === 0) {
     listEl.innerHTML = '<div class="empty"><div class="icon">👤</div>لا يوجد موظفون بعد — أضف موظفاً أو استورد ملف Excel</div>';
     return;
   }
-  listEl.innerHTML = `
+  const lbTimeframe = window._lbTimeframe || 'all';
+  let cutoffDate = null;
+  if (lbTimeframe !== 'all') {
+    cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - parseInt(lbTimeframe));
+  }
+
+  // 1. Process stats for all employees in scope
+  let totalTHours = 0;
+  let totalHCount = 0;
+  let totalTPerc = 0;
+  
+  const processedList = list.map(e => {
+    const eCode = normalizeEmpCode(e.code || e.empCode || '');
+    
+    // Filter hazards by timeframe
+    const hCount = (window._allHazardsCache || []).filter(h => {
+      if (normalizeEmpCode(h.empCode || h.submittedByCode || '') !== eCode) return false;
+      if (cutoffDate) {
+        const hDate = new Date(h.createdAt || h.date);
+        if (hDate < cutoffDate) return false;
+      }
+      return true;
+    }).length;
+
+    // Filter training hours by timeframe
+    let tHours = e.trainingHours || 0;
+    if (cutoffDate && Array.isArray(e.trainingDates)) {
+      const recentTrainings = e.trainingDates.filter(d => new Date(d) >= cutoffDate);
+      tHours = recentTrainings.length * 0.5;
+    }
+
+    const hTarget = 2;
+    const tTarget = 8;
+    const hPerc = Math.min(100, Math.round((hCount / hTarget) * 100));
+    const tPerc = Math.min(100, Math.round((tHours / tTarget) * 100));
+    const score = (tHours * 10) + (hCount * 15);
+    
+    totalTHours += tHours;
+    totalHCount += hCount;
+    totalTPerc += tPerc;
+    
+    return { ...e, hCount, hPerc, tHours, tPerc, score, eCode };
+  });
+
+  const avgTPerc = processedList.length > 0 ? Math.round(totalTPerc / processedList.length) : 0;
+  
+  // 2. Generate Filter Bar HTML
+  const filtersHtml = `
+    <div class="emp-leaderboard-wrap" style="margin-bottom:16px; padding:12px 16px;">
+      <div class="leaderboard-filters" style="display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;gap:4px;flex-wrap:wrap;">
+          <span style="font-size:12px;color:var(--muted);margin-left:auto;align-self:center;">الفترة الزمنية:</span>
+          <button class="lb-filter-btn ${lbTimeframe === 'all' ? 'active' : ''}" onclick="window._lbTimeframe='all'; renderEmployeesTable(_allEmployees)">الكل</button>
+          <button class="lb-filter-btn ${lbTimeframe === '7' ? 'active' : ''}" onclick="window._lbTimeframe='7'; renderEmployeesTable(_allEmployees)">خلال أسبوع</button>
+          <button class="lb-filter-btn ${lbTimeframe === '14' ? 'active' : ''}" onclick="window._lbTimeframe='14'; renderEmployeesTable(_allEmployees)">خلال أسبوعين</button>
+          <button class="lb-filter-btn ${lbTimeframe === '30' ? 'active' : ''}" onclick="window._lbTimeframe='30'; renderEmployeesTable(_allEmployees)">خلال شهر</button>
+          <button class="lb-filter-btn ${lbTimeframe === '90' ? 'active' : ''}" onclick="window._lbTimeframe='90'; renderEmployeesTable(_allEmployees)">خلال 3 أشهر</button>
+          <button class="lb-filter-btn ${lbTimeframe === '365' ? 'active' : ''}" onclick="window._lbTimeframe='365'; renderEmployeesTable(_allEmployees)">خلال سنة</button>
+        </div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;">
+          <span style="font-size:12px;color:var(--muted);margin-left:auto;align-self:center;">الترتيب حسب:</span>
+          <button class="lb-filter-btn ${lbFilter === 'overall' ? 'active' : ''}" onclick="window._lbFilter='overall'; renderEmployeesTable(_allEmployees)">الترتيب العام</button>
+          <button class="lb-filter-btn ${lbFilter === 'hazards' ? 'active' : ''}" onclick="window._lbFilter='hazards'; renderEmployeesTable(_allEmployees)">الأكثر إبلاغاً</button>
+          <button class="lb-filter-btn ${lbFilter === 'training' ? 'active' : ''}" onclick="window._lbFilter='training'; renderEmployeesTable(_allEmployees)">التزاماً بالتدريب</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // 3. Generate Analytics Strip HTML
+  const analyticsHtml = `
+    <div class="emp-analytics-grid">
+      <div class="emp-kpi-card">
+        <div class="emp-kpi-icon">👥</div>
+        <div class="emp-kpi-value">${processedList.length}</div>
+        <div class="emp-kpi-label">إجمالي الموظفين</div>
+      </div>
+      <div class="emp-kpi-card">
+        <div class="emp-kpi-icon">🎓</div>
+        <div class="emp-kpi-value">${totalTHours}</div>
+        <div class="emp-kpi-label">ساعات التدريب المنجزة</div>
+      </div>
+      <div class="emp-kpi-card">
+        <div class="emp-kpi-icon">⚠️</div>
+        <div class="emp-kpi-value">${totalHCount}</div>
+        <div class="emp-kpi-label">بلاغات الخطورة المقدمة</div>
+      </div>
+      <div class="emp-kpi-card">
+        <div class="emp-kpi-icon">📈</div>
+        <div class="emp-kpi-value">${avgTPerc}%</div>
+        <div class="emp-kpi-label">متوسط نسبة الالتزام</div>
+      </div>
+    </div>
+  `;
+
+  // 3. Generate Leaderboard HTML
+  const lbFilter = window._lbFilter || 'overall';
+  let sortedLb = [...processedList];
+  if (lbFilter === 'hazards') {
+    sortedLb.sort((a, b) => b.hCount - a.hCount);
+  } else if (lbFilter === 'training') {
+    sortedLb.sort((a, b) => b.tHours - a.tHours);
+  } else {
+    sortedLb.sort((a, b) => b.score - a.score);
+  }
+  
+  // 4. Generate Leaderboard HTML
+  const top10 = sortedLb.slice(0, 10);
+  const champ = top10[0] || { name: '—', department: '—', tHours: 0, hCount: 0, score: 0 };
+  
+  const lbHtml = `
+    <div class="emp-leaderboard-wrap">
+      <div class="leaderboard-header">
+        <div class="leaderboard-title">🏆 لوحة الشرف والموظف المثالي</div>
+      </div>
+      <div class="leaderboard-content">
+        <div class="lb-champion-card">
+          <div class="lb-champion-crown">👑</div>
+          <div class="lb-champion-title">الموظف المثالي</div>
+          <div class="lb-champion-name">${escapeHtml(champ.name || '—')}</div>
+          <div class="lb-champion-dept">${escapeHtml(champ.department || '—')}</div>
+          <div class="lb-champion-stats">
+            <div class="lb-stat"><span class="lb-stat-val">${champ.tHours || 0}</span><span class="lb-stat-lbl">ساعة تدريب</span></div>
+            <div class="lb-stat"><span class="lb-stat-val">${champ.hCount || 0}</span><span class="lb-stat-lbl">بلاغ خطورة</span></div>
+            <div class="lb-stat"><span class="lb-stat-val" style="color:#d97706">${champ.score || 0}</span><span class="lb-stat-lbl">نقطة تميز</span></div>
+          </div>
+        </div>
+        <div class="lb-list">
+          ${top10.slice(1).map((emp, idx) => {
+            const rank = idx + 2;
+            let rankClass = '';
+            if (rank === 2) rankClass = 'silver';
+            else if (rank === 3) rankClass = 'bronze';
+            const rankIcon = rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
+            return `
+              <div class="lb-item">
+                <div class="lb-item-rank ${rankClass}">${rankIcon}</div>
+                <div class="lb-item-info">
+                  <div class="lb-item-name">${escapeHtml(emp.name || '—')}</div>
+                  <div class="lb-item-dept">${escapeHtml(emp.department || '—')} | ${escapeHtml(emp.empCode)}</div>
+                </div>
+                <div class="lb-item-score">${lbFilter === 'hazards' ? emp.hCount + ' بلاغ' : lbFilter === 'training' ? emp.tHours + ' ساعة' : emp.score + ' نقطة'}</div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+
+  listEl.innerHTML = filtersHtml + analyticsHtml + lbHtml + `
     <div class="um-table-wrap">
       <table class="um-table emp-dir-table">
         <thead>
@@ -2425,19 +2596,15 @@ function renderEmployeesTable(list) {
           </tr>
         </thead>
         <tbody>
-          ${list.map((e, i) => {
-            // Hazard calculations
-            const eCode = normalizeEmpCode(e.empCode);
-            const hCount = _allHazardsCache.filter(h => normalizeEmpCode(h.empCode || h.submittedByCode) === eCode).length;
+          ${processedList.map((e, i) => {
             const hTarget = 2; // Target per month/period
-            const hPerc = Math.min(100, Math.round((hCount / hTarget) * 100));
-            const hBadgeClass = hPerc >= 100 ? 'badge-green' : (hPerc >= 50 ? 'badge-yellow' : 'badge-red');
-            
-            // Training calculations
-            const tHours = e.trainingHours || 0;
             const tTarget = 8;
-            const tPerc = Math.min(100, Math.round((tHours / tTarget) * 100));
-            const tBadgeClass = tPerc >= 100 ? 'badge-green' : (tPerc >= 50 ? 'badge-yellow' : 'badge-red');
+            const hCount = e.hCount;
+            const tHours = e.tHours;
+            const hPerc = e.hPerc;
+            const tPerc = e.tPerc;
+            const hBadgeClass = e.hPerc >= 100 ? 'badge-green' : (e.hPerc >= 50 ? 'badge-yellow' : 'badge-red');
+            const tBadgeClass = e.tPerc >= 100 ? 'badge-green' : (e.tPerc >= 50 ? 'badge-yellow' : 'badge-red');
 
             return `
             <tr>
