@@ -2373,6 +2373,18 @@ const EMP_ROLE_LABELS = {
 
 function empRoleLabel(r){ return EMP_ROLE_LABELS[r] || r || 'عامل'; }
 
+
+function toArray(val) {
+  if (Array.isArray(val)) return val;
+  if (val && typeof val === 'object') {
+    if (Array.isArray(val.trainings)) return val.trainings;
+    if (Array.isArray(val.data)) return val.data;
+    if (Array.isArray(val.hazards)) return val.hazards;
+    if (Array.isArray(val.employees)) return val.employees;
+  }
+  return [];
+}
+
 /** Render the employees table panel (fetches from server) */
 async function renderEmployeesPanel() {
   const tableWrap = document.getElementById('empTableWrap');
@@ -2401,19 +2413,18 @@ async function renderEmployeesPanel() {
     }
 
     if (hazRes.status === 'fulfilled' && hazRes.value.ok) {
-      const hzData = await hazRes.value.json();
-      window._allHazardsCache = hzData.hazards || [];
+      window._allHazardsCache = toArray(await hazRes.value.json());
     } else {
       window._allHazardsCache = [];
     }
 
     if (trainRes.status === 'fulfilled' && trainRes.value.ok) {
-      window._trainingsCache = await trainRes.value.json();
+      window._trainingsCache = toArray(await trainRes.value.json());
     } else {
       window._trainingsCache = [];
     }
 
-    const rawList = Array.isArray(empData) ? empData : (empData.employees || []);
+    const rawList = toArray(empData);
     window._masterEmployeesList = Object.freeze([...rawList]);
     
     renderEmployeesPanelUI();
@@ -2438,8 +2449,11 @@ function computeEmployeeLiveStats(emp, cutoffDate = null) {
   const empCodeNorm = normalizeCode(emp.code || emp.empCode || emp.id);
   const empNameNorm = normalizeName(emp.name);
 
+  const hazardsList = toArray(window._allHazardsCache);
+  const trainingsList = toArray(window._trainingsCache);
+
   // 1. Calculate Hazards Count
-  const matchedHazards = (window._allHazardsCache || []).filter(h => {
+  const matchedHazards = hazardsList.filter(h => {
     if (cutoffDate) {
       const hDate = new Date(h.createdAt || h.date);
       if (hDate < cutoffDate) return false;
@@ -2455,13 +2469,13 @@ function computeEmployeeLiveStats(emp, cutoffDate = null) {
   let matchedTrainingHours = Number(emp.trainingHours || emp.hours || 0);
   let attendedTrainingsCount = Array.isArray(emp.trainings) ? emp.trainings.length : 0;
 
-  (window._trainingsCache || []).forEach(t => {
+  trainingsList.forEach(t => {
     if (cutoffDate) {
       const tDate = new Date(t.date || t.createdAt);
       if (tDate < cutoffDate) return;
     }
     
-    const attendees = t.attendees || t.attendedEmployees || [];
+    const attendees = toArray(t.attendees || t.attendedEmployees);
     const isAttended = attendees.some(att => {
       const attCode = normalizeCode(typeof att === 'object' ? (att.code || att.empCode || att.id) : att);
       const attName = normalizeName(typeof att === 'object' ? (att.name || att.empName) : '');
