@@ -2424,6 +2424,78 @@ async function renderEmployeesPanel() {
   }
 }
 
+function normalizeCode(val) {
+  if (val === null || val === undefined) return '';
+  return String(val).trim().replace(/^0+/, '') || '0';
+}
+
+function normalizeName(val) {
+  if (!val) return '';
+  return String(val).trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function computeEmployeeLiveStats(emp, cutoffDate = null) {
+  const empCodeNorm = normalizeCode(emp.code || emp.empCode || emp.id);
+  const empNameNorm = normalizeName(emp.name);
+
+  // 1. Calculate Hazards Count
+  const matchedHazards = (window._allHazardsCache || []).filter(h => {
+    if (cutoffDate) {
+      const hDate = new Date(h.createdAt || h.date);
+      if (hDate < cutoffDate) return false;
+    }
+    const hCode = normalizeCode(h.reporterCode || h.empCode || h.employeeCode || h.userId || '');
+    const hName = normalizeName(h.reporterName || h.reportedBy || h.userName || '');
+    const codeMatch = hCode && empCodeNorm && hCode === empCodeNorm;
+    const nameMatch = hName && empNameNorm && (hName === empNameNorm || hName.includes(empNameNorm) || empNameNorm.includes(hName));
+    return codeMatch || nameMatch;
+  });
+
+  // 2. Calculate Training Hours from Trainings Cache
+  let matchedTrainingHours = Number(emp.trainingHours || emp.hours || 0);
+  let attendedTrainingsCount = Array.isArray(emp.trainings) ? emp.trainings.length : 0;
+
+  (window._trainingsCache || []).forEach(t => {
+    if (cutoffDate) {
+      const tDate = new Date(t.date || t.createdAt);
+      if (tDate < cutoffDate) return;
+    }
+    
+    const attendees = t.attendees || t.attendedEmployees || [];
+    const isAttended = attendees.some(att => {
+      const attCode = normalizeCode(typeof att === 'object' ? (att.code || att.empCode || att.id) : att);
+      const attName = normalizeName(typeof att === 'object' ? (att.name || att.empName) : '');
+      return (attCode && empCodeNorm && attCode === empCodeNorm) || (attName && empNameNorm && attName === empNameNorm);
+    });
+    if (isAttended) {
+      attendedTrainingsCount++;
+      matchedTrainingHours += Number(t.durationHours || t.hours || 1);
+    }
+  });
+
+  // 3. Compute Composite Score (Points)
+  // E.g.: 10 points per hazard reported + 5 points per training hour
+  const totalScore = (matchedHazards.length * 10) + (matchedTrainingHours * 5);
+
+  const hTarget = 2;
+  const tTarget = 8;
+  const hPerc = Math.min(100, Math.round((matchedHazards.length / hTarget) * 100));
+  const tPerc = Math.min(100, Math.round((matchedTrainingHours / tTarget) * 100));
+
+  return {
+    ...emp,
+    hazardsCount: matchedHazards.length,
+    trainingHours: matchedTrainingHours,
+    trainingsCount: attendedTrainingsCount,
+    totalScore: totalScore,
+    hCount: matchedHazards.length,
+    tHours: matchedTrainingHours,
+    hPerc: hPerc,
+    tPerc: tPerc,
+    score: totalScore
+  };
+}
+
 /** Renders the Dashboard (Filters, KPIs, Leaderboard) independently of the main table */
 function renderEmployeesPanelUI() {
   const dashEl = document.getElementById('empDashboardWrap');
@@ -2450,36 +2522,11 @@ function renderEmployeesPanelUI() {
   let totalTPerc = 0;
   
   const processedList = fullList.map(e => {
-    const eCode = normalizeEmpCode(e.code || e.empCode || '');
-    
-    // Filter hazards by timeframe
-    const hCount = (window._allHazardsCache || []).filter(h => {
-      if (normalizeEmpCode(h.empCode || h.submittedByCode || '') !== eCode) return false;
-      if (cutoffDate) {
-        const hDate = new Date(h.createdAt || h.date);
-        if (hDate < cutoffDate) return false;
-      }
-      return true;
-    }).length;
-
-    // Filter training hours by timeframe
-    let tHours = e.trainingHours || 0;
-    if (cutoffDate && Array.isArray(e.trainingDates)) {
-      const recentTrainings = e.trainingDates.filter(d => new Date(d) >= cutoffDate);
-      tHours = recentTrainings.length * 0.5;
-    }
-
-    const hTarget = 2;
-    const tTarget = 8;
-    const hPerc = Math.min(100, Math.round((hCount / hTarget) * 100));
-    const tPerc = Math.min(100, Math.round((tHours / tTarget) * 100));
-    const score = (tHours * 10) + (hCount * 15);
-    
-    totalTHours += tHours;
-    totalHCount += hCount;
-    totalTPerc += tPerc;
-    
-    return { ...e, hCount, hPerc, tHours, tPerc, score, eCode };
+    const stats = computeEmployeeLiveStats(e, cutoffDate);
+    totalTHours += stats.tHours;
+    totalHCount += stats.hCount;
+    totalTPerc += stats.tPerc;
+    return stats;
   });
 
   const avgTPerc = processedList.length > 0 ? Math.round(totalTPerc / processedList.length) : 0;
@@ -2585,7 +2632,7 @@ function renderEmployeesPanelUI() {
                 <div class="lb-item-rank ${rankClass}">${rankIcon}</div>
                 <div class="lb-item-info">
                   <div class="lb-item-name">${escapeHtml(emp.name || '—')}</div>
-                  <div class="lb-item-dept">${escapeHtml(emp.department || '—')} | ${escapeHtml(emp.empCode)}</div>
+                  <div class="lb-item-dept">${escapeHtml(emp.department || '—')} | ${escapeHtml(emp.empCode || emp.code)}</div>
                 </div>
                 <div class="lb-item-score">${lbFilter === 'hazards' ? emp.hCount + ' بلاغ' : lbFilter === 'training' ? emp.tHours + ' ساعة' : emp.score + ' نقطة'}</div>
               </div>
@@ -2599,7 +2646,6 @@ function renderEmployeesPanelUI() {
   dashEl.innerHTML = filtersHtml + analyticsHtml + lbHtml;
 }
 
-/** Render (or re-render) the table from a given list */
 function renderEmployeesTable(list) {
   const listEl = document.getElementById('empDirList');
   if (!listEl) return;
@@ -2672,17 +2718,8 @@ function renderEmployeesTableRows(list) {
     return;
   }
   
-  // Re-process just the raw stats for the table rendering
-  const processedList = list.map(e => {
-    const eCode = normalizeEmpCode(e.code || e.empCode || '');
-    const hCount = (window._allHazardsCache || []).filter(h => normalizeEmpCode(h.empCode || h.submittedByCode || '') === eCode).length;
-    const tHours = e.trainingHours || 0;
-    const hTarget = 2;
-    const tTarget = 8;
-    const hPerc = Math.min(100, Math.round((hCount / hTarget) * 100));
-    const tPerc = Math.min(100, Math.round((tHours / tTarget) * 100));
-    return { ...e, hCount, hPerc, tHours, tPerc };
-  });
+  // Re-process just the raw stats for the table rendering using the live stats compute function
+  const processedList = list.map(e => computeEmployeeLiveStats(e, null));
 
   tbody.innerHTML = processedList.map((e, i) => {
     const hTarget = 2; // Target per month/period
@@ -2698,7 +2735,7 @@ function renderEmployeesTableRows(list) {
     <tr>
       <td style="color:var(--muted);font-size:12px;">${i + 1}</td>
       <td style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;color:var(--amber);">
-        ${escapeHtml(e.empCode)}
+        ${escapeHtml(e.empCode || e.code)}
       </td>
       <td style="font-weight:700;">${escapeHtml(e.name || '—')}</td>
       <td>
@@ -2725,8 +2762,8 @@ function renderEmployeesTableRows(list) {
       </td>
       <td>
         <div class="um-action-btns">
-          <button class="um-btn pass" onclick="openEmpModal('${escapeHtml(e.empCode)}')">✏️ تعديل</button>
-          <button class="um-btn del"  onclick="deleteEmployee('${escapeHtml(e.empCode)}','${escapeHtml(e.name||'')}')">🗑 حذف</button>
+          <button class="um-btn pass" onclick="openEmpModal('${escapeHtml(e.empCode || e.code)}')">✏️ تعديل</button>
+          <button class="um-btn del"  onclick="deleteEmployee('${escapeHtml(e.empCode || e.code)}','${escapeHtml(e.name||'')}')">🗑 حذف</button>
         </div>
       </td>
     </tr>
@@ -2735,7 +2772,6 @@ function renderEmployeesTableRows(list) {
   
   if (countEl) countEl.innerText = `إجمالي: ${list.length} موظف`;
 }
-
 function openEmpModal(code = null) {
   _empEditCode = code;
   const titleEl = document.getElementById('empModalTitle');
