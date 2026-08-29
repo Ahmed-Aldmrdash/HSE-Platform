@@ -2445,6 +2445,22 @@ function normalizeName(val) {
   return String(val).trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
+function isEmployeeInAttendees(emp, attendees) {
+  const empCodeNorm = normalizeCode(emp.code || emp.empCode || emp.id);
+  const empNameNorm = normalizeName(emp.name);
+
+  return toArray(attendees).some(att => {
+    if (!att) return false;
+    if (typeof att === 'string' || typeof att === 'number') {
+      const attStr = normalizeCode(att);
+      return (attStr && empCodeNorm && attStr === empCodeNorm) || normalizeName(att) === empNameNorm;
+    }
+    const attCode = normalizeCode(att.code || att.empCode || att.id || att.employeeId);
+    const attName = normalizeName(att.name || att.empName || att.employeeName);
+    return (attCode && empCodeNorm && attCode === empCodeNorm) || (attName && empNameNorm && attName === empNameNorm);
+  });
+}
+
 function computeEmployeeLiveStats(emp, cutoffDate = null) {
   const empCodeNorm = normalizeCode(emp.code || emp.empCode || emp.id);
   const empNameNorm = normalizeName(emp.name);
@@ -2475,13 +2491,7 @@ function computeEmployeeLiveStats(emp, cutoffDate = null) {
       if (tDate < cutoffDate) return;
     }
     
-    const attendees = toArray(t.attendees || t.attendedEmployees);
-    const isAttended = attendees.some(att => {
-      const attCode = normalizeCode(typeof att === 'object' ? (att.code || att.empCode || att.id) : att);
-      const attName = normalizeName(typeof att === 'object' ? (att.name || att.empName) : '');
-      return (attCode && empCodeNorm && attCode === empCodeNorm) || (attName && empNameNorm && attName === empNameNorm);
-    });
-    if (isAttended) {
+    if (isEmployeeInAttendees(emp, t.attendees || t.attendedEmployees)) {
       attendedTrainingsCount++;
       matchedTrainingHours += Number(t.durationHours || t.hours || 1);
     }
@@ -2655,7 +2665,7 @@ function renderEmployeesPanelUI() {
                   <div class="lb-item-name">${escapeHtml(emp.name || '—')}</div>
                   <div class="lb-item-dept">${escapeHtml(emp.department || '—')} | ${escapeHtml(emp.empCode || emp.code)}</div>
                 </div>
-                <div class="lb-item-score">${lbFilter === 'hazards' ? eStats.hazardsCount + ' بلاغ' : lbFilter === 'training' ? eStats.trainingHours + ' ساعة' : eStats.totalScore + ' نقطة'}</div>
+                <div class="lb-item-score">${lbFilter === 'hazards' ? eStats.hazardsCount + ' بلاغ' : lbFilter === 'training' ? eStats.trainingHours + ' ساعة' : `<span class="points-badge">${Number(eStats.totalScore || 0).toFixed(eStats.totalScore % 1 !== 0 ? 1 : 0)} نقطة</span>`}</div>
               </div>
             `;
           }).join('')}
