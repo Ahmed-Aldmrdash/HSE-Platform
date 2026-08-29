@@ -2479,24 +2479,34 @@ function renderEmployeesTable(list) {
 
   const avgTPerc = processedList.length > 0 ? Math.round(totalTPerc / processedList.length) : 0;
   
+  window.setLeaderboardFilter = function(filterType) {
+    window._lbFilter = filterType;
+    renderEmployeesTable(window._allEmployees || _allEmployees || []);
+  };
+  
+  window.setLeaderboardTimeframe = function(timeframe) {
+    window._lbTimeframe = timeframe;
+    renderEmployeesTable(window._allEmployees || _allEmployees || []);
+  };
+
   // 2. Generate Filter Bar HTML
   const filtersHtml = `
     <div class="emp-leaderboard-wrap" style="margin-bottom:16px; padding:12px 16px;">
       <div class="leaderboard-filters" style="display:flex;flex-direction:column;gap:12px;">
         <div style="display:flex;gap:4px;flex-wrap:wrap;">
           <span style="font-size:12px;color:var(--muted);margin-left:auto;align-self:center;">الفترة الزمنية:</span>
-          <button class="lb-filter-btn ${lbTimeframe === 'all' ? 'active' : ''}" onclick="window._lbTimeframe='all'; renderEmployeesTable(_allEmployees)">الكل</button>
-          <button class="lb-filter-btn ${lbTimeframe === '7' ? 'active' : ''}" onclick="window._lbTimeframe='7'; renderEmployeesTable(_allEmployees)">خلال أسبوع</button>
-          <button class="lb-filter-btn ${lbTimeframe === '14' ? 'active' : ''}" onclick="window._lbTimeframe='14'; renderEmployeesTable(_allEmployees)">خلال أسبوعين</button>
-          <button class="lb-filter-btn ${lbTimeframe === '30' ? 'active' : ''}" onclick="window._lbTimeframe='30'; renderEmployeesTable(_allEmployees)">خلال شهر</button>
-          <button class="lb-filter-btn ${lbTimeframe === '90' ? 'active' : ''}" onclick="window._lbTimeframe='90'; renderEmployeesTable(_allEmployees)">خلال 3 أشهر</button>
-          <button class="lb-filter-btn ${lbTimeframe === '365' ? 'active' : ''}" onclick="window._lbTimeframe='365'; renderEmployeesTable(_allEmployees)">خلال سنة</button>
+          <button class="lb-filter-btn ${lbTimeframe === 'all' ? 'active' : ''}" onclick="window.setLeaderboardTimeframe('all')">الكل</button>
+          <button class="lb-filter-btn ${lbTimeframe === '7' ? 'active' : ''}" onclick="window.setLeaderboardTimeframe('7')">خلال أسبوع</button>
+          <button class="lb-filter-btn ${lbTimeframe === '14' ? 'active' : ''}" onclick="window.setLeaderboardTimeframe('14')">خلال أسبوعين</button>
+          <button class="lb-filter-btn ${lbTimeframe === '30' ? 'active' : ''}" onclick="window.setLeaderboardTimeframe('30')">خلال شهر</button>
+          <button class="lb-filter-btn ${lbTimeframe === '90' ? 'active' : ''}" onclick="window.setLeaderboardTimeframe('90')">خلال 3 أشهر</button>
+          <button class="lb-filter-btn ${lbTimeframe === '365' ? 'active' : ''}" onclick="window.setLeaderboardTimeframe('365')">خلال سنة</button>
         </div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;">
           <span style="font-size:12px;color:var(--muted);margin-left:auto;align-self:center;">الترتيب حسب:</span>
-          <button class="lb-filter-btn ${lbFilter === 'overall' ? 'active' : ''}" onclick="window._lbFilter='overall'; renderEmployeesTable(_allEmployees)">الترتيب العام</button>
-          <button class="lb-filter-btn ${lbFilter === 'hazards' ? 'active' : ''}" onclick="window._lbFilter='hazards'; renderEmployeesTable(_allEmployees)">الأكثر إبلاغاً</button>
-          <button class="lb-filter-btn ${lbFilter === 'training' ? 'active' : ''}" onclick="window._lbFilter='training'; renderEmployeesTable(_allEmployees)">التزاماً بالتدريب</button>
+          <button class="lb-filter-btn ${lbFilter === 'overall' ? 'active' : ''}" onclick="window.setLeaderboardFilter('overall')">الترتيب العام</button>
+          <button class="lb-filter-btn ${lbFilter === 'hazards' ? 'active' : ''}" onclick="window.setLeaderboardFilter('hazards')">الأكثر إبلاغاً</button>
+          <button class="lb-filter-btn ${lbFilter === 'training' ? 'active' : ''}" onclick="window.setLeaderboardFilter('training')">التزاماً بالتدريب</button>
         </div>
       </div>
     </div>
