@@ -2430,7 +2430,9 @@ function renderEmployeesTable(list) {
     listEl.innerHTML = '<div class="empty"><div class="icon">👤</div>لا يوجد موظفون بعد — أضف موظفاً أو استورد ملف Excel</div>';
     return;
   }
-  const lbTimeframe = window._lbTimeframe || 'all';
+  
+  const lbFilter = typeof window._lbFilter !== 'undefined' ? window._lbFilter : 'overall';
+  const lbTimeframe = typeof window._lbTimeframe !== 'undefined' ? window._lbTimeframe : 'all';
   let cutoffDate = null;
   if (lbTimeframe !== 'all') {
     cutoffDate = new Date();
@@ -2527,7 +2529,6 @@ function renderEmployeesTable(list) {
   `;
 
   // 3. Generate Leaderboard HTML
-  const lbFilter = window._lbFilter || 'overall';
   let sortedLb = [...processedList];
   if (lbFilter === 'hazards') {
     sortedLb.sort((a, b) => b.hCount - a.hCount);
