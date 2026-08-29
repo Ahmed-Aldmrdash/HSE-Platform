@@ -129,7 +129,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 /** Auth: max 10 login attempts per 15 min per IP */
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'تجاوزت عدد محاولات تسجيل الدخول. حاول مجدداً بعد 15 دقيقة.' }
@@ -203,12 +203,22 @@ function enqueueWrite(fn) {
   return _writeQueue;
 }
 
+function safeJsonParse(data, fallback = []) {
+  try {
+    if (!data) return fallback;
+    const clean = data.toString().replace(/^\uFEFF/, '').trim();
+    return clean ? JSON.parse(clean) : fallback;
+  } catch (e) {
+    return fallback;
+  }
+}
+
 // ── Storage Helpers ───────────────────────────────────────────
 function readStorage() {
   if (!fs.existsSync(DATA_FILE)) return {};
   try {
-    const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-    // Data Migration on Startup / Read
+    const raw = fs.readFileSync(DATA_FILE, 'utf8');
+    const data = safeJsonParse(raw, {});
     if (data['work-permits'] && typeof data['work-permits'] === 'string') {
       try {
         let permits = JSON.parse(data['work-permits']);
@@ -267,7 +277,8 @@ function writeStorage(data) {
 function readHazards() {
   if (!fs.existsSync(HAZARDS_FILE)) return [];
   try {
-    return JSON.parse(fs.readFileSync(HAZARDS_FILE, 'utf8'));
+    const raw = fs.readFileSync(HAZARDS_FILE, 'utf8');
+    return safeJsonParse(raw, []);
   } catch (err) {
     console.error('Error reading hazard-reports.json:', err);
     return [];
@@ -296,7 +307,8 @@ function normalizeEmpCode(code) {
 function readEmployees() {
   if (!fs.existsSync(EMPLOYEES_FILE)) return [];
   try {
-    return JSON.parse(fs.readFileSync(EMPLOYEES_FILE, 'utf8'));
+    const raw = fs.readFileSync(EMPLOYEES_FILE, 'utf8');
+    return safeJsonParse(raw, []);
   } catch (err) {
     console.error('Error reading employees.json:', err);
     return [];
@@ -318,7 +330,8 @@ function writeEmployees(data) {
 function readTrainingTopics() {
   if (!fs.existsSync(TRAINING_TOPICS_FILE)) return [];
   try {
-    return JSON.parse(fs.readFileSync(TRAINING_TOPICS_FILE, 'utf8'));
+    const raw = fs.readFileSync(TRAINING_TOPICS_FILE, 'utf8');
+    return safeJsonParse(raw, []);
   } catch (err) {
     console.error('Error reading training-topics.json:', err);
     return [];
@@ -328,7 +341,8 @@ function readTrainingTopics() {
 function readTrainings() {
   if (!fs.existsSync(TRAININGS_FILE)) return [];
   try {
-    return JSON.parse(fs.readFileSync(TRAININGS_FILE, 'utf8'));
+    const raw = fs.readFileSync(TRAININGS_FILE, 'utf8');
+    return safeJsonParse(raw, []);
   } catch (err) {
     console.error('Error reading trainings.json:', err);
     return [];
@@ -350,7 +364,8 @@ function writeTrainings(data) {
 function readNotifications() {
   if (!fs.existsSync(NOTIFICATIONS_FILE)) return [];
   try {
-    return JSON.parse(fs.readFileSync(NOTIFICATIONS_FILE, 'utf8'));
+    const raw = fs.readFileSync(NOTIFICATIONS_FILE, 'utf8');
+    return safeJsonParse(raw, []);
   } catch (err) {
     console.error('Error reading notifications.json:', err);
     return [];
@@ -368,8 +383,10 @@ function writeNotifications(data) {
 }
 
 function readSubscriptions() {
-  try { return JSON.parse(fs.readFileSync(SUBSCRIPTIONS_FILE, 'utf8')); }
-  catch { return []; }
+  try { 
+    const raw = fs.readFileSync(SUBSCRIPTIONS_FILE, 'utf8');
+    return safeJsonParse(raw, []); 
+  } catch { return []; }
 }
 
 function writeSubscriptions(data) {
@@ -1086,12 +1103,8 @@ async function syncHazardsExcelFromData(hazards) {
 // ── GET /api/storage/:key — جلب قيمة (مفتوح للجميع)
 app.get('/api/storage/:key', (req, res) => {
   const data = readStorage();
-  const key  = req.params.key;
-  if (Object.prototype.hasOwnProperty.call(data, key)) {
-    res.json({ key, value: data[key] });
-  } else {
-    res.status(404).json({ error: 'Key not found' });
-  }
+  const key = req.params.key;
+  res.json({ key, value: data[key] || '[]' });
 });
 
 // ── POST /api/storage/:key — حفظ قيمة (rate-limited on work-permits key)
@@ -1525,6 +1538,8 @@ app.post('/api/hazards', submitLimiter, async (req, res) => {
       status:           'open',
       actionTaken:      '',
       photoUrl:         photoUrl,
+      deletedBy: { areaAdmin: false, safetyAdmin: false, superAdmin: false, worker: false },
+      permanentlyDeletedBy: { areaAdmin: false, safetyAdmin: false, superAdmin: false, worker: false },
       submittedAt:      new Date().toISOString()
     };
 
@@ -1669,7 +1684,7 @@ app.patch('/api/hazards/:id', authenticateToken, requireRole('super_admin', 'hse
       });
 
     } else if (action === 'start_maintenance') {
-      if (req.user.role !== 'maint_admin' && req.user.role !== 'super_admin') {
+      if (req.user.role !== 'maint_admin') {
         result = { status: 403, body: { error: 'فقط فريق الصيانة يمكنه بدء الإصلاح' } };
         return;
       }
@@ -1683,8 +1698,8 @@ app.patch('/api/hazards/:id', authenticateToken, requireRole('super_admin', 'hse
       h.updatedBy = updater;
 
     } else if (action === 'reject_maintenance' || action === 'reject_maint') {
-      if (req.user.role !== 'maint_admin' && req.user.role !== 'super_admin') {
-        result = { status: 403, body: { error: 'غير مصرح' } };
+      if (req.user.role !== 'maint_admin') {
+        result = { status: 403, body: { error: 'فقط فريق الصيانة يمكنه رفض الإصلاح' } };
         return;
       }
       if (req.user.role === 'maint_admin' && h.assignedToMaintenance !== req.user.department) {
@@ -1702,6 +1717,12 @@ app.patch('/api/hazards/:id', authenticateToken, requireRole('super_admin', 'hse
       h.maintRejectedAt = now;
       h.rejectedByMaintName = updater; // Legacy support
       h.rejectedByMaintAt = now; // Legacy support
+      
+      // Global reject fields for timeline sync
+      h.rejectedAt = now;
+      h.rejectedBy = updater;
+      h.rejectionReason = h.maintRejectReason;
+      
       h.updatedBy = updater;
 
       createNotification({
@@ -1728,6 +1749,12 @@ app.patch('/api/hazards/:id', authenticateToken, requireRole('super_admin', 'hse
       h.hseRejectedAt = now;
       h.rejectedByHseName = updater; // Legacy support
       h.rejectedByHseAt = now; // Legacy support
+      
+      // Global reject fields for timeline sync
+      h.rejectedAt = now;
+      h.rejectedBy = updater;
+      h.rejectionReason = h.hseRejectReason;
+      
       h.updatedBy = updater;
 
       if (h.reporterId) {
@@ -1741,7 +1768,7 @@ app.patch('/api/hazards/:id', authenticateToken, requireRole('super_admin', 'hse
       }
 
     } else if (action === 'resolve_maintenance') {
-      if (req.user.role !== 'maint_admin' && req.user.role !== 'super_admin') {
+      if (req.user.role !== 'maint_admin') {
         result = { status: 403, body: { error: 'فقط فريق الصيانة يمكنه إغلاق البلاغ' } };
         return;
       }
@@ -1759,6 +1786,11 @@ app.patch('/api/hazards/:id', authenticateToken, requireRole('super_admin', 'hse
       h.resolvedAt = now;
       h.status = 'resolved';
       h.updatedBy = updater;
+
+      if (!h.inProgressAt) {
+        h.inProgressAt = h.startedAt || h.resolvedAt;
+        h.inProgressBy = h.startedByName || h.resolvedByMaintenanceName;
+      }
 
       if (h.reporterId) {
         createNotification({
@@ -1796,9 +1828,13 @@ app.patch('/api/hazards/:id', authenticateToken, requireRole('super_admin', 'hse
       if (actionTaken !== undefined) h.actionTaken = sanitizeStr(actionTaken, 1000);
       h.updatedBy = updater;
       
-      if (status === 'resolved' || status === 'closed') {
-        h.resolvedAt = now;
-        h.resolvedBy = updater;
+      if (status === 'resolved' || status === 'closed' || status === 'completed') {
+        h.resolvedAt = h.resolvedAt || now;
+        h.resolvedBy = h.resolvedBy || updater;
+        if (!h.inProgressAt) {
+          h.inProgressAt = h.resolvedAt;
+          h.inProgressBy = h.resolvedBy;
+        }
       }
     } else {
       result = { status: 400, body: { error: 'إجراء غير معروف' } };
@@ -1855,11 +1891,13 @@ app.delete('/api/hazards/:id', authenticateToken, requireRole('super_admin', 'hs
        return;
     }
 
-    h.deleted = true;
-    h.deletedAt = new Date().toISOString();
-    h.deletedBy = sanitizeStr(req.user.name || req.user.username, 100);
-    h.deletedByRole = req.user.role;
-    h.deleteReason = sanitizeStr(reason || '', 1000);
+    const role = req.user?.role;
+    const roleKey = getRoleKey(role);
+    h.deletedBy = h.deletedBy && typeof h.deletedBy === 'object'
+      ? h.deletedBy
+      : { areaAdmin: false, safetyAdmin: false, superAdmin: false, worker: false };
+    h.deletedBy[roleKey] = true;
+    h.lastDeletedByUsername = req.user?.username || 'Admin';
 
     writeHazards(hazards);
     result = { status: 200, body: { success: true } };
@@ -1902,11 +1940,16 @@ app.post('/api/hazards/:id/restore', authenticateToken, requireRole('super_admin
        return;
     }
 
+    const role = req.user?.role;
+    const roleKey = getRoleKey(role);
+    if (h.deletedBy && typeof h.deletedBy === 'object') {
+      h.deletedBy[roleKey] = false;
+    }
+    h.permanentlyDeletedBy = h.permanentlyDeletedBy || { areaAdmin: false, safetyAdmin: false, superAdmin: false, worker: false };
+    h.permanentlyDeletedBy[roleKey] = false;
+
+    // clean legacy
     h.deleted = false;
-    delete h.deletedAt;
-    delete h.deletedBy;
-    delete h.deletedByRole;
-    delete h.deleteReason;
 
     writeHazards(hazards);
     result = { status: 200, body: { success: true } };
@@ -1939,11 +1982,23 @@ app.delete('/api/hazards/:id/permanent', authenticateToken, requireRole('super_a
        return;
     }
 
-    if (!h.deleted) {
-      result = { status: 400, body: { error: 'يجب نقل البلاغ إلى سلة المحذوفات أولاً' } };
+    const role = req.user?.role;
+    const roleKey = getRoleKey(role);
+
+    if (h.deletedBy && typeof h.deletedBy === 'object' && !h.deletedBy[roleKey] && !h.deleted) {
+      result = { status: 400, body: { error: 'البلاغ ليس في سلة المحذوفات الخاصة بك' } };
       return;
     }
-    hazards.splice(idx, 1);
+
+    h.permanentlyDeletedBy = h.permanentlyDeletedBy || { areaAdmin: false, safetyAdmin: false, superAdmin: false, worker: false };
+    h.permanentlyDeletedBy[roleKey] = true;
+
+    // Only completely remove if ALL roles have permanently deleted it
+    const perm = h.permanentlyDeletedBy;
+    if (perm.areaAdmin && perm.safetyAdmin && perm.superAdmin && perm.worker) {
+      hazards.splice(idx, 1);
+    }
+
     writeHazards(hazards);
     result = { status: 200, body: { success: true } };
   });
@@ -2107,17 +2162,14 @@ app.post('/api/permits/:id/restore', authenticateToken, requireRole('super_admin
       return;
     }
 
-    if (req.user.role !== 'super_admin' && permits[idx].deletedByUsername !== req.user.username) {
-      result = { status: 403, body: { error: 'ليس لديك صلاحية لاستعادة هذا الطلب' } };
-      return;
-    }
-
     const role = req.user?.role;
     const roleKey = getRoleKey(role);
     
     if (permits[idx].deletedBy) {
       permits[idx].deletedBy[roleKey] = false;
     }
+    permits[idx].permanentlyDeletedBy = permits[idx].permanentlyDeletedBy || { areaAdmin: false, safetyAdmin: false, superAdmin: false, worker: false };
+    permits[idx].permanentlyDeletedBy[roleKey] = false;
 
     delete permits[idx].deletedAt;
     delete permits[idx].deleteReason;
@@ -2155,11 +2207,6 @@ app.delete('/api/permits/:id/permanent', authenticateToken, requireRole('super_a
       return;
     }
 
-    if (req.user.role !== 'super_admin' && permits[idx].deletedByUsername !== req.user.username) {
-        result = { status: 403, body: { error: 'ليس لديك صلاحية للحذف النهائي لهذا الطلب' } };
-        return;
-    }
-
     const role = req.user?.role;
     const roleKey = getRoleKey(role);
 
@@ -2168,7 +2215,14 @@ app.delete('/api/permits/:id/permanent', authenticateToken, requireRole('super_a
       return;
     }
 
-    permits.splice(idx, 1);
+    permits[idx].permanentlyDeletedBy = permits[idx].permanentlyDeletedBy || { areaAdmin: false, safetyAdmin: false, superAdmin: false, worker: false };
+    permits[idx].permanentlyDeletedBy[roleKey] = true;
+
+    // Only completely remove if ALL roles have permanently deleted it
+    const perm = permits[idx].permanentlyDeletedBy;
+    if (perm.areaAdmin && perm.safetyAdmin && perm.superAdmin && perm.worker) {
+      permits.splice(idx, 1);
+    }
 
     storage['work-permits'] = JSON.stringify(permits);
     if (writeStorage(storage)) {
@@ -2310,14 +2364,19 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
   // Check empCode in employees sheet
   const employees = readEmployees();
   const searchCode = normalizeEmpCode(empCodeStr);
-  const employee = employees.find(e => {
+  let employee = employees.find(e => {
     const code = normalizeEmpCode(String(e.empCode || e.code || e.id || '').trim());
     return code === searchCode;
   });
 
   if (!employee) {
-    console.log(`[LOGIN ERROR] EmpCode not found in employees DB: ${empCodeStr}`);
-    return res.status(401).json({ error: `الكود الوظيفي (${empCodeStr}) غير مسجل في قاعدة بيانات الموظفين` });
+    if (['super_admin', 'superadmin', 'hse_admin', 'dept_admin', 'maint_admin'].includes(user.role)) {
+      console.log(`[LOGIN] Bypassed employee lookup for admin: ${usernameStr}`);
+      employee = { name: user.name || 'Admin', department: user.department || '' };
+    } else {
+      console.log(`[LOGIN ERROR] EmpCode not found in employees DB: ${empCodeStr}`);
+      return res.status(401).json({ error: `الكود الوظيفي (${empCodeStr}) غير مسجل في قاعدة بيانات الموظفين` });
+    }
   }
 
   // Check department authorization for dept_admin

@@ -1,6 +1,22 @@
 // ============================================================
-// ⚠️ GLOBAL ERROR BOUNDARY
+// ⚠️ GLOBAL ERROR BOUNDARY & FALLBACKS
 // ============================================================
+window.currentSessionType = window.currentSessionType || 'supervisor';
+var currentSessionType = window.currentSessionType;
+var currentAdminToken = typeof getToken === 'function' ? getToken() : (sessionStorage.getItem('wp_auth_token') || '');
+
+window.playNotificationChime = function() {
+  try {
+    if (typeof chimeAudio !== 'undefined' && chimeAudio) {
+      chimeAudio.play().catch(() => {});
+    }
+  } catch (e) {}
+};
+
+window.pollMyHazards = function() {
+  if (typeof silentRefreshHazards === 'function') silentRefreshHazards();
+};
+
 window.onerror = function(msg, url, lineNo, columnNo, error) {
   console.error('Unhandled error:', msg, url, lineNo, columnNo, error);
   // Prevent white screen lockup by catching it early
@@ -1498,16 +1514,26 @@ async function pollPermitsForSupervisor(){
   }
 }
 
+const statusTranslations = {
+  'pending': 'قيد الانتظار',
+  'pending_dept': 'بانتظار أدمن القسم',
+  'pending_hse': 'بانتظار السلامة والصحة المهنية',
+  'approved_area': 'معتمد من مدير المنطقة',
+  'approved': 'معتمد',
+  'rejected': 'مرفوض',
+  'rejected_area': 'مرفوض من رئيس القسم',
+  'rejected_high_management': 'مرفوض من الإدارة العليا',
+  'completed': 'مغلق / مكتمل'
+};
+
+function getStatusBadgeArabic(status) {
+  const key = String(status || '').toLowerCase().trim();
+  if (key.startsWith('closed')) return 'مغلق / مكتمل';
+  return statusTranslations[key] || status;
+}
+
 function statusLabel(raw){
-  const s = raw ? String(raw).toLowerCase() : '';
-  if(s==='pending' || s==='pending_dept' || s==='pending_area_head') return 'بانتظار أدمن القسم';
-  if(s==='pending_hse') return 'بانتظار السلامة والصحة المهنية';
-  if(s==='approved') return 'معتمد';
-  if(s==='rejected') return 'مرفوض';
-  if(s==='rejected_area') return 'مرفوض من رئيس القسم';
-  if(s==='rejected_high_management') return 'مرفوض من الإدارة العليا';
-  if(s && s.startsWith('closed')) return 'مغلق';
-  return raw || '';
+  return getStatusBadgeArabic(raw);
 }
 function closureLabel(c){
   if(!c) return '';
@@ -1541,12 +1567,16 @@ function renderList(){
 
   // 1. Separate all permits strictly into Active and Trashed
   const activePermits = [...permitsCache].reverse().filter(p => {
+    const isPermanentlyDeletedForMe = p.permanentlyDeletedBy && p.permanentlyDeletedBy[currentRoleKey] === true;
+    if (isPermanentlyDeletedForMe) return false;
     const deletedBy = (typeof p.deletedBy === 'object' && p.deletedBy !== null) ? p.deletedBy : {};
     const isDeletedForMe = deletedBy[currentRoleKey] === true;
     return !isDeletedForMe;
   });
 
   const trashedPermits = [...permitsCache].reverse().filter(p => {
+    const isPermanentlyDeletedForMe = p.permanentlyDeletedBy && p.permanentlyDeletedBy[currentRoleKey] === true;
+    if (isPermanentlyDeletedForMe) return false;
     const deletedBy = (typeof p.deletedBy === 'object' && p.deletedBy !== null) ? p.deletedBy : {};
     return deletedBy[currentRoleKey] === true;
   });
@@ -1559,10 +1589,12 @@ function renderList(){
     baseList = baseList.filter(p => {
       if (currentUserRole === 'dept_admin' && p.department !== currentUserDept) return false;
       if (currentUserRole === 'hse_admin') {
+         if (p.status === 'rejected_area' || (p.status === 'rejected' && p.rejectedByRole === 'dept_admin')) return false;
          if (p.status === 'pending_hse' || p.status === 'approved' || (p.status && p.status.startsWith('rejected')) || (p.status && p.status.startsWith('closed'))) return true;
          return false;
       }
       if (currentUserRole === 'super_admin') {
+         if (p.status === 'rejected_area' || (p.status === 'rejected' && p.rejectedByRole === 'dept_admin')) return false;
          const isApprovedOrClosed = p.status === 'pending_hse' || p.status === 'approved' || (p.status && p.status.startsWith('rejected')) || (p.status && p.status.startsWith('closed'));
          return isApprovedOrClosed;
       }
@@ -1578,6 +1610,8 @@ function renderList(){
 
   // 4. Apply status and type filters
   const list = baseList.filter(p => {
+    if (currentFilter !== '🗑️ المحذوفات' && p.deletedBy?.[currentRoleKey] === true) return false;
+    
     if (currentFilter === '🗑️ المحذوفات') return typeFilterMatch(p);
     return statusFilterMatch(p.status) && typeFilterMatch(p);
   });
@@ -1620,12 +1654,12 @@ function renderList(){
     const normalizedStatus = p.status ? String(p.status).toLowerCase() : '';
     // Status Badge Logic
     let statusBadge = '';
-    if (normalizedStatus === 'rejected_area' || normalizedStatus === 'rejected_high_management' || normalizedStatus === 'rejected') {
-       statusBadge = `<span class="badge badge-rejected">${statusLabel(p.status)}</span>`;
-    } else if (normalizedStatus === 'approved' || normalizedStatus.startsWith('closed')) {
-       statusBadge = `<span class="badge badge-approved">${statusLabel(p.status)}${normalizedStatus.startsWith('closed') ? ' — '+closureLabel(p.closure) : ''}</span>`;
+    if (normalizedStatus === 'rejected_area' || normalizedStatus === 'rejected_high_management' || normalizedStatus === 'rejected' || normalizedStatus.startsWith('reject')) {
+       statusBadge = `<span class="stamp rejected">${getStatusBadgeArabic(p.status)}</span>`;
+    } else if (normalizedStatus === 'approved' || normalizedStatus === 'approved_area' || normalizedStatus.startsWith('closed')) {
+       statusBadge = `<span class="badge badge-approved">${getStatusBadgeArabic(p.status)}${normalizedStatus.startsWith('closed') ? ' — '+closureLabel(p.closure) : ''}</span>`;
     } else {
-       statusBadge = `<span class="stamp ${p.status}">${statusLabel(p.status)}</span>`;
+       statusBadge = `<span class="stamp ${p.status}">${getStatusBadgeArabic(p.status)}</span>`;
     }
 
     return `
@@ -1722,12 +1756,14 @@ function renderList(){
         ${p.closure && p.closure.reason ? `<div class="review-note">السبب: ${escapeHtml(p.closure.reason)}</div>` : ''}
       ` : ''}
       ${currentFilter === '🗑️ المحذوفات' ? `
-        <div style="margin-top:12px; border-top:1px solid var(--paper-line); padding-top:10px;">
-          ${(currentUserRole === 'super_admin' || p.deletedByUsername === currentUsername) ? `
-          <button class="act-btn" style="background:var(--success); color:white; border:none; padding:6px 12px; border-radius:4px;" onclick="restorePermit('${p.id}')">استعادة ↩️</button>
-          <button class="act-btn" style="background:var(--danger); color:white; border:none; padding:6px 12px; border-radius:4px; margin-inline-start: 8px;" onclick="hardDeletePermit('${p.id}')">🔥 حذف نهائي</button>
+        <div style="margin-top:12px; border-top:1px solid var(--paper-line); padding-top:10px; display: flex; flex-direction: column; gap: 8px;">
+          ${(currentUserRole === 'super_admin' || p.deletedByUsername === currentUsername || p.lastDeletedByUsername === currentUsername) ? `
+          <div style="display: flex; gap: 8px;">
+            <button class="act-btn" style="flex:1; background:var(--success); color:white; border:none; padding:8px; border-radius:4px; cursor:pointer;" onclick="restorePermit('${p.id}')">🔄 استرجاع</button>
+            <button class="act-btn" style="flex:1; background:var(--danger); color:white; border:none; padding:8px; border-radius:4px; cursor:pointer;" onclick="hardDeletePermit('${p.id}')">❌ حذف نهائي</button>
+          </div>
           ` : ''}
-          <div style="font-size:12px; color:var(--danger); margin-top:6px;">حُذف بواسطة: ${escapeHtml(p.deletedByUsername||'')} | السبب: ${escapeHtml(p.deleteReason||'')}</div>
+          ${(p.lastDeletedByUsername || p.deletedByUsername) ? `<div style="font-size:12px; color:var(--danger); margin-top:4px; font-weight:bold;">حُذف بواسطة: ${escapeHtml(p.lastDeletedByUsername || p.deletedByUsername || 'المشرف')} ${p.deleteReason ? `| السبب: ${escapeHtml(p.deleteReason)}` : ''}</div>` : ''}
         </div>
       ` : ''}
       ${currentFilter !== '🗑️ المحذوفات' && (currentUserRole === 'super_admin' || currentUserRole === 'hse_admin' || currentUserRole === 'dept_admin') ? `
@@ -1804,6 +1840,12 @@ async function restorePermit(id) {
   try {
     const res = await authFetch(`/api/permits/${encodeURIComponent(id)}/restore`, { method: 'POST' });
     if(res.ok) {
+      const idx = permitsCache.findIndex(p => p.id === id);
+      if (idx !== -1) {
+        if (permitsCache[idx].deletedBy) permitsCache[idx].deletedBy[getRoleKey(currentUserRole)] = false;
+        if (permitsCache[idx].permanentlyDeletedBy) permitsCache[idx].permanentlyDeletedBy[getRoleKey(currentUserRole)] = false;
+        renderList();
+      }
       pollPermitsForSupervisor();
     } else {
       const data = await res.json();
@@ -1815,10 +1857,16 @@ async function restorePermit(id) {
 }
 
 async function hardDeletePermit(id) {
-  if(!confirm('هل أنت متأكد من حذف هذا الطلب نهائياً من قاعدة البيانات؟ لا يمكن التراجع عن هذا الإجراء')) return;
+  if(!confirm('هل أنت متأكد من حذف هذا الطلب نهائياً من سلة المحذوفات؟ لا يمكن التراجع عن هذا الإجراء')) return;
   try {
     const res = await authFetch(`/api/permits/${encodeURIComponent(id)}/permanent`, { method: 'DELETE' });
     if(res.ok) {
+      const idx = permitsCache.findIndex(p => p.id === id);
+      if (idx !== -1) {
+        permitsCache[idx].permanentlyDeletedBy = permitsCache[idx].permanentlyDeletedBy || {};
+        permitsCache[idx].permanentlyDeletedBy[getRoleKey(currentUserRole)] = true;
+        renderList();
+      }
       pollPermitsForSupervisor();
     } else {
       const data = await res.json();
@@ -2314,6 +2362,7 @@ initEmployeeSession();
 
 let _allEmployees   = [];   // full list fetched from server
 let _empEditCode    = null; // code being edited (null = add mode)
+let _allHazardsCache = [];
 
 const EMP_ROLE_LABELS = {
   worker:     'عامل / فني',
@@ -2336,10 +2385,17 @@ async function renderEmployeesPanel() {
   if (emArea && supChip) emArea.innerHTML = supChip.innerHTML;
 
   try {
-    const res  = await authFetch('/api/employees');
-    if (!res.ok) throw new Error('fetch failed');
-    const data = await res.json();
+    const [empRes, hzRes] = await Promise.all([
+      authFetch('/api/employees'),
+      authFetch('/api/hazards')
+    ]);
+    if (!empRes.ok) throw new Error('fetch failed');
+    const data = await empRes.json();
     _allEmployees = Array.isArray(data) ? data : (data.employees || data.data || []);
+    if (hzRes.ok) {
+       const hzData = await hzRes.json();
+       _allHazardsCache = hzData.hazards || [];
+    }
     renderEmployeesTable(_allEmployees);
   } catch(e) {
     listEl.innerHTML = '<div class="empty" style="color:var(--danger);">فشل تحميل الموظفين</div>';
@@ -2371,7 +2427,8 @@ function renderEmployeesTable(list) {
         <tbody>
           ${list.map((e, i) => {
             // Hazard calculations
-            const hCount = e.hazardCount || 0;
+            const eCode = normalizeEmpCode(e.empCode);
+            const hCount = _allHazardsCache.filter(h => normalizeEmpCode(h.empCode || h.submittedByCode) === eCode).length;
             const hTarget = 2; // Target per month/period
             const hPerc = Math.min(100, Math.round((hCount / hTarget) * 100));
             const hBadgeClass = hPerc >= 100 ? 'badge-green' : (hPerc >= 50 ? 'badge-yellow' : 'badge-red');
@@ -2672,9 +2729,10 @@ async function renderMyHistory(isSilent = false){
   }
 
   listEl.innerHTML = myPermits.map(p => {
-    const st = p.status || 'pending';
-    const stampClass = st.startsWith('closed') ? 'approved' : st;
-    const stampText = statusLabel(st) + (st.startsWith('closed') ? ' — ' + closureLabel(p.closure) : '');
+    const st = p.status ? String(p.status).toLowerCase() : 'pending';
+    let stampClass = st.startsWith('closed') ? 'approved' : st;
+    if (st.startsWith('rejected')) stampClass = 'rejected';
+    const stampText = getStatusBadgeArabic(st) + (st.startsWith('closed') ? ' — ' + closureLabel(p.closure) : '');
     return `
     <div class="permit-history-card">
       <div class="phc-top">
@@ -2769,6 +2827,10 @@ async function renderMyHazards(isSilent = false) {
         statusStr = 'تم الحل وإغلاق البلاغ 🟢';
         statusClass = 'hz-low';
         pendingDesc = 'تمت المعالجة بنجاح';
+      } else if (h.status && h.status.startsWith('rejected')) {
+        statusStr = 'مرفوض ❌';
+        statusClass = 'hz-high';
+        pendingDesc = 'تم رفض البلاغ';
       }
       
       let riskStr = h.riskLevel === 'H' ? 'High 🔴' : h.riskLevel === 'M' ? 'Medium 🟡' : 'Low 🟢';
@@ -2827,6 +2889,16 @@ async function renderMyHazards(isSilent = false) {
                 <span>${h.resolvedAt ? `${formatDateTime(h.resolvedAt)} (${escapeHtml(h.resolvedBy || 'المشرف')})` : 'لم ينتهِ بعد'}</span>
               </div>
             </div>
+            ${h.status && h.status.startsWith('rejected') ? `
+            <div class="timeline-step done" style="border-left-color: var(--danger);">
+              <span class="step-icon" style="background: var(--danger); color: white;">❌</span>
+              <div class="step-info">
+                <strong style="color: var(--danger);">تم رفض البلاغ:</strong>
+                <span>${h.rejectedAt ? `${formatDateTime(h.rejectedAt)} (بواسطة: ${escapeHtml(h.rejectedBy || 'المشرف')})` : '—'}</span>
+                <br><span style="color: var(--danger); font-size: 11px;">سبب الرفض: ${escapeHtml(h.rejectionReason || h.reason || 'لم يتم تحديد سبب')}</span>
+              </div>
+            </div>
+            ` : ''}
           </div>
         </div>
       `;
@@ -3102,7 +3174,7 @@ function getHazardCardHtml(h) {
           actionHtml += `<button onclick="openHzRejectHseModal('${h.id}')" class="act-btn approve" style="background:var(--danger); color:#fff;">🚫 رفض البلاغ</button>`;
         }
       }
-      if ((currentUserRole === 'maint_admin' && h.assignedToMaintenance === currentUserDept) || currentUserRole === 'super_admin') {
+      if (currentUserRole === 'maint_admin' && h.assignedToMaintenance === currentUserDept) {
         if (h.status === 'assigned_to_maintenance') {
           actionHtml += `<button onclick="startHzMaintenance('${h.id}')" class="act-btn approve" style="background:var(--amber); color:#000;">🟡 بدء الإصلاح</button>`;
           actionHtml += `<button onclick="openHzRejectMaintModal('${h.id}')" class="act-btn approve" style="background:var(--danger); color:#fff;">❌ رفض الإصلاح</button>`;
@@ -3124,15 +3196,23 @@ function getHazardCardHtml(h) {
   }
 
   let manageHtml = '';
-  if (h.deleted || (h.deletedByMaintenance && currentUserRole === 'maint_admin')) {
-    if (currentUserRole === 'super_admin' || currentUserRole === 'hse_admin' || (currentUserRole === 'maint_admin' && h.maintenanceDeletedDept === currentUserDept)) {
-      manageHtml = `<div style="display:flex; gap:8px; margin-top:12px; border-top:1px solid var(--paper-line); padding-top:12px;">
-        <button onclick="restoreHazard('${h.id}')" class="act-btn" style="flex:1; background:var(--success); color:#fff;">♻️ استعادة</button>
-        <button onclick="permanentDeleteHazard('${h.id}')" class="act-btn" style="flex:1; background:var(--danger); color:#fff;">🔥 حذف نهائي</button>
+  const currentRoleKey = getRoleKey(currentUserRole);
+  const deletedBy = (typeof h.deletedBy === 'object' && h.deletedBy !== null) ? h.deletedBy : {};
+  const isTrashedForMe = deletedBy[currentRoleKey] === true || h.deleted;
+  const maintDeletedForMe = h.deletedByMaintenance && currentUserRole === 'maint_admin' && h.maintenanceDeletedDept === currentUserDept;
+
+  if (isTrashedForMe || maintDeletedForMe) {
+    if (currentUserRole === 'super_admin' || currentUserRole === 'hse_admin' || currentUserRole === 'dept_admin' || (currentUserRole === 'maint_admin' && h.maintenanceDeletedDept === currentUserDept)) {
+      manageHtml = `<div style="display:flex; flex-direction:column; gap:8px; margin-top:12px; border-top:1px solid var(--paper-line); padding-top:12px;">
+        <div style="display:flex; gap:8px;">
+          <button onclick="restoreHazard('${h.id}')" class="act-btn" style="flex:1; background:var(--success); color:#fff;">🔄 استرجاع</button>
+          <button onclick="permanentDeleteHazard('${h.id}')" class="act-btn" style="flex:1; background:var(--danger); color:#fff;">❌ حذف نهائي</button>
+        </div>
+        ${(h.lastDeletedByUsername || h.deletedByUsername) ? `<div style="font-size:12px; color:var(--danger); margin-top:4px; font-weight:bold;">حُذف بواسطة: ${escapeHtml(h.lastDeletedByUsername || h.deletedByUsername || 'المشرف')} ${h.deleteReason ? `| السبب: ${escapeHtml(h.deleteReason)}` : ''}</div>` : ''}
       </div>`;
     }
   } else {
-    if (currentUserRole === 'super_admin' || currentUserRole === 'hse_admin' || (currentUserRole === 'maint_admin' && h.assignedToMaintenance === currentUserDept)) {
+    if (currentUserRole === 'super_admin' || currentUserRole === 'hse_admin' || currentUserRole === 'dept_admin' || (currentUserRole === 'maint_admin' && h.assignedToMaintenance === currentUserDept)) {
       manageHtml = `<div style="display:flex; justify-content:flex-end; margin-top:12px; border-top:1px solid var(--paper-line); padding-top:12px;">
         <button onclick="softDeleteHazard('${h.id}')" class="act-btn" style="background:var(--danger); color:#fff; padding:4px 8px; font-size:12px;">🗑️ حذف</button>
       </div>`;
@@ -3232,18 +3312,29 @@ async function renderSupHazard(isSilent = false) {
     }
 
     // Apply filters
+    const currentRoleKey = getRoleKey(currentUserRole);
     if (currentHzStatusFilter === '🗑️ المحذوفات') {
-       if (currentUserRole === 'maint_admin') {
-           hazards = hazards.filter(h => h.deletedByMaintenance && h.maintenanceDeletedDept === currentUserDept);
-       } else {
-           hazards = hazards.filter(h => h.deleted === true);
-       }
+       hazards = hazards.filter(h => {
+         const isPermanentlyDeletedForMe = h.permanentlyDeletedBy && h.permanentlyDeletedBy[currentRoleKey] === true;
+         if (isPermanentlyDeletedForMe) return false;
+         if (currentUserRole === 'maint_admin') {
+             return h.deletedByMaintenance && h.maintenanceDeletedDept === currentUserDept;
+         }
+         const deletedBy = (typeof h.deletedBy === 'object' && h.deletedBy !== null) ? h.deletedBy : {};
+         return deletedBy[currentRoleKey] === true || h.deleted === true;
+       });
     } else {
-       if (currentUserRole === 'maint_admin') {
-           hazards = hazards.filter(h => !h.deletedByMaintenance && !h.deleted);
-       } else {
-           hazards = hazards.filter(h => !h.deleted);
-       }
+       hazards = hazards.filter(h => {
+         const isPermanentlyDeletedForMe = h.permanentlyDeletedBy && h.permanentlyDeletedBy[currentRoleKey] === true;
+         if (isPermanentlyDeletedForMe) return false;
+         if (currentUserRole === 'maint_admin') {
+             if (h.deletedByMaintenance || h.deleted) return false;
+         } else {
+             const deletedBy = (typeof h.deletedBy === 'object' && h.deletedBy !== null) ? h.deletedBy : {};
+             if (deletedBy[currentRoleKey] === true || h.deleted === true) return false;
+         }
+         return true;
+       });
        if (currentHzStatusFilter !== 'الكل') {
          if (currentHzStatusFilter === 'مفتوح 🔴') hazards = hazards.filter(h => h.status === 'open');
          else if (currentHzStatusFilter === 'موجه للصيانة 📢') hazards = hazards.filter(h => h.status === 'assigned_to_maintenance');
@@ -3551,7 +3642,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function startHazardPolling() {
   if (window._hazardPollInterval) clearInterval(window._hazardPollInterval);
   window._hazardPollInterval = setInterval(async () => {
-    if (currentSessionType === 'supervisor') {
+    if (sessionRole === 'supervisor') {
       await updateHazardBadgeCount();
     }
     
@@ -3563,7 +3654,7 @@ function startHazardPolling() {
 }
 
 async function updateHazardBadgeCount() {
-  if (!currentAdminToken || currentSessionType !== 'supervisor') return;
+  if (!currentAdminToken || sessionRole !== 'supervisor') return;
   try {
     const res = await fetch('/api/hazards', { headers: { 'Authorization': `Bearer ${currentAdminToken}` }});
     if (!res.ok) return;
@@ -3587,7 +3678,7 @@ async function silentRefreshHazards() {
   const viewSup = document.getElementById('viewSupHazard');
   const viewMy = document.getElementById('viewMyHazards');
 
-  if (viewSup && viewSup.style.display !== 'none' && currentSessionType === 'supervisor' && currentAdminToken) {
+  if (viewSup && viewSup.style.display !== 'none' && sessionRole === 'supervisor' && currentAdminToken) {
     try {
       const res = await fetch('/api/hazards', { headers: { 'Authorization': `Bearer ${currentAdminToken}` }});
       if (!res.ok) return;

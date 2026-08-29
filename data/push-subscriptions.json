@@ -1,1 +1,15 @@
-﻿[]
+[
+  {
+    "subscription": {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/evYHTrtlgcs:APA91bE_CN1utGxVhLbHHdDL8o-4RepfQj1kWWrNDRXfw2yhUGURzLnsWdNL_06HnjPwFvhz7sNqVnCYz0QQZRjmU0bWpmApEHNheqNGBQ4v5VH-adO99mZ8RpXnKjj50eOWZGhwjVmt",
+      "expirationTime": null,
+      "keys": {
+        "p256dh": "BMTS_R07BrU1QsWtTiifEvYxf7p9Q-P9q2A8CwsLfabthEWDEO_OiZ_w4OY-93prcxvl9yYliXTsPrQqLx97PQQ",
+        "auth": "EokUggk6Aeb8IRkHIYIWzA"
+      }
+    },
+    "role": "supervisor",
+    "empCode": null,
+    "updatedAt": "2026-08-29T14:59:01.927Z"
+  }
+]
