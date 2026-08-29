@@ -2461,6 +2461,20 @@ function isEmployeeInAttendees(emp, attendees) {
   });
 }
 
+
+function getTrainingDuration(t) {
+  if (t && (t.durationHours !== undefined && t.durationHours !== null && t.durationHours !== '')) {
+    return Number(t.durationHours);
+  }
+  if (t && (t.hours !== undefined && t.hours !== null && t.hours !== '')) {
+    return Number(t.hours);
+  }
+  if (t && t.durationMinutes) {
+    return Number(t.durationMinutes) / 60;
+  }
+  return 0.5; // Default standard session is strictly 0.5 hours (30 mins)
+}
+
 function computeEmployeeLiveStats(emp, cutoffDate = null) {
   const empCodeNorm = normalizeCode(emp.code || emp.empCode || emp.id);
   const empNameNorm = normalizeName(emp.name);
@@ -2482,8 +2496,9 @@ function computeEmployeeLiveStats(emp, cutoffDate = null) {
   });
 
   // 2. Calculate Training Hours from Trainings Cache
-  let matchedTrainingHours = Number(emp.trainingHours || emp.hours || 0);
-  let attendedTrainingsCount = Array.isArray(emp.trainings) ? emp.trainings.length : 0;
+  let matchedTrainingHours = 0;
+  let attendedTrainingsCount = 0;
+  const countedTrainingIds = new Set();
 
   trainingsList.forEach(t => {
     if (cutoffDate) {
@@ -2491,15 +2506,19 @@ function computeEmployeeLiveStats(emp, cutoffDate = null) {
       if (tDate < cutoffDate) return;
     }
     
+    const tId = t._id || t.id || `${t.title}_${t.date}`;
+    if (countedTrainingIds.has(tId)) return;
+
     if (isEmployeeInAttendees(emp, t.attendees || t.attendedEmployees)) {
+      countedTrainingIds.add(tId);
       attendedTrainingsCount++;
-      matchedTrainingHours += Number(t.durationHours || t.hours || 1);
+      matchedTrainingHours += getTrainingDuration(t);
     }
   });
 
   // 3. Compute Composite Score (Points)
-  // E.g.: 10 points per hazard reported + 5 points per training hour
-  const totalScore = (matchedHazards.length * 10) + (matchedTrainingHours * 5);
+  // 10 points per hazard report + 10 points per training hour (0.5h = 5 points)
+  const totalScore = (matchedHazards.length * 10) + (matchedTrainingHours * 10);
 
   const hTarget = 2;
   const tTarget = 8;
