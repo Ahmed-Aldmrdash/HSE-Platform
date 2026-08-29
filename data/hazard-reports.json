@@ -1,1 +1,46 @@
-[]
+[
+  {
+    "id": "HZ-2026-0001",
+    "reporterName": "احمد محمد فتحي الدمرداش",
+    "empCode": "",
+    "date": "2026-08-29",
+    "department": "Quality Control",
+    "area": "فا",
+    "description": "فق",
+    "potentialInjury": "فق",
+    "proposedSolution": "",
+    "likelihood": 1,
+    "severity": "A",
+    "riskLevel": "L",
+    "status": "resolved",
+    "actionTaken": "",
+    "photoUrl": "",
+    "deletedBy": {
+      "areaAdmin": false,
+      "safetyAdmin": false,
+      "superAdmin": false,
+      "worker": false
+    },
+    "permanentlyDeletedBy": {
+      "areaAdmin": false,
+      "safetyAdmin": false,
+      "superAdmin": false,
+      "worker": false
+    },
+    "submittedAt": "2026-08-29T20:09:34.890Z",
+    "seenAt": "2026-08-29T20:09:37.888Z",
+    "seenBy": "احمد محمد فتحي الدمرداش",
+    "assignedToMaintenance": "Electrical Maintenance",
+    "forwardedByHseName": "احمد محمد فتحي الدمرداش",
+    "forwardedByHseAt": "2026-08-29T20:09:41.929Z",
+    "updatedBy": "يوسف محمد البخارى سعد",
+    "startedAt": "2026-08-29T20:09:48.209Z",
+    "startedByName": "يوسف محمد البخارى سعد",
+    "maintenanceAction": "قبل",
+    "maintenanceTeamNames": "سب",
+    "resolvedByMaintenanceName": "يوسف محمد البخارى سعد",
+    "resolvedAt": "2026-08-29T20:09:48.209Z",
+    "inProgressAt": "2026-08-29T20:09:48.209Z",
+    "inProgressBy": "يوسف محمد البخارى سعد"
+  }
+]

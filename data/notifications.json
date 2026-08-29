@@ -1,1 +1,106 @@
-[]
+[
+  {
+    "id": "NT-1788034175097-632",
+    "targetRole": "admin",
+    "targetEmpCode": null,
+    "targetGroup": null,
+    "type": "hazard",
+    "title": "بلاغ خطورة جديد 🚨",
+    "message": "بلاغ خطورة جديد في فا - فق",
+    "link": "tabSupHazard",
+    "targetId": null,
+    "readBy": [],
+    "createdAt": "2026-08-29T20:09:35.097Z"
+  },
+  {
+    "id": "NT-1788034181970-219",
+    "targetRole": null,
+    "targetEmpCode": null,
+    "targetGroup": null,
+    "type": "hazard",
+    "title": "بلاغ خطورة جديد",
+    "message": "تم توجيه بلاغ خطورة (HZ-2026-0001) إلى قسمكم من قبل احمد محمد فتحي الدمرداش.",
+    "link": "tabSupHazard",
+    "targetId": null,
+    "readBy": [],
+    "createdAt": "2026-08-29T20:09:41.970Z"
+  },
+  {
+    "id": "NT-1788034188240-106",
+    "targetRole": "hse_admin",
+    "targetEmpCode": null,
+    "targetGroup": null,
+    "type": "hazard",
+    "title": "إصلاح خطورة من الصيانة",
+    "message": "تم إصلاح بلاغ الخطورة (HZ-2026-0001) من قبل الصيانة.",
+    "link": "tabSupHazard",
+    "targetId": null,
+    "readBy": [],
+    "createdAt": "2026-08-29T20:09:48.240Z"
+  },
+  {
+    "id": "NT-1788034188245-88",
+    "targetRole": "dept_admin",
+    "targetEmpCode": null,
+    "targetGroup": null,
+    "type": "hazard",
+    "title": "إصلاح خطورة في قسمك",
+    "message": "تم إصلاح بلاغ الخطورة (HZ-2026-0001) في قسمك.",
+    "link": "tabSupHazard",
+    "targetId": null,
+    "readBy": [],
+    "createdAt": "2026-08-29T20:09:48.245Z"
+  },
+  {
+    "id": "NT-1788034243477-436",
+    "targetRole": "worker",
+    "targetEmpCode": null,
+    "targetGroup": null,
+    "type": "training",
+    "title": "محاضرة تدريبية جديدة 🎓",
+    "message": "محاضرة جديدة: مهمات الوقاية الشخصية PPE في غير محدد - الساعة 23:10",
+    "link": "tabTrainingWorker",
+    "targetId": null,
+    "readBy": [],
+    "createdAt": "2026-08-29T20:10:43.477Z"
+  },
+  {
+    "id": "NT-1788034252643-994",
+    "targetRole": "admin",
+    "targetEmpCode": null,
+    "targetGroup": null,
+    "type": "training",
+    "title": "تسجيل حضور تدريب 👤",
+    "message": "سجّل احمد محمد فتحي الدمرداش حضوره في الجلسة",
+    "link": "tabTrainingAdmin",
+    "targetId": null,
+    "readBy": [],
+    "createdAt": "2026-08-29T20:10:52.643Z"
+  },
+  {
+    "id": "NT-1788034252659-206",
+    "targetRole": null,
+    "targetEmpCode": "1",
+    "targetGroup": null,
+    "type": "training",
+    "title": "تأكيد الحضور ✅",
+    "message": "تم تسجيل وتأكيد حضورك في محاضرة مهمات الوقاية الشخصية PPE",
+    "link": "tabTrainingWorker",
+    "targetId": null,
+    "readBy": [],
+    "createdAt": "2026-08-29T20:10:52.659Z"
+  },
+  {
+    "id": "NT-1788034258358-787",
+    "targetRole": "admin",
+    "targetEmpCode": null,
+    "targetGroup": null,
+    "type": "training",
+    "title": "إغلاق محاضرة 🔒",
+    "message": "تم إغلاق محاضرة مهمات الوقاية الشخصية PPE بإجمالي حضور 1",
+    "link": "tabTrainingAdmin",
+    "targetId": null,
+    "readBy": [],
+    "createdAt": "2026-08-29T20:10:58.358Z"
+  }
+]

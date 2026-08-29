@@ -2535,15 +2535,21 @@ function renderEmployeesPanelUI() {
   let totalHCount = 0;
   let totalTPerc = 0;
   
-  const processedList = fullList.map(e => {
-    const stats = computeEmployeeLiveStats(e, cutoffDate);
-    totalTHours += stats.tHours;
-    totalHCount += stats.hCount;
-    totalTPerc += stats.tPerc;
-    return stats;
+  const scoredEmployees = fullList.map(emp => {
+    const stats = computeEmployeeLiveStats(emp, cutoffDate);
+    totalTHours += stats.trainingHours;
+    totalHCount += stats.hazardsCount;
+    totalTPerc += stats.tPerc; // Note: tPerc from stats is still needed for KPI avg
+    return {
+      ...emp,
+      _stats: stats,
+      _totalScore: stats.totalScore,
+      _hazardsCount: stats.hazardsCount,
+      _trainingHours: stats.trainingHours
+    };
   });
 
-  const avgTPerc = processedList.length > 0 ? Math.round(totalTPerc / processedList.length) : 0;
+  const avgTPerc = scoredEmployees.length > 0 ? Math.round(totalTPerc / scoredEmployees.length) : 0;
   
   window.setLeaderboardFilter = function(filterType) {
     window.currentLeaderboardFilter = filterType;
@@ -2583,7 +2589,7 @@ function renderEmployeesPanelUI() {
     <div class="emp-analytics-grid">
       <div class="emp-kpi-card">
         <div class="emp-kpi-icon">👥</div>
-        <div class="emp-kpi-value">${processedList.length}</div>
+        <div class="emp-kpi-value">${scoredEmployees.length}</div>
         <div class="emp-kpi-label">إجمالي الموظفين</div>
       </div>
       <div class="emp-kpi-card">
@@ -2605,17 +2611,17 @@ function renderEmployeesPanelUI() {
   `;
 
   // 4. Generate Leaderboard HTML
-  let sortedLb = [...processedList];
   if (lbFilter === 'hazards') {
-    sortedLb.sort((a, b) => b.hCount - a.hCount);
+    scoredEmployees.sort((a, b) => b._hazardsCount - a._hazardsCount);
   } else if (lbFilter === 'training') {
-    sortedLb.sort((a, b) => b.tHours - a.tHours);
+    scoredEmployees.sort((a, b) => b._trainingHours - a._trainingHours);
   } else {
-    sortedLb.sort((a, b) => b.score - a.score);
+    scoredEmployees.sort((a, b) => b._totalScore - a._totalScore);
   }
   
-  const top10 = sortedLb.slice(0, 10);
-  const champ = top10[0] || { name: '—', department: '—', empCode: '—', tHours: 0, hCount: 0, score: 0 };
+  const top10 = scoredEmployees.slice(0, 10);
+  const champ = top10[0] || { name: '—', department: '—', empCode: '—', _stats: { totalScore: 0, hazardsCount: 0, trainingHours: 0 } };
+  const champStats = champ._stats || { totalScore: 0, hazardsCount: 0, trainingHours: 0 };
   
   const lbHtml = `
     <div class="emp-leaderboard-wrap">
@@ -2629,9 +2635,9 @@ function renderEmployeesPanelUI() {
           <div class="lb-champion-name">${escapeHtml(champ?.name || '—')}</div>
           <div class="lb-champion-dept">${escapeHtml(champ?.department || '—')} | ${escapeHtml(champ?.empCode || champ?.code || '—')}</div>
           <div class="lb-champion-stats">
-            <div class="lb-stat"><span class="lb-stat-val">${champ?.tHours || 0}</span><span class="lb-stat-lbl">ساعة تدريب</span></div>
-            <div class="lb-stat"><span class="lb-stat-val">${champ?.hCount || 0}</span><span class="lb-stat-lbl">بلاغ خطورة</span></div>
-            <div class="lb-stat"><span class="lb-stat-val" style="color:#d97706">${champ?.score || 0}</span><span class="lb-stat-lbl">نقطة تميز</span></div>
+            <div class="lb-stat"><span class="lb-stat-val">${champStats.trainingHours}</span><span class="lb-stat-lbl">ساعة تدريب</span></div>
+            <div class="lb-stat"><span class="lb-stat-val">${champStats.hazardsCount}</span><span class="lb-stat-lbl">بلاغ خطورة</span></div>
+            <div class="lb-stat"><span class="lb-stat-val" style="color:#d97706">${champStats.totalScore}</span><span class="lb-stat-lbl">نقطة تميز</span></div>
           </div>
         </div>
         <div class="lb-list">
@@ -2641,6 +2647,7 @@ function renderEmployeesPanelUI() {
             if (rank === 2) rankClass = 'silver';
             else if (rank === 3) rankClass = 'bronze';
             const rankIcon = rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
+            const eStats = emp._stats || { totalScore: 0, hazardsCount: 0, trainingHours: 0 };
             return `
               <div class="lb-item">
                 <div class="lb-item-rank ${rankClass}">${rankIcon}</div>
@@ -2648,7 +2655,7 @@ function renderEmployeesPanelUI() {
                   <div class="lb-item-name">${escapeHtml(emp.name || '—')}</div>
                   <div class="lb-item-dept">${escapeHtml(emp.department || '—')} | ${escapeHtml(emp.empCode || emp.code)}</div>
                 </div>
-                <div class="lb-item-score">${lbFilter === 'hazards' ? emp.hCount + ' بلاغ' : lbFilter === 'training' ? emp.tHours + ' ساعة' : emp.score + ' نقطة'}</div>
+                <div class="lb-item-score">${lbFilter === 'hazards' ? eStats.hazardsCount + ' بلاغ' : lbFilter === 'training' ? eStats.trainingHours + ' ساعة' : eStats.totalScore + ' نقطة'}</div>
               </div>
             `;
           }).join('')}
