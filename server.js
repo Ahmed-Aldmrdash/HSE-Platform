@@ -2915,18 +2915,32 @@ app.get('/api/trainings/worker/:empCode', (req, res) => {
   let myAttended = 0;
   
   trainings.forEach(trn => {
-    if (trn.status === 'closed') totalClosed++;
+    const isClosed = trn.status === 'closed' || trn.isClosed;
+    if (isClosed) totalClosed++;
     const me = trn.attendees.find(a => normalizeEmpCode(a.empCode) === code);
+    
     if (me) {
-      if (trn.status === 'closed' && me.verified) myAttended++;
+      if (isClosed && me.verified) myAttended++;
       myHistory.push({
-        date: trn.date,
-        title: trn.title,
+        date: trn.date || trn.createdAt,
+        title: trn.title || trn.topic,
         status: me.verified ? '✅ مؤكد' : '⏳ قيد المراجعة',
-        verified: me.verified
+        verified: me.verified,
+        attended: true
+      });
+    } else if (isClosed) {
+      myHistory.push({
+        date: trn.date || trn.createdAt,
+        title: trn.title || trn.topic,
+        status: '❌ غائب',
+        verified: false,
+        attended: false
       });
     }
   });
+  
+  // Sort history newest to oldest
+  myHistory.sort((a, b) => new Date(b.date) - new Date(a.date));
   
   // Filter out attendees list from activeSession to protect privacy before sending to worker
   let safeActiveSession = null;
