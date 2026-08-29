@@ -654,8 +654,13 @@ async function attemptLogin(){
     sessionRole = 'supervisor';
     showUserBadge();
     applyRbacUI();
-    startNotificationPolling();
-    subscribeUserToPush();
+    
+    try {
+      startNotificationPolling();
+    } catch (err) {
+      console.warn('Non-critical notification setup error:', err);
+    }
+    
     // Switch to supervisor view (guard allows 'sup' now)
     if (currentUserRole === 'maint_admin') {
       switchTab('supHazard');

@@ -2345,8 +2345,8 @@ app.patch('/api/permits/:id/worker-close', async (req, res) => {
 app.post('/api/auth/login', loginLimiter, async (req, res) => {
   const { username, password, empCode } = req.body;
 
-  if (!username || !password || !empCode) {
-    return res.status(400).json({ error: 'يجب إدخال اسم المستخدم وكلمة المرور والكود الوظيفي' });
+  if (!username || !password) {
+    return res.status(400).json({ error: 'يجب إدخال اسم المستخدم وكلمة المرور' });
   }
 
   const storage = readStorage();
