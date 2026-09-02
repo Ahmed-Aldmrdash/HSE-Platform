@@ -119,9 +119,9 @@
   <audio id="notifChime" src="data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU5LjI3LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWgAAAAAP/7UATAAABcZgAD+AAAf/UIAIAAI/qAAEAAH/7UATAAABX1gAEGAAAR/AIAcAAgAAHgEA//tQBNgAAGJWAATYAAB4AAAwAAgAAAAAP/7UATQAABlZgAEGAAAR/AIAcAAgAAHgEA//tQBOAAAGY2AATYAAB4AAAwAAgAAAAAP/7UATwAABi1gAD+AAAf/UIAIAAI/qAAEAAH/7UATAAABX1gAEGAAAR/AIAcAAgAAHgEA" style="display:none;"></audio>
 
   <div class="tabs" id="mainTabs">
-    <div class="tab active" id="tabWorker" onclick="switchTab('worker')">📝 الطلبات</div>
+    <div class="tab active" id="tabWorker" onclick="switchTab('worker')">📝 تصاريح العمل</div>
     <div class="tab" id="tabHazardWorker" onclick="switchTab('hazardWorker')">⚠️ الإبلاغ عن خطورة</div>
-    <div class="tab" id="tabMyHistory" onclick="switchTab('myhistory')">📁 سجل طلباتي</div>
+    <div class="tab" id="tabMyHistory" onclick="switchTab('myhistory')">📁 سجل تصاريح العمل</div>
     <div class="tab" id="tabMyHazards" onclick="switchTab('myhazards')">📋 سجل بلاغاتي</div>
     <div class="tab" id="tabSup" onclick="switchTab('sup')">🛡️ لوحة المشرف</div>
     <div class="tab" id="tabSupHazard" onclick="switchTab('supHazard')" style="display:none;">
@@ -253,7 +253,7 @@
   <!-- MY HISTORY VIEW -->
   <div id="viewMyHistory" style="display:none;">
     <div class="my-history-header">
-      <div class="my-history-title">📁 سجل طلباتي</div>
+      <div class="my-history-title">📁 سجل تصاريح العمل</div>
       <div class="my-history-sub" id="myHistorySub"></div>
     </div>
     <div class="my-history-filter-bar" id="myHistoryFilters"></div>
@@ -558,11 +558,22 @@
       <div class="row2">
         <div class="field">
           <label>موضوع المحاضرة <span class="req-star">*</span></label>
-          <select id="trn_topic"></select>
+          <input type="text" id="trn_topic" list="topicsList" placeholder="اختر من القائمة أو اكتب موضوعاً مخصصاً" autocomplete="off">
+          <datalist id="topicsList"></datalist>
         </div>
         <div class="field">
           <label>الفئة المستهدفة</label>
           <input type="text" id="trn_targetGroup" placeholder="مثال: عمال الانتاج, الجميع...">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>اسم المحاضر</label>
+          <input type="text" id="trn_trainer" placeholder="اسم الشخص الذي يقدم المحاضرة">
+        </div>
+        <div class="field">
+          <label>كود المحاضر</label>
+          <input type="text" id="trn_trainerCode" placeholder="الكود الوظيفي للمحاضر (اختياري)" oninput="this.value=this.value.toUpperCase()" style="font-family:'Oswald',sans-serif;letter-spacing:1.5px;">
         </div>
       </div>
       <div class="row2">
@@ -697,7 +708,7 @@
   </div>
 </div>
 
-<script src="app.js?v=2.30.0" defer></script>
+<script src="app.js?v=9.9.9" defer></script>
 </body>
 </html>
 

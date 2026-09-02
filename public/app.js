@@ -2826,6 +2826,9 @@ function renderEmployeesTableRows(list) {
   }).join('');
   
   if (countEl) countEl.innerText = `إجمالي: ${list.length} موظف`;
+  
+  // Track currently displayed employee objects for filtered export
+  window._currentVisibleEmployees = list;
 }
 function openEmpModal(code = null) {
   _empEditCode = code;
@@ -2959,29 +2962,37 @@ async function importEmployeesExcel(input) {
   reader.readAsArrayBuffer(file);
 }
 
-/** Export employees as Excel */
-async function exportEmployeesExcel() {
-  try {
-    const res = await authFetch('/api/employees/export-excel');
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      showToast(err.error || 'فشل التصدير', 'error');
-      return;
-    }
-    const blob = await res.blob();
-    const url  = window.URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = `سجل_الموظفين_${new Date().toISOString().split('T')[0]}.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
-    showToast('تم تحميل ملف الموظفين بنجاح 📊', 'success');
-  } catch(e) {
-    showToast('خطأ في الاتصال أثناء التصدير', 'error');
+/** Export employees as Excel — client-side using already-loaded data for instant filtered export */
+window.exportEmployeesExcel = function() {
+  const dataToExport = (window._currentVisibleEmployees && window._currentVisibleEmployees.length > 0)
+    ? window._currentVisibleEmployees
+    : (window._masterEmployeesList || []);
+
+  if (!dataToExport || dataToExport.length === 0) {
+    showToast('لا توجد بيانات لتصديرها', 'error');
+    return;
   }
-}
+
+  try {
+    const rows = dataToExport.map(emp => ({
+      'الكود الوظيفي': emp.empCode || emp.emp_code || emp.code || '',
+      'الاسم الكامل': emp.name || '',
+      'القسم': emp.department || '',
+      'المسمى الوظيفي': emp.jobTitle || emp.position || emp.title || '',
+      'الصلاحية': emp.role || 'worker',
+      'رقم التليفون': emp.phone || emp.mobile || ''
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'قاعدة الموظفين');
+    XLSX.writeFile(wb, `employees_filtered_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    showToast(`تم تصدير ${dataToExport.length} موظف بنجاح 📊`, 'success');
+  } catch(e) {
+    console.error('Export error:', e);
+    showToast('خطأ أثناء التصدير', 'error');
+  }
+};
 
 
 // ================================================================
@@ -3489,23 +3500,37 @@ function getHazardCardHtml(h) {
         ${h.resolvedByMaintenanceName ? `<br><span style="font-size:11px;color:var(--muted);">بواسطة: ${escapeHtml(h.resolvedByMaintenanceName)}</span>` : ''}
       </div>`;
     } else {
-      actionHtml = `<div class="note-box show" style="margin-top:12px;"><div style="display:flex; gap:8px; flex-wrap:wrap;">`;
-      if (currentUserRole === 'hse_admin' || currentUserRole === 'super_admin') {
-        if (h.status === 'open') {
-          actionHtml += `<button onclick="openHzAssignModal('${h.id}')" class="act-btn approve" style="background:#17a2b8; color:#fff;">📢 توجيه البلاغ للصيانة</button>`;
-          actionHtml += `<button onclick="openHzRejectHseModal('${h.id}')" class="act-btn approve" style="background:var(--danger); color:#fff;">🚫 رفض البلاغ</button>`;
+      const curRole = currentUserRole || (window.currentUser && window.currentUser.role) || '';
+      const hasFullControl = ['super_admin', 'hse_admin', 'hse', 'hse_manager'].includes(curRole);
+      const isMaint = curRole === 'maint_admin' || curRole === 'maintenance';
+
+      actionHtml = `<div class="note-box show" style="margin-top:12px;">`;
+      if (h.status === 'open') {
+        if (hasFullControl) {
+          actionHtml += `
+            <div style="display:flex; gap:8px; width:100%; margin-top:10px;">
+              <button onclick="updateHazardStatus('${h.id}', 'assigned_maintenance')" class="btn-cyan" style="flex:1;">📢 توجيه للصيانة</button>
+              <button onclick="updateHazardStatus('${h.id}', 'in_progress')" class="btn-amber" style="flex:1; background:#f59e0b; color:#fff; border:none; padding:8px; border-radius:6px; font-weight:bold; cursor:pointer;">🛠️ بدء الإصلاح</button>
+              <button onclick="updateHazardStatus('${h.id}', 'rejected')" class="btn-red" style="flex:1;">🚫 رفض البلاغ</button>
+            </div>`;
+        }
+      } else if (h.status === 'assigned_to_maintenance' || h.status === 'assigned_maintenance') {
+        if (hasFullControl || (isMaint && h.assignedToMaintenance === currentUserDept)) {
+          actionHtml += `
+            <div style="display:flex; gap:8px; width:100%; margin-top:10px;">
+              <button onclick="updateHazardStatus('${h.id}', 'in_progress')" class="btn-amber" style="flex:1; background:#f59e0b; color:#fff; border:none; padding:8px; border-radius:6px; font-weight:bold; cursor:pointer;">🛠️ بدء الإصلاح</button>
+              <button onclick="resolveHazardPrompt('${h.id}')" class="btn-emerald" style="flex:1; background:#10b981; color:#fff; border:none; padding:8px; border-radius:6px; font-weight:bold; cursor:pointer;">✅ تم الحل والإغلاق</button>
+            </div>`;
+        }
+      } else if (h.status === 'in_progress') {
+        if (hasFullControl || (isMaint && h.assignedToMaintenance === currentUserDept)) {
+          actionHtml += `
+            <div style="display:flex; gap:8px; width:100%; margin-top:10px;">
+              <button onclick="resolveHazardPrompt('${h.id}')" class="btn-emerald" style="flex:1; background:#10b981; color:#fff; border:none; padding:8px; border-radius:6px; font-weight:bold; cursor:pointer;">✅ تأكيد الإصلاح والإغلاق</button>
+            </div>`;
         }
       }
-      if (currentUserRole === 'maint_admin' && h.assignedToMaintenance === currentUserDept) {
-        if (h.status === 'assigned_to_maintenance') {
-          actionHtml += `<button onclick="startHzMaintenance('${h.id}')" class="act-btn approve" style="background:var(--amber); color:#000;">🟡 بدء الإصلاح</button>`;
-          actionHtml += `<button onclick="openHzRejectMaintModal('${h.id}')" class="act-btn approve" style="background:var(--danger); color:#fff;">❌ رفض الإصلاح</button>`;
-        }
-        if (h.status === 'assigned_to_maintenance' || h.status === 'in_progress') {
-          actionHtml += `<button onclick="openHzResolveModal('${h.id}')" class="act-btn approve" style="background:#28a745; color:#fff;">🟢 تأكيد الإصلاح والإغلاق</button>`;
-        }
-      }
-      actionHtml += `</div></div>`;
+      actionHtml += `</div>`;
     }
     
     // Assignment details
@@ -3717,10 +3742,50 @@ function setHzDeptFilter(d) {
   renderSupHazard();
 }
 
-async function updateHazardStatus(id, newStatus) {
-  const actionArea = document.getElementById(`hz_action_${id}`);
-  let actionTaken = '';
-  if (actionArea) actionTaken = actionArea.value.trim();
+window.resolveHazardPrompt = async function(hazardId) {
+  const correctiveAction = window.prompt("يرجى كتابة الإجراء التصحيحي المتخذ لإغلاق هذا البلاغ:");
+  if (correctiveAction === null) return; // cancelled
+  if (!correctiveAction.trim()) {
+    alert("⚠️ يجب كتابة الإجراء التصحيحي قبل إغلاق البلاغ");
+    return;
+  }
+
+  // Send PATCH request with action/correctiveAction field:
+  try {
+    const res = await fetch(`/api/hazards/${hazardId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${getToken()}`
+      },
+      body: JSON.stringify({
+        status: 'resolved',
+        corrective_action: correctiveAction.trim(),
+        correctiveAction: correctiveAction.trim(),
+        actionTaken: correctiveAction.trim(),
+        action_taken: correctiveAction.trim(),
+        action: correctiveAction.trim()
+      })
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || errData.message || 'فشل تحديث حالة البلاغ');
+    }
+    // Refresh list
+    if (typeof loadHazards === 'function') loadHazards();
+    if (typeof renderSupHazard === 'function') renderSupHazard(); // Refresh supervisor/admin view too
+    showToast('تم تحديث البلاغ بنجاح', 'success');
+  } catch (err) {
+    alert(err.message);
+  }
+};
+
+async function updateHazardStatus(id, newStatus, actionOverride = null) {
+  let actionTaken = actionOverride;
+  if (actionTaken === null) {
+    const actionArea = document.getElementById(`corrective_action_${id}`) || document.getElementById(`hz_action_${id}`);
+    actionTaken = actionArea ? actionArea.value.trim() : '';
+  }
 
   if (newStatus === 'resolved' && !actionTaken) {
     showToast('يجب كتابة الإجراء التصحيحي قبل إغلاق البلاغ', 'error');
@@ -4157,6 +4222,25 @@ async function submitAttendance(sessionId) {
   }
 }
 
+window.populateTrainerInfo = function() {
+  const user = window.currentUser || JSON.parse(localStorage.getItem('user') || '{}');
+  const trainerInput = document.getElementById('trn_trainer') || document.querySelector('[name="trainer"]');
+  const trainerCodeInput = document.getElementById('trn_trainerCode') || document.querySelector('[name="trainer_code"]');
+
+  if (trainerInput) {
+    trainerInput.value = user.name || currentUserName || '';
+  }
+
+  if (trainerCodeInput) {
+    let actualCode = user.empCode || user.emp_code || user.badge || currentUsername || '';
+    // If it is 'superadmin' or includes 'admin', explicitly set '1' (or their actual badge code)
+    if (!actualCode || String(actualCode).toLowerCase().includes('admin')) {
+      actualCode = user.id || '1';
+    }
+    trainerCodeInput.value = actualCode;
+  }
+};
+
 async function loadAdminTraining(isSilent = false) {
   if (!isLoggedIn) return;
   
@@ -4173,35 +4257,36 @@ async function loadAdminTraining(isSilent = false) {
     
     if (createCard) createCard.style.display = isSafetyOrSuper ? 'block' : 'none';
     if (liveSection) liveSection.style.display = isSafetyOrSuper ? 'block' : 'none';
-  }
 
-  // Load topics if not loaded
-  const topicSel = document.getElementById('trn_topic');
-  if (topicSel.options.length <= 1 && !isSilent) {
-    try {
-      const tres = await authFetch('/api/trainings/topics');
-      const tdata = await tres.json();
-      topicSel.innerHTML = '<option value="">-- اختر الموضوع --</option>' + (tdata.topics || []).map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
-    } catch(e){
-      console.error(e);
-    }
+    // Auto-fill trainer fields from logged-in admin info
+    window.populateTrainerInfo();
   }
 
   try {
-    // 1. Fetch live sessions first for immediate render
-    const trnRes = await authFetch('/api/trainings?_t=' + Date.now(), { cache: 'no-store' });
-    if (trnRes.ok) {
-      const tdata = await trnRes.json();
-      const raw = JSON.stringify(tdata.trainings);
-      if (raw !== JSON.stringify(_allAdminTrainings)) {
-        _allAdminTrainings = tdata.trainings || [];
-        renderAdminLiveSessions(_allAdminTrainings);
-      }
-    }
-    
+    const res = await fetch('/api/trainings', {
+      headers: { 'Authorization': `Bearer ${getToken()}` }
+    });
+    const data = await res.json().catch(() => ({}));
+    const trainings = Array.isArray(data) ? data : (data.trainings || data.data || []);
 
-    // 3. Set or clear polling interval based on active sessions
-    const hasActive = _allAdminTrainings.some(t => t.status === 'active');
+    const topicDatalist = document.getElementById('topicsList') || document.getElementById('trainingTopicsList');
+    if (topicDatalist && !isSilent) {
+      const defaultTopics = [
+        "السلامة والصحة المهنية العامة",
+        "مكافحة الحرائق والإخلاء",
+        "الإسعافات الأولية",
+        "مهمات الوقاية الشخصية (PPE)",
+        "العمل على ارتفاعات",
+        "السلامة الكهربائية",
+        "التعامل الآمن مع المواد الكيميائية"
+      ];
+      const existingTopics = trainings.map(t => t && t.topic).filter(Boolean);
+      const allUnique = Array.from(new Set([...defaultTopics, ...existingTopics]));
+      topicDatalist.innerHTML = allUnique.map(top => `<option value="${top}">`).join('');
+    }
+
+    // Set or clear polling interval based on active sessions
+    const hasActive = trainings.some(t => t.status === 'active');
     if (hasActive) {
       if (!window.trnAdminPollTimer) {
         window.trnAdminPollTimer = setInterval(() => loadAdminTraining(true), 3000);
@@ -4212,10 +4297,19 @@ async function loadAdminTraining(isSilent = false) {
         window.trnAdminPollTimer = null;
       }
     }
-  } catch (e) {
-    console.error('loadAdminTraining Error:', e);
+
+    if (typeof renderAdminLiveSessions === 'function') {
+      const raw = JSON.stringify(trainings);
+      if (raw !== JSON.stringify(_allAdminTrainings)) {
+        _allAdminTrainings = trainings;
+        renderAdminLiveSessions(trainings);
+      }
+    }
+  } catch (err) {
+    console.error('Handled loadAdminTraining error:', err);
   }
 }
+
 
 function renderAdminLiveSessions(trainings) {
   const liveEl = document.getElementById('trnAdminLiveSessions');
@@ -4342,12 +4436,14 @@ function renderAdminLiveSessions(trainings) {
 
 
 async function createTrainingSession() {
-  const title = document.getElementById('trn_topic').value;
+  const title = document.getElementById('trn_topic').value.trim();
   const tgroup = document.getElementById('trn_targetGroup').value;
   const date = document.getElementById('trn_date').value;
   const loc = document.getElementById('trn_location').value;
   const stime = document.getElementById('trn_startTime').value;
   const etime = document.getElementById('trn_endTime').value;
+  const trainer = (document.getElementById('trn_trainer')?.value || '').trim();
+  const trainerCode = (document.getElementById('trn_trainerCode')?.value || '').trim();
   const msgEl = document.getElementById('trn_createMsg');
   
   if (!title || !date || !stime || !etime) {
@@ -4363,7 +4459,7 @@ async function createTrainingSession() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        title, targetGroup: tgroup, date, location: loc, startTime: stime, endTime: etime, sessionPin: pin
+        title, targetGroup: tgroup, date, location: loc, startTime: stime, endTime: etime, sessionPin: pin, trainer, trainerCode
       })
     });
     const data = await res.json();
@@ -4373,6 +4469,9 @@ async function createTrainingSession() {
       document.getElementById('trn_topic').value = '';
       document.getElementById('trn_targetGroup').value = '';
       document.getElementById('trn_location').value = '';
+      if (document.getElementById('trn_trainer')) document.getElementById('trn_trainer').value = '';
+      if (document.getElementById('trn_trainerCode')) document.getElementById('trn_trainerCode').value = '';
+      window.populateTrainerInfo();
       setTimeout(() => {
         msgEl.className = 'wl-msg';
         loadAdminTraining(true);
@@ -4574,6 +4673,16 @@ async function subscribeToPushNotifications() {
     console.error('Push Subscription Failed:', error);
   }
 }
+
+// Alias — login flows call subscribeUserToPush; the real implementation is above.
+// Exposed on window so it is always reachable regardless of parse order.
+window.subscribeUserToPush = async function subscribeUserToPush() {
+  try {
+    await subscribeToPushNotifications();
+  } catch (err) {
+    console.warn('[Push] subscribeUserToPush bypassed:', err.message);
+  }
+};
 
 function urlB64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);

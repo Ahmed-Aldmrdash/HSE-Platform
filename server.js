@@ -187,6 +187,10 @@ app.get('/api/work-permits', (req, res) => {
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: '31536000' }));
 
 
+// ── SSE Client Registry ──────────────────────────────────────
+// Must be declared before createNotification() which references it.
+const sseClients = [];
+
 // ============================================================
 // 🔒 WRITE QUEUE — منع Race Conditions عند الكتابة المتزامنة
 // ============================================================
@@ -1678,7 +1682,8 @@ app.patch('/api/hazards/:id', authenticateToken, requireRole('super_admin', 'hse
     const now = new Date().toISOString();
 
     if (action === 'assign_maintenance') {
-      if (req.user.role !== 'hse_admin' && req.user.role !== 'super_admin') {
+      const assignAllowedRoles = ['super_admin', 'hse_admin', 'hse_manager', 'hse'];
+      if (!assignAllowedRoles.includes(req.user.role)) {
         result = { status: 403, body: { error: 'فقط مشرف السلامة يمكنه التوجيه للصيانة' } };
         return;
       }
@@ -1704,8 +1709,9 @@ app.patch('/api/hazards/:id', authenticateToken, requireRole('super_admin', 'hse
       });
 
     } else if (action === 'start_maintenance') {
-      if (req.user.role !== 'maint_admin') {
-        result = { status: 403, body: { error: 'فقط فريق الصيانة يمكنه بدء الإصلاح' } };
+      const startAllowedRoles = ['maint_admin', 'super_admin', 'hse_admin', 'hse_manager', 'hse'];
+      if (!startAllowedRoles.includes(req.user.role)) {
+        result = { status: 403, body: { error: 'غير مصرح ببدء الإصلاح' } };
         return;
       }
       if (req.user.role === 'maint_admin' && h.assignedToMaintenance !== req.user.department) {
@@ -1788,8 +1794,9 @@ app.patch('/api/hazards/:id', authenticateToken, requireRole('super_admin', 'hse
       }
 
     } else if (action === 'resolve_maintenance') {
-      if (req.user.role !== 'maint_admin') {
-        result = { status: 403, body: { error: 'فقط فريق الصيانة يمكنه إغلاق البلاغ' } };
+      const resolveAllowedRoles = ['maint_admin', 'super_admin', 'hse_admin', 'hse_manager', 'hse'];
+      if (!resolveAllowedRoles.includes(req.user.role)) {
+        result = { status: 403, body: { error: 'غير مصرح بإغلاق البلاغ' } };
         return;
       }
       if (req.user.role === 'maint_admin' && h.assignedToMaintenance !== req.user.department) {
@@ -2660,12 +2667,25 @@ app.get('/api/employees/lookup/:code', (req, res) => {
 });
 
 // ── GET /api/employees/export-excel — تصدير قاعدة الموظفين كـ xlsx
+// Supports ?codes=EMP001,EMP002,... to export a filtered subset
 app.get('/api/employees/export-excel',
   authenticateToken,
   requireRole('super_admin', 'hse_admin', 'dept_admin', 'issuer'),
   async (req, res) => {
     try {
-      const employees = readEmployees();
+      let employees = readEmployees();
+
+      // Filter by specific codes if provided
+      if (req.query.codes) {
+        const requestedCodes = String(req.query.codes)
+          .split(',')
+          .map(c => normalizeEmpCode(c.trim()))
+          .filter(Boolean);
+        if (requestedCodes.length > 0) {
+          employees = employees.filter(e => requestedCodes.includes(normalizeEmpCode(e.empCode || e.code || '')));
+        }
+      }
+
       const wb = new ExcelJS.Workbook();
       const ws = wb.addWorksheet('قاعدة الموظفين');
       ws.columns = [
@@ -2980,7 +3000,7 @@ app.get('/api/trainings/worker/:empCode', (req, res) => {
 });
 
 app.post('/api/trainings', authenticateToken, requireRole('super_admin', 'hse_admin'), async (req, res) => {
-  const { title, targetGroup, location, date, startTime, endTime, sessionPin } = req.body;
+  const { title, targetGroup, location, date, startTime, endTime, sessionPin, trainer, trainerCode } = req.body;
   if (!title || !date || !startTime || !endTime || !sessionPin) {
     return res.status(400).json({ error: 'البيانات الأساسية مطلوبة' });
   }
@@ -2992,6 +3012,9 @@ app.post('/api/trainings', authenticateToken, requireRole('super_admin', 'hse_ad
     const newTraining = {
       id: newId,
       title: sanitizeStr(title, 200),
+      topic: sanitizeStr(title, 200),
+      trainer: sanitizeStr(trainer || '', 150),
+      trainerCode: sanitizeStr(trainerCode || '', 50),
       targetGroup: sanitizeStr(targetGroup || '', 200),
       location: sanitizeStr(location || '', 200),
       date: sanitizeStr(date, 20),
@@ -3206,28 +3229,80 @@ app.get('/api/trainings/:id/export-excel', authenticateToken, requireRole('super
     const trn = trainings.find(t => t.id === req.params.id);
     if (!trn) return res.status(404).json({ error: 'المحاضرة غير موجودة' });
 
-    const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet('سجل الحضور');
-    ws.columns = [
-      { header: 'الكود الوظيفي', key: 'empCode', width: 15 },
-      { header: 'الاسم', key: 'name', width: 30 },
-      { header: 'القسم', key: 'department', width: 25 },
-      { header: 'وقت الحضور', key: 'attendedAt', width: 25 },
-      { header: 'حالة التأكيد', key: 'verified', width: 15 },
-    ];
-
-    trn.attendees.forEach(a => {
-      ws.addRow({
-        empCode: a.empCode,
-        name: a.name,
-        department: a.department || 'غير محدد',
-        attendedAt: new Date(a.attendedAt).toLocaleString('ar-EG'),
-        verified: a.verified ? 'مؤكد' : 'غير مؤكد'
-      });
+    // Load employees for position lookup
+    const employees = readEmployees();
+    const empMap = new Map();
+    employees.forEach(e => {
+      const code = normalizeEmpCode(e.code || e.empCode);
+      if (code) empMap.set(code, e);
     });
 
-    ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD51E27' } };
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('سجل الحضور');
+
+    // ── 4-Line Meta Header ─────────────────────────────────────
+    const topicName = trn.topic || trn.title || 'غير محدد';
+    const trainerName = trn.trainer || 'غير محدد';
+    const trainerCode = trn.trainerCode || trn.trainer_code || 'غير مسجل';
+    const trainingDate = trn.date || '';
+    const trainingLoc = trn.location || 'غير محدد';
+
+    const metaStyle = { font: { bold: true, size: 12 }, alignment: { horizontal: 'right', vertical: 'middle' } };
+    const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD51E27' } };
+
+    // Row 1: Topic
+    ws.addRow([`الموضوع / اسم المحاضرة: ${topicName}`]);
+    ws.getRow(1).getCell(1).style = { font: { bold: true, size: 13, color: { argb: 'FFD51E27' } }, alignment: { horizontal: 'right' } };
+    ws.mergeCells('A1:F1');
+
+    // Row 2: Trainer name
+    ws.addRow([`اسم المحاضر: ${trainerName}`]);
+    ws.getRow(2).getCell(1).style = { font: { bold: true, size: 11 }, alignment: { horizontal: 'right' } };
+    ws.mergeCells('A2:F2');
+
+    // Row 3: Trainer code
+    ws.addRow([`كود المحاضر: ${trainerCode}`]);
+    ws.getRow(3).getCell(1).style = { font: { bold: true, size: 11 }, alignment: { horizontal: 'right' } };
+    ws.mergeCells('A3:F3');
+
+    // Row 4: Date + Location
+    ws.addRow([`تاريخ المحاضرة: ${trainingDate}   |   الموقع: ${trainingLoc}`]);
+    ws.getRow(4).getCell(1).style = { font: { bold: true, size: 11 }, alignment: { horizontal: 'right' } };
+    ws.mergeCells('A4:F4');
+
+    // Row 5: Spacer
+    ws.addRow([]);
+
+    // Row 6: Table headers
+    const headerRow = ws.addRow(['الكود الوظيفي', 'الاسم', 'القسم', 'المسمى الوظيفي', 'وقت الحضور', 'حالة التأكيد']);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = headerFill;
+    headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+
+    // Set column widths
+    ws.columns = [
+      { key: 'A', width: 16 },
+      { key: 'B', width: 30 },
+      { key: 'C', width: 25 },
+      { key: 'D', width: 25 },
+      { key: 'E', width: 25 },
+      { key: 'F', width: 15 },
+    ];
+
+    // Data rows
+    trn.attendees.forEach(a => {
+      const code = normalizeEmpCode(a.empCode);
+      const empRec = empMap.get(code) || {};
+      const position = empRec.jobTitle || a.jobTitle || 'غير محدد';
+      ws.addRow([
+        a.empCode,
+        a.name,
+        a.department || 'غير محدد',
+        position,
+        new Date(a.attendedAt).toLocaleString('ar-EG'),
+        a.verified ? 'مؤكد' : 'غير مؤكد'
+      ]);
+    });
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="Training_${trn.id}.xlsx"`);
@@ -3295,6 +3370,7 @@ app.get('/api/notifications', (req, res) => {
   
   // Filter notifications based on role or empCode
   let userNotifs = notifications.filter(n => {
+    if (n.targetRole === 'all') return true;
     if (role === 'super_admin') return true;
     if (n.targetEmpCode && empCode && normalizeEmpCode(n.targetEmpCode) === normalizeEmpCode(empCode)) return true;
     if (n.targetRole && role && n.targetRole === role) {
@@ -3395,9 +3471,15 @@ function checkPreTrainingAlerts() {
 setInterval(checkPreTrainingAlerts, 60000); // Check every 60 seconds
 
 // ── Web Push API Routes ──────────────────────────────────────────
+// Legacy camelCase endpoint
 app.get('/api/vapid-publicKey', (req, res) => {
-  res.send(vapidKeys.publicKey);
+  res.json({ publicKey: vapidKeys.publicKey || '' });
 });
+// Standard kebab-case endpoint (used by frontend fetch)
+app.get('/api/vapid-public-key', (req, res) => {
+  res.json({ publicKey: vapidKeys.publicKey || '' });
+});
+
 
 app.post('/api/notifications/subscribe', (req, res) => {
   const { subscription, role, empCode } = req.body;
