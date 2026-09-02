@@ -1666,7 +1666,7 @@ app.get('/api/my-hazards/:name', (req, res) => {
 
 app.patch('/api/hazards/:id', authenticateToken, requireRole('super_admin', 'hse_admin', 'dept_admin', 'maint_admin'), async (req, res) => {
   const hazardId = req.params.id;
-  const { action, targetMaintenance, maintenanceAction, maintenanceTeamNames, status, actionTaken } = req.body;
+  const { action, targetMaintenance, assignNotes, maintenanceAction, maintenanceTeamNames, status, actionTaken } = req.body;
 
   let result;
   await enqueueWrite(async () => {
@@ -1692,8 +1692,11 @@ app.patch('/api/hazards/:id', authenticateToken, requireRole('super_admin', 'hse
         return;
       }
       h.assignedToMaintenance = sanitizeStr(targetMaintenance, 100);
+      if (assignNotes) h.assignNotes = sanitizeStr(assignNotes, 500);
       h.forwardedByHseName = updater;
       h.forwardedByHseAt = now;
+      h.treatmentStartedAt = h.treatmentStartedAt || now;
+      h.assignedAt = h.assignedAt || now;
       h.status = 'assigned_to_maintenance';
       h.updatedBy = updater;
       delete h.maintRejectReason;
@@ -1720,7 +1723,11 @@ app.patch('/api/hazards/:id', authenticateToken, requireRole('super_admin', 'hse
       }
       h.status = 'in_progress';
       h.startedAt = now;
+      if (!h.treatmentStartedAt) h.treatmentStartedAt = now;
       h.startedByName = updater;
+      h.startedBy = req.user ? (req.user.name || req.user.fullName || req.user.empCode) : 'فريق الصيانة';
+      h.assignedTechName = h.startedBy;
+      h.assignedTechCode = req.user ? req.user.empCode : '';
       h.updatedBy = updater;
 
     } else if (action === 'reject_maintenance' || action === 'reject_maint') {
@@ -1803,10 +1810,18 @@ app.patch('/api/hazards/:id', authenticateToken, requireRole('super_admin', 'hse
         result = { status: 403, body: { error: 'هذا البلاغ غير موجه لقسمكم' } };
         return;
       }
+      h.completedAt = now;
+      if (!h.treatmentStartedAt) {
+        h.treatmentStartedAt = now;
+      }
       if (!h.startedAt) {
         h.startedAt = now;
         h.startedByName = updater;
       }
+      h.status = 'resolved';
+      h.resolvedBy = req.user ? (req.user.name || req.user.fullName || req.user.empCode) : 'فريق الصيانة';
+      h.assignedTechName = h.resolvedBy;
+      h.assignedTechCode = req.user ? req.user.empCode : '';
       h.maintenanceAction = sanitizeStr(maintenanceAction || '', 1000);
       h.maintenanceTeamNames = sanitizeStr(maintenanceTeamNames || '', 300);
       h.resolvedByMaintenanceName = updater;
@@ -2418,10 +2433,12 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
 
   // إدراج القسم الفعلي واسم المشرف الفعلي في الـ Token
   const tokenPayload = {
-    id:         user.id,
+    id:         user.id || employee.id || employee.empCode,
     username:   user.username,
-    role:       user.role,
+    role:       user.role || employee.role || 'worker',
     name:       employee.name,
+    fullName:   employee.name,
+    empCode:    employee.empCode || searchCode || empCodeStr,
     department: user.department || employee.department || ''
   };
 

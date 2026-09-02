@@ -1,714 +1,867 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#D51E27">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="HSE Platform - Elsewedy Polymers">
-<meta name="description" content="منصة إدارة وتتبع الطلبات والسلامة والصحة المهنية - السويدي للبوليمرات">
-<title>HSE Platform - Elsewedy Polymers</title>
-<link rel="canonical" href="https://elsewedy-polymers-work-permits.up.railway.app/" />
-<link rel="manifest" href="manifest.json">
-<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=2.30.0">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
-</head>
-<body data-session="none">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+        <meta name="theme-color" content="#D51E27">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        <meta name="apple-mobile-web-app-title" content="HSE Platform - Elsewedy Polymers">
+        <meta name="description" content="منصة إدارة وتتبع الطلبات والسلامة والصحة المهنية - السويدي للبوليمرات">
+        <title>HSE Platform - Elsewedy Polymers</title>
+        <link rel="canonical" href="https://elsewedy-polymers-work-permits.up.railway.app/"/>
+        <link rel="manifest" href="manifest.json">
+        <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+        <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Oswald:wght@500;600;700&display=swap"
+              rel="stylesheet">
+        <link rel="stylesheet" href="style.css?v=2.30.0">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+    </head>
+    <body data-session="none">
 
-<!-- ======================================================= -->
-<!-- شاشة دخول الموظف (تظهر عند فتح الموقع لأول مرة)        -->
-<!-- ======================================================= -->
-<div id="workerLoginOverlay" class="worker-login-overlay" style="display:none;">
-  <div class="worker-login-card">
-    <div class="login-logo-box">
-      <img src="icons/icon-192.png" alt="Elsewedy Polymers" width="192" height="192" onerror="this.style.display='none'">
-    </div>
-    <div class="wl-title">مرحباً بك</div>
-    <div class="wl-sub">HSE Platform · Elsewedy Polymers</div>
+        <!-- ======================================================= -->
+        <!-- شاشة دخول الموظف (تظهر عند فتح الموقع لأول مرة)        -->
+        <!-- ======================================================= -->
+        <div id="workerLoginOverlay" class="worker-login-overlay" style="display:none;">
+            <div class="worker-login-card">
+                <div class="login-logo-box">
+                    <img src="icons/icon-192.png" alt="Elsewedy Polymers" width="192" height="192"
+                         onerror="this.style.display='none'">
+                </div>
+                <div class="wl-title">مرحباً بك</div>
+                <div class="wl-sub">HSE Platform · Elsewedy Polymers</div>
 
-    <!-- Single-step: code input only -->
-    <div id="wl-step1">
-      <div class="field" style="text-align:right;">
-        <label>الكود الوظيفي <span class="req-star">*</span></label>
-        <input id="wl_empCode" type="text" placeholder="أدخل كودك الوظيفي" autocomplete="off"
-               style="text-align:center;font-size:20px;font-family:'Oswald',sans-serif;letter-spacing:2px;font-weight:700;"
-               oninput="this.value=this.value.toUpperCase()"
-               onkeydown="if(event.key==='Enter') checkEmpCode()">
-      </div>
-      <button class="submit-btn" id="wl_checkBtn" onclick="checkEmpCode()">تسجيل الدخول ←</button>
-      <div id="wl_checkMsg" class="wl-msg"></div>
-    </div>
+                <!-- Single-step: code input only -->
+                <div id="wl-step1">
+                    <div class="field" style="text-align:right;">
+                        <label>الكود الوظيفي
+                            <span class="req-star">*</span>
+                        </label>
+                        <input id="wl_empCode" type="text" placeholder="أدخل كودك الوظيفي" autocomplete="off"
+                               style="text-align:center;font-size:20px;font-family:'Oswald',sans-serif;letter-spacing:2px;font-weight:700;"
+                               oninput="this.value=this.value.toUpperCase()"
+                               onkeydown="if(event.key==='Enter') checkEmpCode()">
+                    </div>
+                    <button class="submit-btn" id="wl_checkBtn" onclick="checkEmpCode()">تسجيل الدخول ←</button>
+                    <div id="wl_checkMsg" class="wl-msg"></div>
+                </div>
 
-    <!-- Welcome card (shown briefly on success) -->
-    <div id="wl-welcome" style="display:none;text-align:center;padding:16px 0 8px;">
-      <div style="font-size:32px;margin-bottom:8px;">👋</div>
-      <div id="wl-welcomeText" style="font-size:15px;font-weight:700;color:#fff;line-height:1.8;"></div>
-      <div style="margin-top:12px;font-size:12px;color:rgba(255,255,255,0.5);">جارِ تحميل لوحة التحكم…</div>
-    </div>
+                <!-- Welcome card (shown briefly on success) -->
+                <div id="wl-welcome" style="display:none;text-align:center;padding:16px 0 8px;">
+                    <div style="font-size:32px;margin-bottom:8px;">👋</div>
+                    <div id="wl-welcomeText" style="font-size:15px;font-weight:700;color:#fff;line-height:1.8;"></div>
+                    <div style="margin-top:12px;font-size:12px;color:rgba(255,255,255,0.5);">جارِ تحميل لوحة التحكم…
+                    </div>
+                </div>
 
-    <!-- فاصل: دخول المشرفين -->
-    <div class="wl-divider"><span>أو</span></div>
-    <button class="wl-admin-btn" onclick="goToAdminLogin()">🛡️ دخول المشرفين / الإدارة</button>
-  </div>
-</div>
-
-
-<!-- ======================================================= -->
-<!-- التطبيق الرئيسي                                          -->
-<!-- ======================================================= -->
-<div class="wrap" id="mainApp" style="display:none;">
-
-  <div class="app-header">
-    <div class="app-header-row1">
-      <div class="app-header-brand">
-        <div class="header-logo-box">
-          <img src="icons/icon-192.png" alt="Elsewedy Polymers" width="192" height="192" onerror="this.style.display='none'">
-        </div>
-        <div>
-          <h1>HSE Platform</h1>
-          <p>Elsewedy Polymers</p>
-        </div>
-      </div>
-      
-      <!-- GLOBAL SYNC & NOTIFICATION BELL -->
-      <div class="app-header-actions">
-        <button type="button" id="btnGlobalSync" class="notif-bell-btn" onclick="globalSyncData()" title="تحديث البيانات">
-          🔄
-        </button>
-        
-        <div id="notifContainer" class="notif-wrapper" style="position: relative; display: inline-flex; align-items: center; display: none;">
-          <button type="button" id="btnNotifBell" class="notif-bell-btn" onclick="toggleNotifDrawer()" title="الإشعارات">
-            🔔
-            <span id="notifBadge" class="notif-badge" style="display: none;">0</span>
-          </button>
-          
-          <div id="notifDropdown" class="notif-drawer" style="display: none;">
-            <div class="notif-header">
-              <h3 style="margin: 0; font-size: 1.1rem; font-weight: bold;">الإشعارات</h3>
-              <button type="button" class="btn-mark-all" onclick="markAllNotificationsAsRead()">تحديد الكل كمقروء</button>
+                <!-- فاصل: دخول المشرفين -->
+                <div class="wl-divider">
+                    <span>أو</span>
+                </div>
+                <button class="wl-admin-btn" onclick="goToAdminLogin()">🛡️ دخول المشرفين / الإدارة</button>
             </div>
-            <div class="notif-filters">
-              <button type="button" class="notif-pill active" onclick="setNotifFilter('all')">الكل</button>
-              <button type="button" class="notif-pill" onclick="setNotifFilter('unread')">غير المقروءة</button>
-              <button type="button" class="notif-pill" onclick="setNotifFilter('permit')">الطلبات</button>
-              <button type="button" class="notif-pill" onclick="setNotifFilter('hazard')">البلاغات</button>
-              <button type="button" class="notif-pill" onclick="setNotifFilter('training')">التدريب</button>
+        </div>
+
+
+        <!-- ======================================================= -->
+        <!-- التطبيق الرئيسي                                         -->
+        <!-- ======================================================= -->
+        <div class="wrap" id="mainApp" style="display:none;">
+
+            <div class="app-header">
+                <div class="app-header-row1">
+                    <div class="app-header-brand">
+                        <div class="header-logo-box">
+                            <img src="icons/icon-192.png" alt="Elsewedy Polymers" width="192" height="192"
+                                 onerror="this.style.display='none'">
+                        </div>
+                        <div>
+                            <h1>HSE Platform</h1>
+                            <p>Elsewedy Polymers</p>
+                        </div>
+                    </div>
+
+                    <!-- GLOBAL SYNC & NOTIFICATION BELL -->
+                    <div class="app-header-actions">
+                        <button type="button" id="btnGlobalSync" class="notif-bell-btn" onclick="globalSyncData()"
+                                title="تحديث البيانات">
+                            🔄
+                        </button>
+
+                        <div id="notifContainer" class="notif-wrapper"
+                             style="position: relative; display: inline-flex; align-items: center; display: none;">
+                            <button type="button" id="btnNotifBell" class="notif-bell-btn" onclick="toggleNotifDrawer()"
+                                    title="الإشعارات">
+                                🔔
+                                <span id="notifBadge" class="notif-badge" style="display: none;">0</span>
+                            </button>
+
+                            <div id="notifDropdown" class="notif-drawer" style="display: none;">
+                                <div class="notif-header">
+                                    <h3 style="margin: 0; font-size: 1.1rem; font-weight: bold;">الإشعارات</h3>
+                                    <button type="button" class="btn-mark-all" onclick="markAllNotificationsAsRead()">
+                                        تحديد الكل كمقروء
+                                    </button>
+                                </div>
+                                <div class="notif-filters">
+                                    <button type="button" class="notif-pill active" onclick="setNotifFilter('all')">
+                                        الكل
+                                    </button>
+                                    <button type="button" class="notif-pill" onclick="setNotifFilter('unread')">غير
+                                        المقروءة
+                                    </button>
+                                    <button type="button" class="notif-pill" onclick="setNotifFilter('permit')">
+                                        الطلبات
+                                    </button>
+                                    <button type="button" class="notif-pill" onclick="setNotifFilter('hazard')">
+                                        البلاغات
+                                    </button>
+                                    <button type="button" class="notif-pill" onclick="setNotifFilter('training')">
+                                        التدريب
+                                    </button>
+                                </div>
+                                <div id="notifList" class="notif-list"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="app-header-row2">
+                    <!-- بادج الموظف الحالي -->
+                    <div id="empBadgeArea" style="display:none;">
+                        <div class="emp-badge-pill" id="empBadgePill"></div>
+                    </div>
+
+                    <button id="installBtn" class="install-btn" style="display:none;" onclick="triggerInstall()">⬇ تثبيت
+                        التطبيق
+                    </button>
+                </div>
             </div>
-            <div id="notifList" class="notif-list"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="app-header-row2">
-      <!-- بادج الموظف الحالي -->
-      <div id="empBadgeArea" style="display:none;">
-        <div class="emp-badge-pill" id="empBadgePill"></div>
-      </div>
-      
-      <button id="installBtn" class="install-btn" style="display:none;" onclick="triggerInstall()">⬇ تثبيت التطبيق</button>
-    </div>
-  </div>
-  
-  <audio id="notifChime" src="data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU5LjI3LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWgAAAAAP/7UATAAABcZgAD+AAAf/UIAIAAI/qAAEAAH/7UATAAABX1gAEGAAAR/AIAcAAgAAHgEA//tQBNgAAGJWAATYAAB4AAAwAAgAAAAAP/7UATQAABlZgAEGAAAR/AIAcAAgAAHgEA//tQBOAAAGY2AATYAAB4AAAwAAgAAAAAP/7UATwAABi1gAD+AAAf/UIAIAAI/qAAEAAH/7UATAAABX1gAEGAAAR/AIAcAAgAAHgEA" style="display:none;"></audio>
 
-  <div class="tabs" id="mainTabs">
-    <div class="tab active" id="tabWorker" onclick="switchTab('worker')">📝 تصاريح العمل</div>
-    <div class="tab" id="tabHazardWorker" onclick="switchTab('hazardWorker')">⚠️ الإبلاغ عن خطورة</div>
-    <div class="tab" id="tabMyHistory" onclick="switchTab('myhistory')">📁 سجل تصاريح العمل</div>
-    <div class="tab" id="tabMyHazards" onclick="switchTab('myhazards')">📋 سجل بلاغاتي</div>
-    <div class="tab" id="tabSup" onclick="switchTab('sup')">🛡️ لوحة المشرف</div>
-    <div class="tab" id="tabSupHazard" onclick="switchTab('supHazard')" style="display:none;">
-      ⚠️ بلاغات الخطورة <span id="hzSupBadge" class="badge-count" style="display:none;">0</span>
-    </div>
-    <div class="tab" id="tabUsers" onclick="switchTab('users')" style="display:none;">👥 المستخدمون</div>
-    <div class="tab" id="tabEmployees" onclick="switchTab('employees')" style="display:none;">🗂️ الموظفين</div>
-    <div class="tab" id="tabTrainingWorker" onclick="switchTab('trainingWorker')">🎓 التدريب والتوعية</div>
-    <div class="tab" id="tabTrainingAdmin" onclick="switchTab('trainingAdmin')" style="display:none;">🎓 إدارة المحاضرات</div>
-  </div>
+            <audio id="notifChime"
+                   src="data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU5LjI3LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWgAAAAAP/7UATAAABcZgAD+AAAf/UIAIAAI/qAAEAAH/7UATAAABX1gAEGAAAR/AIAcAAgAAHgEA//tQBNgAAGJWAATYAAB4AAAwAAgAAAAAP/7UATQAABlZgAEGAAAR/AIAcAAgAAHgEA//tQBOAAAGY2AATYAAB4AAAwAAgAAAAAP/7UATwAABi1gAD+AAAf/UIAIAAI/qAAEAAH/7UATAAABX1gAEGAAAR/AIAcAAgAAHgEA"
+                   style="display:none;"></audio>
 
-  <!-- WORKER FORM VIEW -->
-  <div id="viewWorker">
-    <div id="formArea"></div>
-  </div>
-
-  <!-- HAZARD WORKER VIEW -->
-  <div id="viewHazardWorker" style="display:none;">
-    <div class="ticket">
-      <div class="ticket-head" style="background:var(--amber);">
-        <div>
-          <div class="ttype">⚠️ نموذج الإبلاغ عن الخطورة</div>
-          <div class="tnum">Hazard Report</div>
-        </div>
-      </div>
-      <div class="perf"></div>
-      <div class="ticket-body">
-        <!-- Employee code auto-fill for hazard form -->
-        <div class="field" id="hz_codeFieldWrap">
-          <label>الكود الوظيفي (اختياري — للتعبئة التلقائية)</label>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <input id="hz_empCode" type="text" placeholder="أدخل كودك لتعبئة بياناتك تلقائياً"
-                   style="text-transform:uppercase;font-family:'Oswald',sans-serif;letter-spacing:1.5px;"
-                   oninput="this.value=this.value.toUpperCase()" onblur="lookupHazardEmpCode()">
-          </div>
-          <div id="hz_codeMsg" style="font-size:12px;margin-top:4px;min-height:16px;"></div>
-        </div>
-        <div class="row2">
-          <div class="field">
-            <label>الاسم (Reporter Name) <span class="req-star">*</span></label>
-            <input id="hz_name" type="text" placeholder="الاسم الكامل">
-          </div>
-          <div class="field">
-            <label>التاريخ (Date) <span class="req-star">*</span></label>
-            <input id="hz_date" type="date">
-          </div>
-        </div>
-        <div class="row2">
-          <div class="field">
-            <label>القسم (Department) <span class="req-star">*</span></label>
-            <input type="text" id="hz_dept" class="form-control" readonly tabindex="-1" style="background-color: #f8fafc; cursor: default; user-select: none;" placeholder="يتم التحديد تلقائياً...">
-          </div>
-          <div class="field">
-            <label>المنطقة (Area / Zone) <span class="req-star">*</span></label>
-            <input id="hz_area" type="text" placeholder="مثال: خط إنتاج 1، المخزن الرئيسي">
-          </div>
-        </div>
-
-        <div class="field">
-          <label>نوع ووصف الخطورة (وضع أو تصرف غير آمن) <span class="req-star">*</span></label>
-          <textarea id="hz_desc" placeholder="اشرح بالتفصيل وضع الخطورة أو التصرف غير الآمن..."></textarea>
-        </div>
-
-        <div class="field">
-          <label>الإصابة المحتملة (Potential Injury) <span class="req-star">*</span></label>
-          <input id="hz_injury" type="text" placeholder="ما هي الإصابة التي قد تنتج عن هذه الخطورة؟">
-        </div>
-
-        <div class="field">
-          <label>الحل المقترح (Proposed Solution)</label>
-          <textarea id="hz_solution" placeholder="كيف يمكننا معالجة هذه الخطورة؟"></textarea>
-        </div>
-
-        <div class="section-title" style="color:var(--amber);">مصفوفة تقييم الخطورة (Risk Matrix Calculator)</div>
-        <div class="row2">
-          <div class="field">
-            <label>الاحتمالية (Likelihood) <span class="req-star">*</span></label>
-            <select id="hz_likelihood" onchange="calculateHazardRisk()">
-              <option value="1">1 - غير ممكن حدوثه</option>
-              <option value="2">2 - احتمالية ضئيلة للحدوث</option>
-              <option value="3">3 - احتمالية متوسطة للحدوث</option>
-              <option value="4">4 - احتمالية عالية للحدوث</option>
-              <option value="5">5 - أكيدة الحدوث</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>شدة الإصابة (Severity) <span class="req-star">*</span></label>
-            <select id="hz_severity" onchange="calculateHazardRisk()">
-              <option value="A">A - بسيط أو إسعاف أولي (1)</option>
-              <option value="B">B - علاج طبي (2)</option>
-              <option value="C">C - LTI < 30 days (3)</option>
-              <option value="D">D - LTI ≥ 30 days (4)</option>
-              <option value="E">E - وفاة (5)</option>
-            </select>
-          </div>
-        </div>
-        
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;background:#f9f9f9;padding:12px;border-radius:8px;">
-          <strong style="font-size:14px;color:var(--muted);">مستوى الخطورة:</strong>
-          <div id="hz_riskBadge" class="hz-risk-badge hz-low">Low (L) 🟢</div>
-        </div>
-
-        <!-- 📸 Hazard Photo Capture -->
-        <div class="field hazard-photo-section">
-          <input type="file" id="hz_photoInput" accept="image/*" capture="environment" style="display:none;" onchange="handleHazardPhotoSelect(event)">
-          <button type="button" class="emp-dir-btn secondary" style="width:100%; justify-content:center; padding:12px; margin-bottom:8px;" onclick="document.getElementById('hz_photoInput').click()">
-            📷 التقاط / إرفاق صورة للمشكلة
-          </button>
-          
-          <div id="hz_photoPreviewBox" class="hz-photo-preview-box" style="display:none;">
-            <img id="hz_photoPreviewImg" src="" alt="Live Preview">
-            <div class="hz-photo-actions">
-              <button type="button" class="act-btn approve" onclick="confirmHazardPhoto()">✅ اعتماد الصورة</button>
-              <button type="button" class="act-btn reject" onclick="removeHazardPhoto()">🔄 إعادة التقاط / حذف</button>
+            <div class="tabs" id="mainTabs">
+                <div class="tab active" id="tabWorker" onclick="switchTab('worker')">📝 تصاريح العمل</div>
+                <div class="tab" id="tabHazardWorker" onclick="switchTab('hazardWorker')">⚠️ الإبلاغ عن خطورة</div>
+                <div class="tab" id="tabMyHistory" onclick="switchTab('myhistory')">📁 سجل تصاريح العمل</div>
+                <div class="tab" id="tabMyHazards" onclick="switchTab('myhazards')">📋 سجل بلاغاتي</div>
+                <div class="tab" id="tabSup" onclick="switchTab('sup')">🛡️ لوحة المشرف</div>
+                <div class="tab" id="tabSupHazard" onclick="switchTab('supHazard')" style="display:none;">
+                    ⚠️ بلاغات الخطورة
+                    <span id="hzSupBadge" class="badge-count" style="display:none;">0</span>
+                </div>
+                <div class="tab" id="tabUsers" onclick="switchTab('users')" style="display:none;">👥 المستخدمون</div>
+                <div class="tab" id="tabEmployees" onclick="switchTab('employees')" style="display:none;">🗂️ الموظفين
+                </div>
+                <div class="tab" id="tabTrainingWorker" onclick="switchTab('trainingWorker')">🎓 التدريب والتوعية</div>
+                <div class="tab" id="tabTrainingAdmin" onclick="switchTab('trainingAdmin')" style="display:none;">🎓
+                    إدارة المحاضرات
+                </div>
             </div>
-          </div>
+
+            <!-- WORKER FORM VIEW -->
+            <div id="viewWorker">
+                <div id="formArea"></div>
+            </div>
+
+            <!-- HAZARD WORKER VIEW -->
+            <div id="viewHazardWorker" style="display:none;">
+                <div class="ticket">
+                    <div class="ticket-head" style="background:var(--amber);">
+                        <div>
+                            <div class="ttype">⚠️ نموذج الإبلاغ عن الخطورة</div>
+                            <div class="tnum">Hazard Report</div>
+                        </div>
+                    </div>
+                    <div class="perf"></div>
+                    <div class="ticket-body">
+                        <!-- Employee code auto-fill for hazard form -->
+                        <div class="field" id="hz_codeFieldWrap">
+                            <label>الكود الوظيفي (اختياري — للتعبئة التلقائية)</label>
+                            <div style="display:flex;gap:8px;align-items:center;">
+                                <input id="hz_empCode" type="text" placeholder="أدخل كودك لتعبئة بياناتك تلقائياً"
+                                       style="text-transform:uppercase;font-family:'Oswald',sans-serif;letter-spacing:1.5px;"
+                                       oninput="this.value=this.value.toUpperCase()" onblur="lookupHazardEmpCode()">
+                            </div>
+                            <div id="hz_codeMsg" style="font-size:12px;margin-top:4px;min-height:16px;"></div>
+                        </div>
+                        <div class="row2">
+                            <div class="field">
+                                <label>الاسم (Reporter Name)
+                                    <span class="req-star">*</span>
+                                </label>
+                                <input id="hz_name" type="text" placeholder="الاسم الكامل">
+                            </div>
+                            <div class="field">
+                                <label>التاريخ (Date)
+                                    <span class="req-star">*</span>
+                                </label>
+                                <input id="hz_date" type="date">
+                            </div>
+                        </div>
+                        <div class="row2">
+                            <div class="field">
+                                <label>القسم (Department)
+                                    <span class="req-star">*</span>
+                                </label>
+                                <input type="text" id="hz_dept" class="form-control" readonly tabindex="-1"
+                                       style="background-color: #f8fafc; cursor: default; user-select: none;"
+                                       placeholder="يتم التحديد تلقائياً...">
+                            </div>
+                            <div class="field">
+                                <label>المنطقة (Area / Zone)
+                                    <span class="req-star">*</span>
+                                </label>
+                                <input id="hz_area" type="text" placeholder="مثال: خط إنتاج 1، المخزن الرئيسي">
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label>نوع ووصف الخطورة (وضع أو تصرف غير آمن)
+                                <span class="req-star">*</span>
+                            </label>
+                            <textarea id="hz_desc"
+                                      placeholder="اشرح بالتفصيل وضع الخطورة أو التصرف غير الآمن..."></textarea>
+                        </div>
+
+                        <div class="field">
+                            <label>الإصابة المحتملة (Potential Injury)
+                                <span class="req-star">*</span>
+                            </label>
+                            <input id="hz_injury" type="text" placeholder="ما هي الإصابة التي قد تنتج عن هذه الخطورة؟">
+                        </div>
+
+                        <div class="field">
+                            <label>الحل المقترح (Proposed Solution)</label>
+                            <textarea id="hz_solution" placeholder="كيف يمكننا معالجة هذه الخطورة؟"></textarea>
+                        </div>
+
+                        <div class="section-title" style="color:var(--amber);">مصفوفة تقييم الخطورة (Risk Matrix
+                            Calculator)
+                        </div>
+                        <div class="row2">
+                            <div class="field">
+                                <label>الاحتمالية (Likelihood)
+                                    <span class="req-star">*</span>
+                                </label>
+                                <select id="hz_likelihood" onchange="calculateHazardRisk()">
+                                    <option value="1">1 - غير ممكن حدوثه</option>
+                                    <option value="2">2 - احتمالية ضئيلة للحدوث</option>
+                                    <option value="3">3 - احتمالية متوسطة للحدوث</option>
+                                    <option value="4">4 - احتمالية عالية للحدوث</option>
+                                    <option value="5">5 - أكيدة الحدوث</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>شدة الإصابة (Severity)
+                                    <span class="req-star">*</span>
+                                </label>
+                                <select id="hz_severity" onchange="calculateHazardRisk()">
+                                    <option value="A">A - بسيط أو إسعاف أولي (1)</option>
+                                    <option value="B">B - علاج طبي (2)</option>
+                                    <option value="C">C - LTI &lt; 30 days (3)</option>
+                                    <option value="D">D - LTI ≥ 30 days (4)</option>
+                                    <option value="E">E - وفاة (5)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;background:#f9f9f9;padding:12px;border-radius:8px;">
+                            <strong style="font-size:14px;color:var(--muted);">مستوى الخطورة:</strong>
+                            <div id="hz_riskBadge" class="hz-risk-badge hz-low">Low (L) 🟢</div>
+                        </div>
+
+                        <!-- 📸 Hazard Photo Capture -->
+                        <div class="field hazard-photo-section">
+                            <input type="file" id="hz_photoInput" accept="image/*" capture="environment"
+                                   style="display:none;" onchange="handleHazardPhotoSelect(event)">
+                            <button type="button" class="emp-dir-btn secondary"
+                                    style="width:100%; justify-content:center; padding:12px; margin-bottom:8px;"
+                                    onclick="document.getElementById('hz_photoInput').click()">
+                                📷 التقاط / إرفاق صورة للمشكلة
+                            </button>
+
+                            <div id="hz_photoPreviewBox" class="hz-photo-preview-box" style="display:none;">
+                                <img id="hz_photoPreviewImg" src="" alt="Live Preview">
+                                <div class="hz-photo-actions">
+                                    <button type="button" class="act-btn approve" onclick="confirmHazardPhoto()">✅
+                                        اعتماد الصورة
+                                    </button>
+                                    <button type="button" class="act-btn reject" onclick="removeHazardPhoto()">🔄 إعادة
+                                        التقاط / حذف
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="submit-btn" id="hz_submitBtn" onclick="submitHazardReport()">إرسال البلاغ ←
+                        </button>
+                        <div id="hz_msg" class="wl-msg" style="margin-top:10px;text-align:center;"></div>
+
+                        <div class="hz-footer">
+                            SE-04-F02 | VER.NO.: 1 | VER. DATE: 3/11/2024
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MY HISTORY VIEW -->
+            <div id="viewMyHistory" style="display:none;">
+                <div class="my-history-header">
+                    <div class="my-history-title">📁 سجل تصاريح العمل</div>
+                    <div class="my-history-sub" id="myHistorySub"></div>
+                </div>
+                <div class="my-history-filter-bar" id="myHistoryFilters"></div>
+                <div id="myHistoryList">
+                    <div class="loading">جارِ التحميل…</div>
+                </div>
+            </div>
+
+            <!-- MY HAZARDS VIEW -->
+            <div id="viewMyHazards" style="display:none;">
+                <div class="my-history-header">
+                    <div class="my-history-title">📋 سجل بلاغاتي</div>
+                    <div class="my-history-sub" id="myHazardsSub"></div>
+                </div>
+                <div id="myHazardsList">
+                    <div class="loading">جارِ التحميل…</div>
+                </div>
+            </div>
+
+            <!-- SUPERVISOR VIEW -->
+            <div id="viewSup" style="display:none;">
+                <div id="loginGate"></div>
+                <div id="supDashboard" style="display:none;">
+                    <div class="sup-header-row">
+                        <h3>🛡️ لوحة المشرف</h3>
+                        <div class="header-actions">
+                            <div class="user-profile-chip-container" id="supUserProfileChip"></div>
+                            <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
+                        </div>
+                    </div>
+
+                    <div class="toolbar">
+                        <div class="filters" id="typeFilters"></div>
+                    </div>
+                    <div class="toolbar">
+                        <div class="filters" id="filters"></div>
+                        <button class="export-btn" onclick="exportExcel()">⬇ تصدير Excel</button>
+                    </div>
+                    <div id="supList">
+                        <div class="loading">جارِ التحميل…</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SUPERVISOR HAZARD VIEW -->
+            <div id="viewSupHazard" style="display:none;">
+                <div class="sup-header-row" style="margin-bottom:16px;">
+                    <h3>⚠️ بلاغات الخطورة والشكاوى</h3>
+                    <div class="header-actions">
+                        <div class="user-profile-chip-container" id="hzUserProfileChip"></div>
+                        <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
+                    </div>
+                </div>
+                <div class="toolbar">
+                    <div class="filters" id="hzFilters"></div>
+                    <button class="export-btn" onclick="renderSupHazard(false)"
+                            style="margin-inline-start:auto; background:var(--primary); color:#fff; display:flex; align-items:center; gap:6px;">
+                        🔄 تحديث البيانات
+                    </button>
+                </div>
+                <div class="toolbar" id="hzDeptToolbar" style="display:none;">
+                    <div class="filters" id="hzDeptFilters"></div>
+                </div>
+                <div class="toolbar">
+                    <button class="export-btn" onclick="exportHazardsExcel()" style="margin-inline-start:auto;">📊 تصدير
+                        سجل البلاغات Excel
+                    </button>
+                </div>
+
+                <div id="hzList">
+                    <div class="loading">جارِ التحميل…</div>
+                </div>
+            </div>
+
+            <!-- USER MANAGEMENT VIEW (Super Admin only) -->
+            <div id="viewUsers" style="display:none;">
+                <div class="sup-header-row" style="margin-bottom:16px;">
+                    <h3>👥 إدارة الحسابات والمستخدمين</h3>
+                    <div class="header-actions">
+                        <div class="user-profile-chip-container" id="umUserProfileChip"></div>
+                        <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
+                    </div>
+                </div>
+
+                <!-- Add New User Form -->
+                <div class="um-add-card">
+                    <div class="section-title" style="margin-top:0;">إضافة مستخدم جديد</div>
+                    <div class="row2">
+                        <div class="field">
+                            <label>الاسم الكامل
+                                <span class="req-star">*</span>
+                            </label>
+                            <input id="um_name" type="text" placeholder="مثال: أحمد محمد">
+                        </div>
+                        <div class="field">
+                            <label>اسم المستخدم
+                                <span class="req-star">*</span>
+                            </label>
+                            <input id="um_username" type="text" placeholder="مثال: ahmed123">
+                        </div>
+                    </div>
+                    <div class="row2">
+                        <div class="field">
+                            <label>كلمة المرور
+                                <span class="req-star">*</span>
+                            </label>
+                            <input id="um_password" type="password" placeholder="كلمة المرور">
+                        </div>
+                        <div class="field">
+                            <label>الدور
+                                <span class="req-star">*</span>
+                            </label>
+                            <select id="um_role" onchange="toggleUmDept()">
+                                <option value="super_admin">Super Admin — مدير النظام</option>
+                                <option value="hse_admin">HSE Admin — مشرف سلامة</option>
+                                <option value="dept_admin">Dept Admin — أدمن قسم</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row2" id="um_deptRow" style="display:none;">
+                        <div class="field">
+                            <label>القسم (مطلوب لأدمن القسم)
+                                <span class="req-star">*</span>
+                            </label>
+                            <select id="um_dept">
+                                <option value="Administration">Administration</option>
+                                <option value="all factory">all factory</option>
+                                <option value="Maintenance">Maintenance</option>
+                                <option value="outside">outside</option>
+                                <option value="Production - Master Batch">Production - Master Batch</option>
+                                <option value="Production - Special Compounds">Production - Special Compounds</option>
+                                <option value="Quality Control">Quality Control</option>
+                                <option value="R&D">R&D</option>
+                                <option value="Warehouse">Warehouse</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="submit-btn" id="um_addBtn" onclick="addUser()" style="margin-top:4px;">➕ إضافة
+                        المستخدم
+                    </button>
+                    <div id="um_addMsg" class="um-msg"></div>
+                </div>
+
+                <!-- Users Table -->
+                <div id="um_usersList">
+                    <div class="loading">جارِ التحميل…</div>
+                </div>
+
+                <!-- Edit User Modal -->
+                <div id="um_editModal" class="um-modal-overlay" style="display:none;">
+                    <div class="um-modal-card">
+                        <div class="section-title" style="margin-top:0;">✏️ تعديل بيانات المستخدم</div>
+                        <p id="um_editModalName" style="color:var(--muted);font-size:13px;margin:0 0 12px;"></p>
+
+                        <div class="field">
+                            <label>الاسم
+                                <span class="req-star">*</span>
+                            </label>
+                            <input id="um_editName" type="text" placeholder="الاسم الكامل">
+                        </div>
+                        <div class="field">
+                            <label>اسم المستخدم
+                                <span class="req-star">*</span>
+                            </label>
+                            <input id="um_editUsername" type="text" placeholder="اسم المستخدم">
+                        </div>
+                        <div class="field">
+                            <label>الدور
+                                <span class="req-star">*</span>
+                            </label>
+                            <select id="um_editRole" onchange="toggleEditUmDept()">
+                                <option value="super_admin">Super Admin — مدير النظام</option>
+                                <option value="hse_admin">HSE Admin — مشرف سلامة</option>
+                                <option value="dept_admin">Dept Admin — أدمن قسم</option>
+                            </select>
+                        </div>
+                        <div class="field" id="um_editDeptRow" style="display:none;">
+                            <label>القسم (مطلوب لأدمن القسم)
+                                <span class="req-star">*</span>
+                            </label>
+                            <select id="um_editDept">
+                                <option value="Administration">Administration</option>
+                                <option value="all factory">all factory</option>
+                                <option value="Extrusion">Extrusion</option>
+                                <option value="HSE">HSE</option>
+                                <option value="Logistics">Logistics</option>
+                                <option value="Maintenance">Maintenance</option>
+                                <option value="Production - Master Batch">Production - Master Batch</option>
+                                <option value="Production - Special Compounds">Production - Special Compounds</option>
+                                <option value="Production - PVC">Production - PVC</option>
+                                <option value="PVP">PVP</option>
+                                <option value="Quality Control">Quality Control</option>
+                                <option value="R&D">R&D</option>
+                                <option value="Warehouse">Warehouse</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>كلمة المرور الجديدة
+                                <span style="font-size:11px;color:#64748b;">(اختياري)</span>
+                            </label>
+                            <input id="um_editNewPass" type="password" placeholder="اتركها فارغة للحفاظ على الحالية">
+                        </div>
+
+                        <div style="display:flex;gap:8px;margin-top:12px;">
+                            <button class="submit-btn" style="flex:1;" onclick="saveUserEdit()">حفظ التعديلات</button>
+                            <button class="logout-btn" style="flex:1;" onclick="closeEditUserModal()">إلغاء</button>
+                        </div>
+                        <div id="um_editMsg" class="um-msg"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EMPLOYEES VIEW (Supervisor / Admin / SuperAdmin) -->
+            <div id="viewEmployees" style="display:none;">
+                <div class="sup-header-row" style="margin-bottom:16px;">
+                    <h3>🗂️ دليل الموظفين</h3>
+                    <div class="header-actions">
+                        <div class="user-profile-chip-container" id="emUserProfileChip"></div>
+                        <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
+                    </div>
+                </div>
+
+                <!-- Dashboard Container (Filters, KPIs, Leaderboard) -->
+                <div id="empDashboardWrap"></div>
+
+                <!-- Table Container (Search, Actions, Table) -->
+                <div id="empTableWrap">
+                    <!-- Action Bar -->
+                    <div class="emp-dir-topbar">
+                        <button class="emp-dir-btn primary" onclick="openEmpModal()">➕ إضافة موظف</button>
+                        <label class="emp-dir-btn secondary" style="cursor:pointer;" title="استيراد من Excel">
+                            📥 استيراد Excel
+                            <input type="file" id="empImportFile" accept=".xlsx,.xls" style="display:none;"
+                                   onchange="importEmployeesExcel(this)">
+                        </label>
+                        <button class="emp-dir-btn secondary" onclick="exportEmployeesExcel()">📤 تصدير Excel</button>
+                        <div class="emp-dir-search-wrap">
+                            <input id="empSearchInput" type="text" class="emp-dir-search"
+                                   placeholder="🔍 بحث بالاسم أو الكود أو القسم…"
+                                   oninput="window.handleEmployeeSearch(this.value)">
+                        </div>
+                    </div>
+
+                    <!-- Employees Table -->
+                    <div id="empDirList">
+                        <div class="loading">جارِ التحميل…</div>
+                    </div>
+                </div>
+
+                <!-- Add / Edit Modal -->
+                <div id="empModal" class="um-modal-overlay" style="display:none;">
+                    <div class="um-modal-card" style="max-width:460px;">
+                        <div class="section-title" style="margin-top:0;" id="empModalTitle">➕ إضافة موظف جديد</div>
+                        <div class="row2">
+                            <div class="field">
+                                <label>الكود الوظيفي
+                                    <span class="req-star">*</span>
+                                </label>
+                                <input id="em_code" type="text" placeholder="EMP001"
+                                       oninput="this.value=this.value.toUpperCase()"
+                                       style="font-family:'Oswald',sans-serif;letter-spacing:1.5px;">
+                            </div>
+                            <div class="field">
+                                <label>الاسم الكامل
+                                    <span class="req-star">*</span>
+                                </label>
+                                <input id="em_name" type="text" placeholder="الاسم الرباعي">
+                            </div>
+                        </div>
+                        <div class="row2">
+                            <div class="field">
+                                <label>القسم</label>
+                                <select id="em_dept">
+                                    <option value="">-- اختر القسم --</option>
+                                    <option>Administration</option>
+                                    <option>all factory</option>
+                                    <option>Maintenance</option>
+                                    <option>outside</option>
+                                    <option>Production - Master Batch</option>
+                                    <option>Production - Special Compounds</option>
+                                    <option>Quality Control</option>
+                                    <option>R&D</option>
+                                    <option>Warehouse</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>المسمى الوظيفي</label>
+                                <input id="em_jobTitle" type="text" placeholder="مثال: مهندس صيانة">
+                            </div>
+                        </div>
+                        <div class="row2">
+                            <div class="field">
+                                <label>الصلاحية / الفئة</label>
+                                <select id="em_role">
+                                    <option value="worker">عامل / فني</option>
+                                    <option value="hse_admin">مشرف سلامة (HSE Admin)</option>
+                                    <option value="dept_admin">أدمن قسم (Dept Admin)</option>
+                                    <option value="contractor">مقاول / خارجي</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>رقم التليفون</label>
+                                <input id="em_phone" type="tel" placeholder="01xxxxxxxxx">
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:8px;margin-top:10px;">
+                            <button class="submit-btn" style="flex:1;" onclick="saveEmployee()">💾 حفظ</button>
+                            <button class="logout-btn" style="flex:1;" onclick="closeEmpModal()">إلغاء</button>
+                        </div>
+                        <div id="em_msg" class="um-msg" style="margin-top:8px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 🎓 TRAINING WORKER VIEW -->
+            <div id="viewTrainingWorker" style="display:none; padding:12px;">
+                <!-- Hero Stats Card -->
+                <div class="stat-card" style="margin-bottom:16px;">
+                    <h3>📊 نسبة حضوري</h3>
+                    <div style="font-size:14px; margin-bottom:8px;" id="trnWorkerStatText">جاري تحميل الإحصائيات...
+                    </div>
+                    <div class="trn-progress-wrap"
+                         style="background:var(--paper-line); height:12px; border-radius:6px; overflow:hidden;">
+                        <div class="trn-progress-bar" id="trnWorkerProgressBar"
+                             style="width:0%; height:100%; background:var(--amber); transition:width 0.4s;"></div>
+                    </div>
+                </div>
+
+                <!-- Active Session Check-in Box -->
+                <div id="trnWorkerActiveSessionArea" style="margin-bottom:16px;"></div>
+
+                <!-- History Table -->
+                <h3 class="section-title">سجل حضوري السابق</h3>
+                <div id="trnWorkerHistoryList"></div>
+            </div>
+
+            <!-- 🎓 TRAINING ADMIN VIEW -->
+            <div id="viewTrainingAdmin" style="display:none; padding:12px;">
+                <!-- Create Session Form -->
+                <div class="ticket" id="createLectureCard" style="margin-bottom:24px;">
+                    <div class="ticket-head" style="background:var(--amber);">
+                        <div>
+                            <div class="ttype">➕ إنشاء محاضرة جديدة</div>
+                        </div>
+                    </div>
+                    <div class="ticket-body">
+                        <div class="row2">
+                            <div class="field">
+                                <label>موضوع المحاضرة
+                                    <span class="req-star">*</span>
+                                </label>
+                                <input type="text" id="trn_topic" list="topicsList"
+                                       placeholder="اختر من القائمة أو اكتب موضوعاً مخصصاً" autocomplete="off">
+                                <datalist id="topicsList"></datalist>
+                            </div>
+                            <div class="field">
+                                <label>الفئة المستهدفة</label>
+                                <input type="text" id="trn_targetGroup" placeholder="مثال: عمال الانتاج, الجميع...">
+                            </div>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px;">
+                            <!-- اسم المحاضر -->
+                            <div>
+                                <label style="display:block;font-weight:bold;margin-bottom:5px;">اسم المحاضر</label>
+                                <input type="text" id="trn_trainer" name="trainer" readonly
+                                       style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:6px;background-color:#f1f5f9;cursor:not-allowed;box-sizing:border-box;"
+                                       placeholder="اسم المحاضر"/>
+                            </div>
+                            <!-- كود المحاضر -->
+                            <div>
+                                <label style="display:block;font-weight:bold;margin-bottom:5px;">كود المحاضر</label>
+                                <input type="text" id="trn_trainerCode" name="trainer_code" readonly
+                                       style="width:100%;padding:10px;border:1px solid #d1d5db;border-radius:6px;background-color:#f1f5f9;cursor:not-allowed;box-sizing:border-box;font-family:'Oswald',sans-serif;letter-spacing:1.5px;"
+                                       placeholder="الكود الوظيفي"/>
+                            </div>
+                        </div>
+                        <div class="row2">
+                            <div class="field">
+                                <label>التاريخ
+                                    <span class="req-star">*</span>
+                                </label>
+                                <input type="date" id="trn_date">
+                            </div>
+                            <div class="field">
+                                <label>مكان الانعقاد</label>
+                                <input type="text" id="trn_location" placeholder="مثال: قاعة التدريب الرئيسية">
+                            </div>
+                        </div>
+                        <div class="row2">
+                            <div class="field">
+                                <label>وقت البدء
+                                    <span class="req-star">*</span>
+                                </label>
+                                <input type="time" id="trn_startTime">
+                            </div>
+                            <div class="field">
+                                <label>وقت الانتهاء
+                                    <span class="req-star">*</span>
+                                </label>
+                                <input type="time" id="trn_endTime">
+                            </div>
+                        </div>
+                        <button class="submit-btn" onclick="createTrainingSession()">إنشاء المحاضرة وبدء التسجيل
+                        </button>
+                        <div id="trn_createMsg" class="wl-msg" style="margin-top:8px;"></div>
+                    </div>
+                </div>
+
+                <!-- Live Session Management -->
+                <div id="liveSessionsSection">
+                    <h3 class="section-title">📡 إدارة الجلسات الحية</h3>
+                    <div id="trnAdminLiveSessions"></div>
+                </div>
+            </div>
+
         </div>
 
-        <button class="submit-btn" id="hz_submitBtn" onclick="submitHazardReport()">إرسال البلاغ ←</button>
-        <div id="hz_msg" class="wl-msg" style="margin-top:10px;text-align:center;"></div>
-        
-        <div class="hz-footer">
-          SE-04-F02 | VER.NO.: 1 | VER. DATE: 3/11/2024
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- MY HISTORY VIEW -->
-  <div id="viewMyHistory" style="display:none;">
-    <div class="my-history-header">
-      <div class="my-history-title">📁 سجل تصاريح العمل</div>
-      <div class="my-history-sub" id="myHistorySub"></div>
-    </div>
-    <div class="my-history-filter-bar" id="myHistoryFilters"></div>
-    <div id="myHistoryList"><div class="loading">جارِ التحميل…</div></div>
-  </div>
-
-  <!-- MY HAZARDS VIEW -->
-  <div id="viewMyHazards" style="display:none;">
-    <div class="my-history-header">
-      <div class="my-history-title">📋 سجل بلاغاتي</div>
-      <div class="my-history-sub" id="myHazardsSub"></div>
-    </div>
-    <div id="myHazardsList"><div class="loading">جارِ التحميل…</div></div>
-  </div>
-
-  <!-- SUPERVISOR VIEW -->
-  <div id="viewSup" style="display:none;">
-    <div id="loginGate"></div>
-    <div id="supDashboard" style="display:none;">
-      <div class="sup-header-row">
-        <h3>🛡️ لوحة المشرف</h3>
-        <div class="header-actions">
-          <div class="user-profile-chip-container" id="supUserProfileChip"></div>
-          <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
-        </div>
-      </div>
-
-      <div class="toolbar">
-        <div class="filters" id="typeFilters"></div>
-      </div>
-      <div class="toolbar">
-        <div class="filters" id="filters"></div>
-        <button class="export-btn" onclick="exportExcel()">⬇ تصدير Excel</button>
-      </div>
-      <div id="supList"><div class="loading">جارِ التحميل…</div></div>
-    </div>
-  </div>
-
-  <!-- SUPERVISOR HAZARD VIEW -->
-  <div id="viewSupHazard" style="display:none;">
-    <div class="sup-header-row" style="margin-bottom:16px;">
-      <h3>⚠️ بلاغات الخطورة والشكاوى</h3>
-      <div class="header-actions">
-        <div class="user-profile-chip-container" id="hzUserProfileChip"></div>
-        <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
-      </div>
-    </div>
-    <div class="toolbar">
-      <div class="filters" id="hzFilters"></div>
-      <button class="export-btn" onclick="renderSupHazard(false)" style="margin-inline-start:auto; background:var(--primary); color:#fff; display:flex; align-items:center; gap:6px;">🔄 تحديث البيانات</button>
-
-    </div>
-    <div class="toolbar" id="hzDeptToolbar" style="display:none;">
-      <div class="filters" id="hzDeptFilters"></div>
-    </div>
-    <div class="toolbar">
-      <button class="export-btn" onclick="exportHazardsExcel()" style="margin-inline-start:auto;">📊 تصدير سجل البلاغات Excel</button>
-    </div>
-    
-
-
-    <div id="hzList"><div class="loading">جارِ التحميل…</div></div>
-  </div>
-
-  <!-- USER MANAGEMENT VIEW (Super Admin only) -->
-  <div id="viewUsers" style="display:none;">
-    <div class="sup-header-row" style="margin-bottom:16px;">
-      <h3>👥 إدارة الحسابات والمستخدمين</h3>
-      <div class="header-actions">
-        <div class="user-profile-chip-container" id="umUserProfileChip"></div>
-        <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
-      </div>
-    </div>
-
-    <!-- Add New User Form -->
-    <div class="um-add-card">
-      <div class="section-title" style="margin-top:0;">إضافة مستخدم جديد</div>
-      <div class="row2">
-        <div class="field">
-          <label>الاسم الكامل <span class="req-star">*</span></label>
-          <input id="um_name" type="text" placeholder="مثال: أحمد محمد">
-        </div>
-        <div class="field">
-          <label>اسم المستخدم <span class="req-star">*</span></label>
-          <input id="um_username" type="text" placeholder="مثال: ahmed123">
-        </div>
-      </div>
-      <div class="row2">
-        <div class="field">
-          <label>كلمة المرور <span class="req-star">*</span></label>
-          <input id="um_password" type="password" placeholder="كلمة المرور">
-        </div>
-        <div class="field">
-          <label>الدور <span class="req-star">*</span></label>
-          <select id="um_role" onchange="toggleUmDept()">
-            <option value="super_admin">Super Admin — مدير النظام</option>
-            <option value="hse_admin">HSE Admin — مشرف سلامة</option>
-            <option value="dept_admin">Dept Admin — أدمن قسم</option>
-          </select>
-        </div>
-      </div>
-      <div class="row2" id="um_deptRow" style="display:none;">
-        <div class="field">
-          <label>القسم (مطلوب لأدمن القسم) <span class="req-star">*</span></label>
-          <select id="um_dept">
-            <option value="Administration">Administration</option>
-            <option value="all factory">all factory</option>
-            <option value="Maintenance">Maintenance</option>
-            <option value="outside">outside</option>
-            <option value="Production - Master Batch">Production - Master Batch</option>
-            <option value="Production - Special Compounds">Production - Special Compounds</option>
-            <option value="Quality Control">Quality Control</option>
-            <option value="R&D">R&D</option>
-            <option value="Warehouse">Warehouse</option>
-          </select>
-        </div>
-      </div>
-      <button class="submit-btn" id="um_addBtn" onclick="addUser()" style="margin-top:4px;">➕ إضافة المستخدم</button>
-      <div id="um_addMsg" class="um-msg"></div>
-    </div>
-
-    <!-- Users Table -->
-    <div id="um_usersList"><div class="loading">جارِ التحميل…</div></div>
-
-    <!-- Edit User Modal -->
-    <div id="um_editModal" class="um-modal-overlay" style="display:none;">
-      <div class="um-modal-card">
-        <div class="section-title" style="margin-top:0;">✏️ تعديل بيانات المستخدم</div>
-        <p id="um_editModalName" style="color:var(--muted);font-size:13px;margin:0 0 12px;"></p>
-        
-        <div class="field">
-          <label>الاسم <span class="req-star">*</span></label>
-          <input id="um_editName" type="text" placeholder="الاسم الكامل">
-        </div>
-        <div class="field">
-          <label>اسم المستخدم <span class="req-star">*</span></label>
-          <input id="um_editUsername" type="text" placeholder="اسم المستخدم">
-        </div>
-        <div class="field">
-          <label>الدور <span class="req-star">*</span></label>
-          <select id="um_editRole" onchange="toggleEditUmDept()">
-            <option value="super_admin">Super Admin — مدير النظام</option>
-            <option value="hse_admin">HSE Admin — مشرف سلامة</option>
-            <option value="dept_admin">Dept Admin — أدمن قسم</option>
-          </select>
-        </div>
-        <div class="field" id="um_editDeptRow" style="display:none;">
-          <label>القسم (مطلوب لأدمن القسم) <span class="req-star">*</span></label>
-          <select id="um_editDept">
-            <option value="Administration">Administration</option>
-            <option value="all factory">all factory</option>
-            <option value="Extrusion">Extrusion</option>
-            <option value="HSE">HSE</option>
-            <option value="Logistics">Logistics</option>
-            <option value="Maintenance">Maintenance</option>
-            <option value="Production - Master Batch">Production - Master Batch</option>
-            <option value="Production - Special Compounds">Production - Special Compounds</option>
-            <option value="Production - PVC">Production - PVC</option>
-            <option value="PVP">PVP</option>
-            <option value="Quality Control">Quality Control</option>
-            <option value="R&D">R&D</option>
-            <option value="Warehouse">Warehouse</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>كلمة المرور الجديدة <span style="font-size:11px;color:#64748b;">(اختياري)</span></label>
-          <input id="um_editNewPass" type="password" placeholder="اتركها فارغة للحفاظ على الحالية">
+        <!-- 🖼️ Full-Screen Image Lightbox Modal -->
+        <div id="lightboxModal" class="lightbox-overlay" style="display:none;">
+            <div class="lightbox-toolbar">
+                <button class="lightbox-btn" onclick="zoomOutLightbox()">➖</button>
+                <button class="lightbox-btn" onclick="zoomInLightbox()">➕</button>
+                <button class="lightbox-btn" id="lightboxDownloadBtn" onclick="downloadLightboxImage()">⬇️ تحميل
+                </button>
+                <button class="lightbox-btn close" onclick="closeLightbox()">✖ إغلاق</button>
+            </div>
+            <div class="lightbox-content-area" id="lightboxContentArea">
+                <img id="lightboxImg" src="" alt="Full Screen Hazard Image"
+                     style="transform: scale(1); transition: transform 0.2s ease;">
+            </div>
         </div>
 
-        <div style="display:flex;gap:8px;margin-top:12px;">
-          <button class="submit-btn" style="flex:1;" onclick="saveUserEdit()">حفظ التعديلات</button>
-          <button class="logout-btn" style="flex:1;" onclick="closeEditUserModal()">إلغاء</button>
+        <!-- 🗑️ Delete Permit Modal -->
+        <div id="deletePermitModal" class="um-modal-overlay" style="display:none; z-index: 9999;">
+            <div class="um-modal-card">
+                <div class="section-title" style="margin-top:0; color:var(--danger);">🗑️ حذف الطلب</div>
+                <p style="color:var(--muted);font-size:13px;margin:0 0 12px;">تأكيد حذف الطلب ونقله للأرشيف.</p>
+
+                <div class="field">
+                    <label>سبب الحذف
+                        <span class="req-star">*</span>
+                    </label>
+                    <input id="deletePermitReason" type="text" placeholder="مثال: طلب مكرر، طلب خاطئ...">
+                </div>
+
+                <div style="display:flex;gap:8px;margin-top:12px;">
+                    <button class="submit-btn"
+                            style="flex:1; background-color:var(--danger); border-color:var(--danger);"
+                            onclick="confirmDeletePermit()">حذف الطلب
+                    </button>
+                    <button class="logout-btn" style="flex:1;" onclick="closeDeletePermitModal()">إلغاء</button>
+                </div>
+                <div id="deletePermitMsg" class="um-msg"></div>
+            </div>
         </div>
-        <div id="um_editMsg" class="um-msg"></div>
-      </div>
-    </div>
-  </div>
 
-</div>
-
-  <!-- EMPLOYEES VIEW (Supervisor / Admin / SuperAdmin) -->
-  <div id="viewEmployees" style="display:none;">
-    <div class="sup-header-row" style="margin-bottom:16px;">
-      <h3>🗂️ دليل الموظفين</h3>
-      <div class="header-actions">
-        <div class="user-profile-chip-container" id="emUserProfileChip"></div>
-        <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
-      </div>
-    </div>
-
-    <!-- Dashboard Container (Filters, KPIs, Leaderboard) -->
-    <div id="empDashboardWrap"></div>
-
-    <!-- Table Container (Search, Actions, Table) -->
-    <div id="empTableWrap">
-      <!-- Action Bar -->
-      <div class="emp-dir-topbar">
-        <button class="emp-dir-btn primary" onclick="openEmpModal()">➕ إضافة موظف</button>
-        <label class="emp-dir-btn secondary" style="cursor:pointer;" title="استيراد من Excel">
-          📥 استيراد Excel
-          <input type="file" id="empImportFile" accept=".xlsx,.xls" style="display:none;" onchange="importEmployeesExcel(this)">
-        </label>
-        <button class="emp-dir-btn secondary" onclick="exportEmployeesExcel()">📤 تصدير Excel</button>
-        <div class="emp-dir-search-wrap">
-          <input id="empSearchInput" type="text" class="emp-dir-search" placeholder="🔍 بحث بالاسم أو الكود أو القسم…" oninput="window.handleEmployeeSearch(this.value)">
+        <!-- HAZARD ASSIGN TO MAINTENANCE MODAL -->
+        <div id="hzAssignModal" class="um-modal-overlay" style="display:none; z-index: 9999;">
+            <div class="um-modal-card">
+                <div class="section-title" style="margin-top:0;">توجيه البلاغ للصيانة</div>
+                <div class="field">
+                    <label>قسم الصيانة المستهدف
+                        <span class="req-star">*</span>
+                    </label>
+                    <select id="hz_target_maint">
+                        <option value="" disabled selected>-- اختر قسم الصيانة --</option>
+                        <option value="Electrical Maintenance">الصيانة الكهربائية (Electrical Maintenance)</option>
+                        <option value="Mechanical Maintenance">الصيانة الميكانيكية (Mechanical Maintenance)</option>
+                        <option value="Preventive Maintenance">الصيانة الوقائية (Preventive Maintenance)</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>ملاحظات التوجيه (اختياري)</label>
+                    <textarea id="hz_assign_notes" rows="2" placeholder="اكتب أي ملاحظات أو توجيهات لفريق الصيانة..."></textarea>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:12px;">
+                    <button class="submit-btn" style="flex:1;" onclick="submitHzAssign()">توجيه الآن</button>
+                    <button class="logout-btn" style="flex:1;" onclick="closeHzAssignModal()">إلغاء</button>
+                </div>
+            </div>
         </div>
-      </div>
 
-      <!-- Employees Table -->
-      <div id="empDirList"><div class="loading">جارِ التحميل…</div></div>
-    </div>
-
-    <!-- Add / Edit Modal -->
-    <div id="empModal" class="um-modal-overlay" style="display:none;">
-      <div class="um-modal-card" style="max-width:460px;">
-        <div class="section-title" style="margin-top:0;" id="empModalTitle">➕ إضافة موظف جديد</div>
-        <div class="row2">
-          <div class="field">
-            <label>الكود الوظيفي <span class="req-star">*</span></label>
-            <input id="em_code" type="text" placeholder="EMP001"
-                   oninput="this.value=this.value.toUpperCase()"
-                   style="font-family:'Oswald',sans-serif;letter-spacing:1.5px;">
-          </div>
-          <div class="field">
-            <label>الاسم الكامل <span class="req-star">*</span></label>
-            <input id="em_name" type="text" placeholder="الاسم الرباعي">
-          </div>
+        <!-- HAZARD RESOLVE BY MAINTENANCE MODAL -->
+        <div id="hzResolveModal" class="um-modal-overlay" style="display:none; z-index: 9999;">
+            <div class="um-modal-card">
+                <div class="section-title" style="margin-top:0;">تأكيد إصلاح الخطورة</div>
+                <div class="field">
+                    <label>الإجراء المتخذ (تفاصيل الصيانة)
+                        <span class="req-star">*</span>
+                    </label>
+                    <textarea id="hz_resolve_action" rows="3" placeholder="اكتب تفاصيل ما تم عمله..."></textarea>
+                </div>
+                <div class="field">
+                    <label>أسماء فريق الصيانة المنفذ
+                        <span class="req-star">*</span>
+                    </label>
+                    <input type="text" id="hz_resolve_team" placeholder="مثال: م. أحمد، فني محمود">
+                </div>
+                <div style="display:flex;gap:8px;margin-top:12px;">
+                    <button class="submit-btn" style="flex:1; background:var(--success); border-color:var(--success);"
+                            onclick="submitHzResolve()">تأكيد الإصلاح والإغلاق
+                    </button>
+                    <button class="logout-btn" style="flex:1;" onclick="closeHzResolveModal()">إلغاء</button>
+                </div>
+            </div>
         </div>
-        <div class="row2">
-          <div class="field">
-            <label>القسم</label>
-            <select id="em_dept">
-              <option value="">-- اختر القسم --</option>
-              <option>Administration</option><option>all factory</option>
-              <option>Maintenance</option><option>outside</option>
-              <option>Production - Master Batch</option>
-              <option>Production - Special Compounds</option>
-              <option>Quality Control</option><option>R&D</option>
-              <option>Warehouse</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>المسمى الوظيفي</label>
-            <input id="em_jobTitle" type="text" placeholder="مثال: مهندس صيانة">
-          </div>
+
+        <!-- HAZARD REJECT BY MAINTENANCE MODAL -->
+        <div id="hzRejectMaintModal" class="um-modal-overlay" style="display:none; z-index: 9999;">
+            <div class="um-modal-card">
+                <div class="section-title" style="margin-top:0; color:var(--danger)">رفض الإصلاح (عدم اختصاص)</div>
+                <div class="field">
+                    <label>سبب الرفض والاعتذار
+                        <span class="req-star">*</span>
+                    </label>
+                    <textarea id="hz_maint_reject_reason" rows="3"
+                              placeholder="مثال: العطل ميكانيكي وليس كهربائياً..."></textarea>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:12px;">
+                    <button class="submit-btn" style="flex:1; background:var(--danger); border-color:var(--danger);"
+                            onclick="submitHzRejectMaint()">تأكيد الرفض
+                    </button>
+                    <button class="logout-btn" style="flex:1;" onclick="closeHzRejectMaintModal()">إلغاء</button>
+                </div>
+            </div>
         </div>
-        <div class="row2">
-          <div class="field">
-            <label>الصلاحية / الفئة</label>
-            <select id="em_role">
-              <option value="worker">عامل / فني</option>
-              <option value="hse_admin">مشرف سلامة (HSE Admin)</option>
-              <option value="dept_admin">أدمن قسم (Dept Admin)</option>
-              <option value="contractor">مقاول / خارجي</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>رقم التليفون</label>
-            <input id="em_phone" type="tel" placeholder="01xxxxxxxxx">
-          </div>
+
+        <!-- HAZARD REJECT BY HSE MODAL -->
+        <div id="hzRejectHseModal" class="um-modal-overlay" style="display:none; z-index: 9999;">
+            <div class="um-modal-card">
+                <div class="section-title" style="margin-top:0; color:var(--danger)">رفض بلاغ الخطورة</div>
+                <div class="field">
+                    <label>سبب الرفض
+                        <span class="req-star">*</span>
+                    </label>
+                    <textarea id="hz_hse_reject_reason" rows="3" placeholder="اكتب سبب رفض البلاغ..."></textarea>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:12px;">
+                    <button class="submit-btn" style="flex:1; background:var(--danger); border-color:var(--danger);"
+                            onclick="submitHzRejectHse()">تأكيد الرفض
+                    </button>
+                    <button class="logout-btn" style="flex:1;" onclick="closeHzRejectHseModal()">إلغاء</button>
+                </div>
+            </div>
         </div>
-        <div style="display:flex;gap:8px;margin-top:10px;">
-          <button class="submit-btn" style="flex:1;" onclick="saveEmployee()">💾 حفظ</button>
-          <button class="logout-btn" style="flex:1;" onclick="closeEmpModal()">إلغاء</button>
-        </div>
-        <div id="em_msg" class="um-msg" style="margin-top:8px;"></div>
-      </div>
-    </div>
-  </div>
-
-</div>
-
-</div>
-
-<!-- 🎓 TRAINING WORKER VIEW -->
-<div id="viewTrainingWorker" style="display:none; padding:12px;">
-  <!-- Hero Stats Card -->
-  <div class="stat-card" style="margin-bottom:16px;">
-    <h3>📊 نسبة حضوري</h3>
-    <div style="font-size:14px; margin-bottom:8px;" id="trnWorkerStatText">جاري تحميل الإحصائيات...</div>
-    <div class="trn-progress-wrap" style="background:var(--paper-line); height:12px; border-radius:6px; overflow:hidden;">
-      <div class="trn-progress-bar" id="trnWorkerProgressBar" style="width:0%; height:100%; background:var(--amber); transition:width 0.4s;"></div>
-    </div>
-  </div>
-
-  <!-- Active Session Check-in Box -->
-  <div id="trnWorkerActiveSessionArea" style="margin-bottom:16px;"></div>
-
-  <!-- History Table -->
-  <h3 class="section-title">سجل حضوري السابق</h3>
-  <div id="trnWorkerHistoryList"></div>
-</div>
-
-<!-- 🎓 TRAINING ADMIN VIEW -->
-<div id="viewTrainingAdmin" style="display:none; padding:12px;">
-  <!-- Create Session Form -->
-  <div class="ticket" id="createLectureCard" style="margin-bottom:24px;">
-    <div class="ticket-head" style="background:var(--amber);">
-      <div><div class="ttype">➕ إنشاء محاضرة جديدة</div></div>
-    </div>
-    <div class="ticket-body">
-      <div class="row2">
-        <div class="field">
-          <label>موضوع المحاضرة <span class="req-star">*</span></label>
-          <input type="text" id="trn_topic" list="topicsList" placeholder="اختر من القائمة أو اكتب موضوعاً مخصصاً" autocomplete="off">
-          <datalist id="topicsList"></datalist>
-        </div>
-        <div class="field">
-          <label>الفئة المستهدفة</label>
-          <input type="text" id="trn_targetGroup" placeholder="مثال: عمال الانتاج, الجميع...">
-        </div>
-      </div>
-      <div class="row2">
-        <div class="field">
-          <label>اسم المحاضر</label>
-          <input type="text" id="trn_trainer" placeholder="اسم الشخص الذي يقدم المحاضرة">
-        </div>
-        <div class="field">
-          <label>كود المحاضر</label>
-          <input type="text" id="trn_trainerCode" placeholder="الكود الوظيفي للمحاضر (اختياري)" oninput="this.value=this.value.toUpperCase()" style="font-family:'Oswald',sans-serif;letter-spacing:1.5px;">
-        </div>
-      </div>
-      <div class="row2">
-        <div class="field">
-          <label>التاريخ <span class="req-star">*</span></label>
-          <input type="date" id="trn_date">
-        </div>
-        <div class="field">
-          <label>مكان الانعقاد</label>
-          <input type="text" id="trn_location" placeholder="مثال: قاعة التدريب الرئيسية">
-        </div>
-      </div>
-      <div class="row2">
-        <div class="field">
-          <label>وقت البدء <span class="req-star">*</span></label>
-          <input type="time" id="trn_startTime">
-        </div>
-        <div class="field">
-          <label>وقت الانتهاء <span class="req-star">*</span></label>
-          <input type="time" id="trn_endTime">
-        </div>
-      </div>
-      <button class="submit-btn" onclick="createTrainingSession()">إنشاء المحاضرة وبدء التسجيل</button>
-      <div id="trn_createMsg" class="wl-msg" style="margin-top:8px;"></div>
-    </div>
-  </div>
-
-  <!-- Live Session Management -->
-  <div id="liveSessionsSection">
-    <h3 class="section-title">📡 إدارة الجلسات الحية</h3>
-    <div id="trnAdminLiveSessions"></div>
-  </div>
 
 
-</div>
 
-<!-- 🖼️ Full-Screen Image Lightbox Modal -->
-<div id="lightboxModal" class="lightbox-overlay" style="display:none;">
-  <div class="lightbox-toolbar">
-    <button class="lightbox-btn" onclick="zoomOutLightbox()">➖</button>
-    <button class="lightbox-btn" onclick="zoomInLightbox()">➕</button>
-    <button class="lightbox-btn" id="lightboxDownloadBtn" onclick="downloadLightboxImage()">⬇️ تحميل</button>
-    <button class="lightbox-btn close" onclick="closeLightbox()">✖ إغلاق</button>
-  </div>
-  <div class="lightbox-content-area" id="lightboxContentArea">
-    <img id="lightboxImg" src="" alt="Full Screen Hazard Image" style="transform: scale(1); transition: transform 0.2s ease;">
-  </div>
-</div>
-<!-- 🗑️ Delete Permit Modal -->
-<div id="deletePermitModal" class="um-modal-overlay" style="display:none; z-index: 9999;">
-  <div class="um-modal-card">
-    <div class="section-title" style="margin-top:0; color:var(--danger);">🗑️ حذف الطلب</div>
-    <p style="color:var(--muted);font-size:13px;margin:0 0 12px;">تأكيد حذف الطلب ونقله للأرشيف.</p>
-    
-    <div class="field">
-      <label>سبب الحذف <span class="req-star">*</span></label>
-      <input id="deletePermitReason" type="text" placeholder="مثال: طلب مكرر، طلب خاطئ...">
-    </div>
-
-    <div style="display:flex;gap:8px;margin-top:12px;">
-      <button class="submit-btn" style="flex:1; background-color:var(--danger); border-color:var(--danger);" onclick="confirmDeletePermit()">حذف الطلب</button>
-      <button class="logout-btn" style="flex:1;" onclick="closeDeletePermitModal()">إلغاء</button>
-    </div>
-    <div id="deletePermitMsg" class="um-msg"></div>
-  </div>
-</div><!-- HAZARD ASSIGN TO MAINTENANCE MODAL -->
-<div id="hzAssignModal" class="um-modal-overlay" style="display:none; z-index: 9999;">
-  <div class="um-modal-card">
-    <div class="section-title" style="margin-top:0;">توجيه البلاغ للصيانة</div>
-    <div class="field">
-      <label>قسم الصيانة المستهدف <span class="req-star">*</span></label>
-      <select id="hz_target_maint">
-        <option value="" disabled selected>-- اختر قسم الصيانة --</option>
-        <option value="Electrical Maintenance">الصيانة الكهربائية (Electrical Maintenance)</option>
-        <option value="Mechanical Maintenance">الصيانة الميكانيكية (Mechanical Maintenance)</option>
-        <option value="Preventive Maintenance">الصيانة الوقائية (Preventive Maintenance)</option>
-      </select>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:12px;">
-      <button class="submit-btn" style="flex:1;" onclick="submitHzAssign()">توجيه الآن</button>
-      <button class="logout-btn" style="flex:1;" onclick="closeHzAssignModal()">إلغاء</button>
-    </div>
-  </div>
-</div>
-
-<!-- HAZARD RESOLVE BY MAINTENANCE MODAL -->
-<div id="hzResolveModal" class="um-modal-overlay" style="display:none; z-index: 9999;">
-  <div class="um-modal-card">
-    <div class="section-title" style="margin-top:0;">تأكيد إصلاح الخطورة</div>
-    <div class="field">
-      <label>الإجراء المتخذ (تفاصيل الصيانة) <span class="req-star">*</span></label>
-      <textarea id="hz_resolve_action" rows="3" placeholder="اكتب تفاصيل ما تم عمله..."></textarea>
-    </div>
-    <div class="field">
-      <label>أسماء فريق الصيانة المنفذ <span class="req-star">*</span></label>
-      <input type="text" id="hz_resolve_team" placeholder="مثال: م. أحمد، فني محمود">
-    </div>
-    <div style="display:flex;gap:8px;margin-top:12px;">
-      <button class="submit-btn" style="flex:1; background:var(--success); border-color:var(--success);" onclick="submitHzResolve()">تأكيد الإصلاح والإغلاق</button>
-      <button class="logout-btn" style="flex:1;" onclick="closeHzResolveModal()">إلغاء</button>
-    </div>
-  </div>
-</div>
-
-<!-- HAZARD REJECT BY MAINTENANCE MODAL -->
-<div id="hzRejectMaintModal" class="um-modal-overlay" style="display:none; z-index: 9999;">
-  <div class="um-modal-card">
-    <div class="section-title" style="margin-top:0; color:var(--danger)">رفض الإصلاح (عدم اختصاص)</div>
-    <div class="field">
-      <label>سبب الرفض والاعتذار <span class="req-star">*</span></label>
-      <textarea id="hz_maint_reject_reason" rows="3" placeholder="مثال: العطل ميكانيكي وليس كهربائياً..."></textarea>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:12px;">
-      <button class="submit-btn" style="flex:1; background:var(--danger); border-color:var(--danger);" onclick="submitHzRejectMaint()">تأكيد الرفض</button>
-      <button class="logout-btn" style="flex:1;" onclick="closeHzRejectMaintModal()">إلغاء</button>
-    </div>
-  </div>
-</div>
-
-<!-- HAZARD REJECT BY HSE MODAL -->
-<div id="hzRejectHseModal" class="um-modal-overlay" style="display:none; z-index: 9999;">
-  <div class="um-modal-card">
-    <div class="section-title" style="margin-top:0; color:var(--danger)">رفض بلاغ الخطورة</div>
-    <div class="field">
-      <label>سبب الرفض <span class="req-star">*</span></label>
-      <textarea id="hz_hse_reject_reason" rows="3" placeholder="اكتب سبب رفض البلاغ..."></textarea>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:12px;">
-      <button class="submit-btn" style="flex:1; background:var(--danger); border-color:var(--danger);" onclick="submitHzRejectHse()">تأكيد الرفض</button>
-      <button class="logout-btn" style="flex:1;" onclick="closeHzRejectHseModal()">إلغاء</button>
-    </div>
-  </div>
-</div>
-
-<script src="app.js?v=9.9.9" defer></script>
-</body>
+        <script src="app.js?v=99.9.9" defer></script>
+    </body>
 </html>
-

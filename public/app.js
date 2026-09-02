@@ -3,6 +3,7 @@
 // ============================================================
 window.currentSessionType = window.currentSessionType || 'supervisor';
 var currentSessionType = window.currentSessionType;
+var notifEventSource = null;
 var currentAdminToken = typeof getToken === 'function' ? getToken() : (sessionStorage.getItem('wp_auth_token') || '');
 
 window.playNotificationChime = function() {
@@ -574,6 +575,10 @@ function switchTab(which){
   }
   if(which==='trainingWorker'){
     if(currentEmployee){
+      if (typeof window.populateTrainerInfo === 'function') {
+        window.populateTrainerInfo();
+        setTimeout(window.populateTrainerInfo, 150);
+      }
       loadWorkerTraining();
       if(!window.trnWorkerPollTimer){
         window.trnWorkerPollTimer = setInterval(() => loadWorkerTraining(true), 10000);
@@ -581,7 +586,14 @@ function switchTab(which){
     }
   }
   if(which==='trainingAdmin'){
-    if(isLoggedIn){ loadAdminTraining(); } else { switchTab('sup'); }
+    if(isLoggedIn){
+      // Pre-fill trainer fields immediately (before async fetch resolves)
+      if (typeof window.populateTrainerInfo === 'function') {
+        window.populateTrainerInfo();
+        setTimeout(window.populateTrainerInfo, 150);
+      }
+      loadAdminTraining();
+    } else { switchTab('sup'); }
   }
 }
 
@@ -973,9 +985,20 @@ async function registerEmployee(){
 
 /** ينهي عملية دخول الموظف: يحفظ الجلسة ويدخل التطبيق */
 function finishEmployeeLogin(emp){
+  // Ensure correct employee code is attached to currentUser/emp
+  if (window.allEmployees && window.allEmployees.length && emp.name) {
+    const found = window.allEmployees.find(e => e.name && e.name.trim() === emp.name.trim());
+    if (found && found.empCode) {
+      emp.empCode = String(found.empCode);
+    }
+  }
+
   currentEmployee = emp;
   try{
     localStorage.setItem('ep_currentEmployee', JSON.stringify(emp));
+    if (emp.empCode) {
+      sessionStorage.setItem('last_logged_emp_code', String(emp.empCode));
+    }
   } catch(e){ /* ignore */ }
   // ── Set RBAC session and rebuild UI before showing app ────
   sessionRole = 'worker';
@@ -987,6 +1010,7 @@ function finishEmployeeLogin(emp){
   subscribeUserToPush();
   // switchTab guard now allows 'worker' since sessionRole === 'worker'
   switchTab('worker');
+  if (typeof window.populateTrainerInfo === 'function') window.populateTrainerInfo();
 }
 
 /** تعبئة حقول نموذج الطلب تلقائياً من بيانات الموظف */
@@ -3468,7 +3492,7 @@ function getHazardCardHtml(h) {
   
   let statusStr = 'مفتوح 🔴';
   let statusClass = 'hz-status-open';
-  if (h.status === 'assigned_to_maintenance') { statusStr = 'موجه للصيانة 📢'; statusClass = 'hz-status-in_progress'; }
+  if (h.status === 'assigned_to_maintenance') { statusStr = `تم التوجيه لـ: ${h.assignedToMaintenance || 'الصيانة'} 📢`; statusClass = 'hz-status-in_progress'; }
   if (h.status === 'in_progress') { statusStr = 'قيد الإصلاح 🟡'; statusClass = 'hz-status-in_progress'; }
   if (h.status === 'rejected_by_maintenance') { statusStr = 'مرفوض (صيانة) ❌'; statusClass = 'hz-status-rejected'; }
   if (h.status === 'rejected_by_hse') { statusStr = 'مرفوض 🚫'; statusClass = 'hz-status-rejected'; }
@@ -3509,8 +3533,8 @@ function getHazardCardHtml(h) {
         if (hasFullControl) {
           actionHtml += `
             <div style="display:flex; gap:8px; width:100%; margin-top:10px;">
-              <button onclick="updateHazardStatus('${h.id}', 'assigned_maintenance')" class="btn-cyan" style="flex:1;">📢 توجيه للصيانة</button>
-              <button onclick="updateHazardStatus('${h.id}', 'in_progress')" class="btn-amber" style="flex:1; background:#f59e0b; color:#fff; border:none; padding:8px; border-radius:6px; font-weight:bold; cursor:pointer;">🛠️ بدء الإصلاح</button>
+              <button onclick="openHzAssignModal('${h.id}')" class="btn-cyan" style="flex:1;">📢 توجيه للصيانة</button>
+              <button onclick="startHzMaintenance('${h.id}')" class="btn-amber" style="flex:1; background:#f59e0b; color:#fff; border:none; padding:8px; border-radius:6px; font-weight:bold; cursor:pointer;">🛠️ بدء الإصلاح</button>
               <button onclick="updateHazardStatus('${h.id}', 'rejected')" class="btn-red" style="flex:1;">🚫 رفض البلاغ</button>
             </div>`;
         }
@@ -3518,7 +3542,7 @@ function getHazardCardHtml(h) {
         if (hasFullControl || (isMaint && h.assignedToMaintenance === currentUserDept)) {
           actionHtml += `
             <div style="display:flex; gap:8px; width:100%; margin-top:10px;">
-              <button onclick="updateHazardStatus('${h.id}', 'in_progress')" class="btn-amber" style="flex:1; background:#f59e0b; color:#fff; border:none; padding:8px; border-radius:6px; font-weight:bold; cursor:pointer;">🛠️ بدء الإصلاح</button>
+              <button onclick="startHzMaintenance('${h.id}')" class="btn-amber" style="flex:1; background:#f59e0b; color:#fff; border:none; padding:8px; border-radius:6px; font-weight:bold; cursor:pointer;">🛠️ بدء الإصلاح</button>
               <button onclick="resolveHazardPrompt('${h.id}')" class="btn-emerald" style="flex:1; background:#10b981; color:#fff; border:none; padding:8px; border-radius:6px; font-weight:bold; cursor:pointer;">✅ تم الحل والإغلاق</button>
             </div>`;
         }
@@ -3566,6 +3590,12 @@ function getHazardCardHtml(h) {
     }
   }
 
+  const rawStart = h.treatmentStartedAt || h.startedAt || (h.status === 'resolved' ? h.completedAt : null);
+  const startDisplay = rawStart ? new Date(rawStart).toLocaleString('ar-EG', {
+    year: 'numeric', month: 'numeric', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', hour12: true
+  }) : 'لم تبدأ بعد';
+
   const timelineHtml = `
     <div class="hazard-timeline">
       <div class="timeline-step done">
@@ -3584,11 +3614,11 @@ function getHazardCardHtml(h) {
         </div>
       </div>
 
-      <div class="timeline-step ${h.startedAt ? 'done' : 'pending'}">
+      <div class="timeline-step ${rawStart ? 'done' : 'pending'}">
         <span class="step-icon">⚙️</span>
         <div class="step-info">
           <strong>وقت بدء المعالجة:</strong>
-          <span>${h.startedAt ? `${formatDateTime(h.startedAt)} (${h.startedByName || 'الصيانة'})` : 'بانتظار البدء'}</span>
+          <span>${startDisplay} ${rawStart && h.assignedTechName ? `(المنسوب: ${h.assignedTechName}${h.assignedTechCode ? ' - '+h.assignedTechCode : ''})` : (rawStart && h.startedByName ? `(${h.startedByName})` : (rawStart ? '(الصيانة)' : ''))}</span>
         </div>
       </div>
 
@@ -3623,6 +3653,7 @@ function getHazardCardHtml(h) {
       <div class="desc"><strong>وصف الخطورة:</strong><br>${escapeHtml(h.description)}</div>
       <div class="desc"><strong>الإصابة المحتملة:</strong><br>${escapeHtml(h.potentialInjury)}</div>
       ${h.proposedSolution ? `<div class="desc"><strong>الحل المقترح:</strong><br>${escapeHtml(h.proposedSolution)}</div>` : ''}
+      ${h.assignNotes ? `<div class="desc" style="background:#e0f7fa; padding:8px; border-radius:4px; border:1px solid #b2ebf2; margin-top:8px;"><strong>ملاحظات التوجيه للصيانة:</strong><br>${escapeHtml(h.assignNotes)}</div>` : ''}
       ${h.photoUrl ? `<div style="margin-top:8px;"><div class="hz-photo-badge" onclick="openLightbox('${h.photoUrl}')">🖼️ عرض الصورة</div></div>` : ''}
       ${actionHtml}
       ${timelineHtml}
@@ -3893,12 +3924,75 @@ async function submitHzRejectHse() {
       const d = await res.json();
       showToast(d.error || 'حدث خطأ', 'error');
     }
-  } catch (e) { showToast('خطأ في الاتصال', 'error'); }
+  } catch(e) { showToast('خطأ في الاتصال', 'error'); }
 }
+
+window.populateTrainerInfo = function() {
+  const nameInput = document.getElementById('trn_trainer');
+  const codeInput = document.getElementById('trn_trainerCode');
+  if (!nameInput || !codeInput) return;
+
+  // 1. Try decoding wp_auth_token
+  let currentUser = null;
+  try {
+    const rawToken = sessionStorage.getItem('wp_auth_token') || localStorage.getItem('wp_auth_token');
+    if (rawToken && rawToken.includes('.')) {
+      let b64 = rawToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      while (b64.length % 4) b64 += '=';
+      const decodedChars = atob(b64);
+      const bytes = new Uint8Array(decodedChars.length);
+      for (let i = 0; i < decodedChars.length; i++) bytes[i] = decodedChars.charCodeAt(i);
+      currentUser = JSON.parse(new TextDecoder('utf-8').decode(bytes));
+    }
+  } catch (e) {}
+
+  // 2. Fallbacks to other session keys
+  if (!currentUser || !currentUser.name) {
+    try {
+      currentUser = JSON.parse(sessionStorage.getItem('employee_session') || localStorage.getItem('user') || '{}');
+    } catch(e) {}
+  }
+  if (!currentUser || !currentUser.name) {
+    currentUser = window.currentUser || {};
+  }
+
+  // 3. Resolve exact name and code
+  const finalName = (currentUser.name || currentUser.fullName || '').trim();
+  let finalCode = currentUser.empCode || currentUser.emp_code || currentUser.code || '';
+
+  // If code is missing or default admin string, resolve from window.allEmployees
+  if ((!finalCode || finalCode === 'superadmin-default') && Array.isArray(window.allEmployees) && finalName) {
+    const matched = window.allEmployees.find(e => e && e.name && e.name.trim() === finalName);
+    if (matched) {
+      finalCode = matched.empCode || matched.emp_code || '';
+    }
+  }
+  if (!finalCode && currentUser.id && !isNaN(currentUser.id)) {
+    finalCode = currentUser.id;
+  }
+
+  // 4. Set values and lock inputs
+  if (finalName) {
+    nameInput.value = finalName;
+  }
+  if (finalCode) {
+    codeInput.value = String(finalCode);
+  }
+
+  nameInput.readOnly = true;
+  nameInput.style.backgroundColor = '#f1f5f9';
+  nameInput.style.cursor = 'not-allowed';
+
+  codeInput.readOnly = true;
+  codeInput.style.backgroundColor = '#f1f5f9';
+  codeInput.style.cursor = 'not-allowed';
+};
+
 
 function openHzAssignModal(id) {
   currentHzAssignId = id;
   document.getElementById('hz_target_maint').value = '';
+  if (document.getElementById('hz_assign_notes')) document.getElementById('hz_assign_notes').value = '';
   document.getElementById('hzAssignModal').style.display = 'flex';
 }
 function closeHzAssignModal() {
@@ -3906,12 +4000,13 @@ function closeHzAssignModal() {
 }
 async function submitHzAssign() {
   const target = document.getElementById('hz_target_maint').value;
+  const notes = document.getElementById('hz_assign_notes') ? document.getElementById('hz_assign_notes').value.trim() : '';
   if (!target) return showToast('يرجى اختيار قسم الصيانة المستهدف', 'error');
   try {
     const res = await authFetch(`/api/hazards/${currentHzAssignId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'assign_maintenance', targetMaintenance: target })
+      body: JSON.stringify({ action: 'assign_maintenance', targetMaintenance: target, assignNotes: notes })
     });
     if (res.ok) {
       showToast('تم التوجيه للصيانة بنجاح', 'success');
@@ -4222,25 +4317,6 @@ async function submitAttendance(sessionId) {
   }
 }
 
-window.populateTrainerInfo = function() {
-  const user = window.currentUser || JSON.parse(localStorage.getItem('user') || '{}');
-  const trainerInput = document.getElementById('trn_trainer') || document.querySelector('[name="trainer"]');
-  const trainerCodeInput = document.getElementById('trn_trainerCode') || document.querySelector('[name="trainer_code"]');
-
-  if (trainerInput) {
-    trainerInput.value = user.name || currentUserName || '';
-  }
-
-  if (trainerCodeInput) {
-    let actualCode = user.empCode || user.emp_code || user.badge || currentUsername || '';
-    // If it is 'superadmin' or includes 'admin', explicitly set '1' (or their actual badge code)
-    if (!actualCode || String(actualCode).toLowerCase().includes('admin')) {
-      actualCode = user.id || '1';
-    }
-    trainerCodeInput.value = actualCode;
-  }
-};
-
 async function loadAdminTraining(isSilent = false) {
   if (!isLoggedIn) return;
   
@@ -4305,6 +4381,9 @@ async function loadAdminTraining(isSilent = false) {
         renderAdminLiveSessions(trainings);
       }
     }
+
+    // Re-apply trainer fields after data loads (allEmployees may now be available)
+    window.populateTrainerInfo();
   } catch (err) {
     console.error('Handled loadAdminTraining error:', err);
   }
@@ -4575,7 +4654,6 @@ function zoomOutLightbox() {
 // 📡 NOTIFICATIONS & WEB PUSH MODULE
 // ============================================================
 
-let notifEventSource = null;
 let currentNotifications = [];
 let currentNotifFilter = 'all';
 let isNotifDrawerOpen = false;
@@ -4634,9 +4712,13 @@ async function startNotificationPolling() {
 }
 
 function stopNotificationPolling() {
-  if (notifEventSource) {
-    notifEventSource.close();
+  if (typeof notifEventSource !== 'undefined' && notifEventSource) {
+    try { notifEventSource.close(); } catch(e) {}
     notifEventSource = null;
+  }
+  if (window._notifPollTimer) {
+    clearInterval(window._notifPollTimer);
+    window._notifPollTimer = null;
   }
 }
 
