@@ -417,6 +417,15 @@
         >
           🦺 الفحص الشهري
         </div>
+        <!-- 🛡️ AUDIT LOG TAB — hse_admin/super_admin only -->
+        <div
+          class="tab"
+          id="tabAuditLog"
+          onclick="switchTab('auditlog')"
+          style="display: none"
+        >
+          🛡️ سجل التدقيق
+        </div>
       </div>
 
       <!-- 📊 DASHBOARD VIEW -->
@@ -436,6 +445,11 @@
       <!-- 🦺 MONTHLY INSPECTION VIEW (الفحص الشهري) — hse_admin/super_admin only -->
       <div id="viewInspections" style="display: none; padding: 12px">
         <div id="inspectionsContent"></div>
+      </div>
+
+      <!-- 🛡️ AUDIT LOG VIEW (سجل التدقيق) — hse_admin/super_admin only -->
+      <div id="viewAuditLog" style="display: none; padding: 12px">
+        <div id="auditLogContent"></div>
       </div>
 
       <!-- WORKER FORM VIEW -->
@@ -2331,6 +2345,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=99.9.28" defer></script>
+    <script src="app.js?v=99.9.29" defer></script>
   </body>
 </html>

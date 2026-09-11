@@ -522,6 +522,8 @@ function applyRbacUI() {
 
   // 🦺 Monthly Inspection Tab — hse_admin/super_admin only
   setDisplay('tabInspections', isSup && (currentUserRole === 'super_admin' || currentUserRole === 'hse_admin'));
+  // 🛡️ Audit Log Tab — hse_admin/super_admin only
+  setDisplay('tabAuditLog', isSup && (currentUserRole === 'super_admin' || currentUserRole === 'hse_admin'));
 
   // Dashboard Tab — first tab, visible for ALL authenticated roles
   setDisplay('tabDashboard', isWorker || isSup);
@@ -579,7 +581,7 @@ function switchTab(which){
   // worker tabs.  Pre-auth state ('none') is allowed to reach the
   // supervisor login gate so goToAdminLogin() keeps working.
   const workerTabs = ['worker', 'hazardWorker', 'myhistory', 'myhazards', 'trainingWorker', 'drillWorker', 'penaltiesWorker'];
-  const supTabs    = ['sup', 'supHazard', 'users', 'employees', 'trainingAdmin', 'drillAdmin', 'penaltiesAdmin', 'inspections'];
+  const supTabs    = ['sup', 'supHazard', 'users', 'employees', 'trainingAdmin', 'drillAdmin', 'penaltiesAdmin', 'inspections', 'auditlog'];
   if (workerTabs.includes(which) && sessionRole === 'supervisor') return;
   if (supTabs.includes(which)   && sessionRole === 'worker') return;
   // ─────────────────────────────────────────────────────────────────
@@ -614,6 +616,8 @@ function switchTab(which){
   if(tabPenA) tabPenA.classList.toggle('active', which==='penaltiesAdmin');
   const tabInsp = document.getElementById('tabInspections');
   if(tabInsp) tabInsp.classList.toggle('active', which==='inspections');
+  const tabAudit = document.getElementById('tabAuditLog');
+  if(tabAudit) tabAudit.classList.toggle('active', which==='auditlog');
 
   document.getElementById('viewWorker').style.display = which==='worker' ? 'block':'none';
   const viewHazardW = document.getElementById('viewHazardWorker');
@@ -647,6 +651,9 @@ function switchTab(which){
   // Monthly Inspection view (الفحص الشهري)
   const viewInsp = document.getElementById('viewInspections');
   if(viewInsp) viewInsp.style.display = which==='inspections' ? 'block':'none';
+  // Audit Log view (سجل التدقيق)
+  const viewAudit = document.getElementById('viewAuditLog');
+  if(viewAudit) viewAudit.style.display = which==='auditlog' ? 'block':'none';
 
   // Stop polling when leaving the relevant view
   if(which !== 'sup' && supervisorPollTimer){
@@ -763,6 +770,12 @@ function switchTab(which){
   if(which==='inspections'){
     if(isLoggedIn && (currentUserRole === 'hse_admin' || currentUserRole === 'super_admin')){
       renderInspections();
+    } else { switchTab('sup'); }
+  }
+  // Audit Log (سجل التدقيق) — hse_admin/super_admin only
+  if(which==='auditlog'){
+    if(isLoggedIn && (currentUserRole === 'hse_admin' || currentUserRole === 'super_admin')){
+      renderAuditLog();
     } else { switchTab('sup'); }
   }
 }
@@ -9136,4 +9149,169 @@ async function inspDeleteRecord(recordId) {
   } catch(e) {
     showToast('خطأ في الاتصال بالسيرفر', 'error');
   }
+}
+
+// ============================================================
+// 🛡️ AUDIT LOG (سجل التدقيق) — hse_admin/super_admin only, read-only
+// ============================================================
+const AUDIT_ENTITY_LABELS = {
+  permit: 'تصريح عمل', hazard: 'بلاغ خطورة', training: 'محاضرة', drill: 'تجربة طوارئ',
+  'inspection-section': 'قسم فحص', 'inspection-item': 'صنف فحص', 'inspection-record': 'نتيجة فحص',
+  database: 'قاعدة البيانات'
+};
+const AUDIT_ACTION_ICONS = {
+  create: '➕', update: '✏️', delete: '🗑️', approve: '✅', reject: '⛔',
+  close: '🔒', force_close: '🔒', restore: '↩️', 'import-legacy-excel': '📥'
+};
+
+let auditLogState = { entityType: '', q: '' };
+
+async function renderAuditLog() {
+  const root = document.getElementById('auditLogContent');
+  if (!root) return;
+  const isSuperAdmin = currentUserRole === 'super_admin';
+
+  root.innerHTML = `
+    ${isSuperAdmin ? `
+    <div class="ticket" style="margin-bottom:20px;">
+      <div class="ticket-head"><div><div class="ttype">💾 النسخ الاحتياطي واسترجاع البيانات</div></div></div>
+      <div class="ticket-body" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <button class="btn btn-primary" type="button" onclick="downloadFullBackup()">⬇ تنزيل نسخة احتياطية كاملة</button>
+        <label class="btn btn-secondary" style="cursor:pointer;margin:0;">
+          ⬆ استرجاع من نسخة احتياطية
+          <input type="file" id="backupRestoreInput" accept=".json" style="display:none" onchange="restoreFullBackup(event)" />
+        </label>
+        <span style="font-size:12px;color:var(--muted);">النسخة الاحتياطية ملف JSON واحد يشمل كل بيانات النظام — الاسترجاع يستبدل البيانات الحالية بالكامل.</span>
+      </div>
+    </div>` : ''}
+
+    <div class="sup-header-row" style="margin-bottom:16px">
+      <h3>🛡️ سجل التدقيق — من عمل إيه وإمتى</h3>
+    </div>
+
+    <div class="adv-filter-box">
+      <div class="adv-filter-grid">
+        <div class="adv-filter-field">
+          <label>نوع العملية</label>
+          <select id="auditFilterType" onchange="auditApplyFilters()">
+            <option value="">الكل</option>
+            ${Object.entries(AUDIT_ENTITY_LABELS).map(([k,v]) => `<option value="${k}">${v}</option>`).join('')}
+          </select>
+        </div>
+        <div class="adv-filter-field">
+          <label>بحث (اسم/ملاحظة)</label>
+          <input type="text" id="auditFilterQ" placeholder="ابحث بالاسم أو الملاحظة..." oninput="window.debounce(auditApplyFilters,300)()" />
+        </div>
+      </div>
+      <div class="adv-filter-footer">
+        <button class="adv-filter-clear-btn" onclick="auditLogState={entityType:'',q:''};renderAuditLog();">مسح الفلاتر</button>
+        <span class="adv-filter-count" id="auditFilterCount"></span>
+      </div>
+    </div>
+
+    <div id="auditLogList"><div class="loading">جارِ التحميل…</div></div>
+  `;
+  await auditLoadList();
+}
+
+function auditApplyFilters() {
+  const typeEl = document.getElementById('auditFilterType');
+  const qEl = document.getElementById('auditFilterQ');
+  auditLogState.entityType = typeEl ? typeEl.value : '';
+  auditLogState.q = qEl ? qEl.value.trim().toLowerCase() : '';
+  auditRenderList();
+}
+
+async function auditLoadList() {
+  const listEl = document.getElementById('auditLogList');
+  try {
+    const params = new URLSearchParams({ limit: '500' });
+    if (auditLogState.entityType) params.set('entityType', auditLogState.entityType);
+    const res = await authFetch(`/api/audit-log?${params.toString()}`);
+    if (!res.ok) throw new Error('fetch failed');
+    const data = await res.json();
+    window._auditLogCache = data.entries || [];
+    auditRenderList();
+  } catch (e) {
+    console.error('Audit log load error', e);
+    if (listEl) listEl.innerHTML = '<div class="empty" style="color:var(--danger);">فشل تحميل سجل التدقيق</div>';
+  }
+}
+
+function auditRenderList() {
+  const listEl = document.getElementById('auditLogList');
+  const countEl = document.getElementById('auditFilterCount');
+  if (!listEl) return;
+  let entries = window._auditLogCache || [];
+  if (auditLogState.q) {
+    const q = auditLogState.q;
+    entries = entries.filter(e =>
+      String(e.actorName || '').toLowerCase().includes(q) ||
+      String(e.note || '').toLowerCase().includes(q) ||
+      String(e.department || '').toLowerCase().includes(q)
+    );
+  }
+  if (countEl) countEl.textContent = `${entries.length} عملية`;
+
+  if (entries.length === 0) {
+    listEl.innerHTML = '<div class="empty"><div class="icon">🛡️</div>لا توجد عمليات مسجّلة بعد — سيبدأ السجل بالامتلاء تلقائيًا مع أي اعتماد/رفض/حذف جديد</div>';
+    return;
+  }
+
+  listEl.innerHTML = entries.map(e => {
+    const icon = AUDIT_ACTION_ICONS[e.action] || '•';
+    const entityLabel = AUDIT_ENTITY_LABELS[e.entityType] || e.entityType;
+    const when = e.timestamp ? new Date(e.timestamp).toLocaleString('ar-EG') : '—';
+    const statusChange = (e.previousStatus || e.newStatus)
+      ? `<div class="review-note">${escapeHtml(e.previousStatus || '—')} ← ${escapeHtml(e.newStatus || '—')}</div>` : '';
+    return `
+      <div class="sup-card">
+        <div class="sup-top">
+          <div class="worker">${icon} ${escapeHtml(entityLabel)} <span class="type-pill">${escapeHtml(e.action)}</span></div>
+          <div class="tnum">${when}</div>
+        </div>
+        <div class="meta-grid">
+          <div><span>المستخدم</span>${escapeHtml(e.actorName || e.actorUsername || '—')}</div>
+          <div><span>الدور</span>${escapeHtml(e.actorRole || '—')}</div>
+          <div><span>القسم</span>${escapeHtml(e.department || '—')}</div>
+        </div>
+        ${e.note ? `<div class="desc">${escapeHtml(e.note)}</div>` : ''}
+        ${statusChange}
+      </div>
+    `;
+  }).join('');
+}
+
+/** downloadFullBackup — تنزيل نسخة احتياطية كاملة (super_admin فقط) */
+function downloadFullBackup() {
+  navigateWithAuth('/api/admin/backup/export');
+}
+
+/** restoreFullBackup — استرجاع نسخة احتياطية كاملة (super_admin فقط، يستبدل كل البيانات الحالية) */
+async function restoreFullBackup(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!confirm('تحذير: استرجاع هذه النسخة الاحتياطية سيستبدل كل البيانات الحالية في النظام (التصاريح، البلاغات، الموظفين...) بمحتوى الملف. هل أنت متأكد؟')) {
+    event.target.value = '';
+    return;
+  }
+  try {
+    const text = await file.text();
+    const backup = JSON.parse(text);
+    showToast('جارِ استرجاع النسخة الاحتياطية…', 'info');
+    const res = await authFetch('/api/admin/backup/import', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ backup, confirm: 'تأكيد' })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.success) {
+      showToast(`تم استرجاع ${data.restored} مجموعة بيانات بنجاح ✓ — يُنصح بتحديث الصفحة`, 'success');
+    } else {
+      showToast(data.error || 'فشل استرجاع النسخة الاحتياطية', 'error');
+    }
+  } catch (e) {
+    console.error('restoreFullBackup error', e);
+    showToast('ملف النسخة الاحتياطية غير صالح', 'error');
+  }
+  event.target.value = '';
 }
