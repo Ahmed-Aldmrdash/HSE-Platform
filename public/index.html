@@ -35,16 +35,29 @@
     />
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- PERF: load the Google Fonts stylesheet without blocking first paint —
+         swap it in once it arrives instead of holding up rendering on an
+         external request (this matters most on the factory's internal LAN,
+         where the public internet leg to fonts.googleapis.com can be slow). -->
     <link
+      rel="preload"
+      as="style"
       href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Oswald:wght@500;600;700&display=swap"
-      rel="stylesheet"
+      onload="this.onload=null;this.rel='stylesheet'"
     />
-    <link rel="stylesheet" href="style.css?v=2.31.0" />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Oswald:wght@500;600;700&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
+    <link rel="stylesheet" href="style.css?v=2.32.0" />
     <script
       src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
       defer
     ></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" defer></script>
   </head>
   <body data-session="none">
     <!-- ======================================================= -->
@@ -2281,6 +2294,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=99.9.24" defer></script>
+    <script src="app.js?v=99.9.25" defer></script>
   </body>
 </html>

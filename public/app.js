@@ -3305,34 +3305,38 @@ function renderEmployeesTable(list) {
   renderEmployeesTableRows(list);
 }
 
-window.handleEmployeeSearch = function(query) {
+// PERF: debounced — this filter re-runs computeAllStats() (via
+// renderEmployeesTableRows) over the full hazards/trainings arrays, so
+// running it on every keystroke with no debounce was the single biggest
+// "typing feels slow" complaint in the employees tab.
+window.handleEmployeeSearch = window.debounce(function(query) {
   const q = (query || '').trim().toLowerCase();
   const all = window._masterEmployeesList || [];
-  
+
   if (!q) {
     renderEmployeesTableRows(all);
     return;
   }
 
   const cleanCode = String(query || '').trim().replace(/^0+/, '') || '0';
-  
+
   const filtered = all.filter(emp => {
     const eName = (emp.name || '').toLowerCase();
     const eCode = String(emp.code || emp.empCode || '').toLowerCase();
     const eDept = (emp.department || '').toLowerCase();
     const eJob = (emp.jobTitle || '').toLowerCase();
-    
+
     if (/^\d+$/.test(query)) {
       const eCodeNoZero = eCode.replace(/^0+/, '');
       return eCodeNoZero === cleanCode || eCode.includes(q);
     }
-    
+
     return eName.includes(q) || eCode.includes(q) || eDept.includes(q) || eJob.includes(q);
   });
 
   window._currentVisibleEmployees = filtered;
   renderEmployeesTableRows(filtered);
-};
+}, 250);
 
 function renderEmployeesTableRows(list) {
   const tbody = document.getElementById('empTableBody');
@@ -5007,15 +5011,48 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+// PERF: shared helpers so the badge count and the supervisor list diff-check
+// can both be applied from ONE /api/hazards response — startHazardPolling
+// used to call updateHazardBadgeCount() and silentRefreshHazards() back to
+// back every 5s, each doing its own separate full fetch of the same endpoint.
+function _applyHazardBadgeCount(hazardsList) {
+  const openCount = (hazardsList || []).filter(h => h.status === 'open').length;
+  const badgeEl = document.getElementById('hzSupBadge');
+  if (badgeEl) {
+    if (openCount > 0) {
+      badgeEl.textContent = openCount;
+      badgeEl.style.display = 'inline-block';
+    } else {
+      badgeEl.style.display = 'none';
+    }
+  }
+}
+function _applySupHazardDiff(hazardsList) {
+  const viewSup = document.getElementById('viewSupHazard');
+  if (!viewSup || viewSup.style.display === 'none') return;
+  const raw = JSON.stringify(hazardsList || []);
+  if (raw !== window.lastSupHazardsData) {
+    window.lastSupHazardsData = raw;
+    renderSupHazard(true);
+  }
+}
+
 function startHazardPolling() {
   if (window._hazardPollInterval) clearInterval(window._hazardPollInterval);
   window._hazardPollInterval = setInterval(async () => {
-    if (sessionRole === 'supervisor') {
-      await updateHazardBadgeCount();
-    }
-    
     const isEditing = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
-    if (!isEditing) {
+
+    if (sessionRole === 'supervisor' && currentAdminToken) {
+      try {
+        const res = await fetch('/api/hazards', { headers: { 'Authorization': `Bearer ${currentAdminToken}` }});
+        if (res.ok) {
+          const data = await res.json();
+          const list = data.hazards || [];
+          _applyHazardBadgeCount(list);
+          if (!isEditing) _applySupHazardDiff(list);
+        }
+      } catch (e) {}
+    } else if (!isEditing) {
       await silentRefreshHazards();
     }
   }, 5000);
@@ -5027,18 +5064,7 @@ async function updateHazardBadgeCount() {
     const res = await fetch('/api/hazards', { headers: { 'Authorization': `Bearer ${currentAdminToken}` }});
     if (!res.ok) return;
     const data = await res.json();
-    const hazards = data.hazards || [];
-    
-    const openCount = hazards.filter(h => h.status === 'open').length;
-    const badgeEl = document.getElementById('hzSupBadge');
-    if (badgeEl) {
-      if (openCount > 0) {
-        badgeEl.textContent = openCount;
-        badgeEl.style.display = 'inline-block';
-      } else {
-        badgeEl.style.display = 'none';
-      }
-    }
+    _applyHazardBadgeCount(data.hazards || []);
   } catch(e) {}
 }
 
@@ -5051,11 +5077,7 @@ async function silentRefreshHazards() {
       const res = await fetch('/api/hazards', { headers: { 'Authorization': `Bearer ${currentAdminToken}` }});
       if (!res.ok) return;
       const data = await res.json();
-      const raw = JSON.stringify(data.hazards || []);
-      if (raw !== window.lastSupHazardsData) {
-        window.lastSupHazardsData = raw;
-        renderSupHazard(true);
-      }
+      _applySupHazardDiff(data.hazards || []);
     } catch(e) {}
   } else if (viewMy && viewMy.style.display !== 'none' && currentEmployee) {
     try {
@@ -5104,7 +5126,7 @@ async function loadWorkerTraining(isSilent = false) {
     const progressPercentage = Math.min(100, (attendedHours / 8) * 100);
     textEl.textContent = `🎓 حضرت ${attendedHours} ساعة من إجمالي 8 ساعات`;
     barEl.style.width = `${progressPercentage}%`;
-    barEl.style.background = progressPercentage >= 100 ? 'var(--success)' : '#3b82f6';
+    barEl.style.background = progressPercentage >= 100 ? 'var(--success)' : 'var(--amber)';
 
     // Active Session
     if (activeSession) {
@@ -5895,7 +5917,7 @@ async function loadAdminDrill(isSilent = false) {
     <div style="padding: 20px; background: #f8f9fa; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
         <button onclick="navigateWithAuth('/api/drills/export/${drill.id}')" style="background: #16A34A; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold;">📊 تصدير Excel</button>
         <button onclick="addManualDrlAttendee('${drill.id}')" style="background: #0F172A; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold;">➕ إضافة حضور يدوي</button>
-        <button onclick="openDrillReportModal('${drill.id}')" style="background: #7C3AED; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold;">📝 إنشاء / تعديل الريبورت</button>
+        <button onclick="openDrillReportModal('${drill.id}')" style="background: var(--amber); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold;">📝 إنشاء / تعديل الريبورت</button>
         <button onclick="closeDrillSession('${drill.id}')" style="background: #DC2626; color: white; border: none; padding: 12px 30px; border-radius: 8px; cursor: pointer; font-weight: bold;">🛑 إنهاء وإغلاق التجربة</button>
     </div>
 </div>
@@ -5921,7 +5943,7 @@ async function loadAdminDrill(isSilent = false) {
             <div style="display:flex; gap:6px; flex-wrap:wrap;">
               <button onclick="toggleDrlAttendeesView('${drl.id}')" style="background:#0F172A; color:#fff; border:none; padding:5px 15px; border-radius:5px; cursor:pointer; font-size:0.9rem;">👥 الحضور</button>
               <button onclick="navigateWithAuth('/api/drills/export/${drill.id}')" style="background: #16A34A; color: white; border: none; padding: 5px 15px; border-radius: 5px; cursor: pointer; font-size: 0.9rem;">📊 تصدير Excel</button>
-              <button onclick="openDrillReportModal('${drl.id}')" style="background:#7C3AED; color:#fff; border:none; padding:5px 15px; border-radius:5px; cursor:pointer; font-size:0.9rem;">📝 الريبورت</button>
+              <button onclick="openDrillReportModal('${drl.id}')" style="background:var(--amber); color:#fff; border:none; padding:5px 15px; border-radius:5px; cursor:pointer; font-size:0.9rem;">📝 الريبورت</button>
               <button class="um-btn del" onclick="deleteDrillSession('${drl.id}')" style="padding:6px 12px; font-size:12px;">🗑️ حذف</button>
             </div>
           </div>
@@ -6100,7 +6122,7 @@ async function openDrillReportModal(drillId) {
   overlay.style.cssText = 'position:fixed; inset:0; background:rgba(15,23,42,0.6); z-index:9999; display:flex; align-items:flex-start; justify-content:center; overflow:auto; padding:20px 10px;';
   overlay.innerHTML = `
     <div style="background:#fff; width:100%; max-width:720px; border-radius:12px; overflow:hidden; box-shadow:0 10px 40px rgba(0,0,0,0.3);">
-      <div style="background:#7C3AED; color:#fff; padding:16px 20px; display:flex; justify-content:space-between; align-items:center;">
+      <div style="background:var(--amber); color:#fff; padding:16px 20px; display:flex; justify-content:space-between; align-items:center;">
         <div style="font-weight:700; font-size:1.1rem;">📝 ريبورت التجربة: ${escapeHtml(drl.title || '')}</div>
         <button onclick="document.getElementById('drlReportModalOverlay').remove()" style="background:transparent; border:none; color:#fff; font-size:1.4rem; cursor:pointer;">×</button>
       </div>
@@ -6682,6 +6704,35 @@ let _dashDeptOptions = null; // cached list of real departments (from /api/depar
 let _dashQuickDays = 30;  // default: last 30 days
 let _dashCharts    = {};  // Chart.js instances keyed by canvas id
 
+// ── Dashboard icon set — small inline-SVG line icons (replaces emoji) ──
+// Built from plain primitives (circle/rect/line/polyline/polygon) only, so
+// they render crisp at any size and inherit color via currentColor —
+// letting each KPI card / chart card tint its own icon with its accent color
+// instead of every icon being a fixed-color emoji glyph.
+const DASH_ICON_PATHS = {
+  doc:      '<rect x="5" y="3" width="14" height="18" rx="2"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="13" y2="16"/>',
+  alert:    '<polygon points="12,4 22,20 2,20"/><line x1="12" y1="10" x2="12" y2="15"/><circle cx="12" cy="17.5" r="0.9" fill="currentColor" stroke="none"/>',
+  cap:      '<polygon points="12,4 22,9 12,14 2,9"/><line x1="6" y1="11" x2="6" y2="16"/><polyline points="6,16 12,18.5 18,16"/>',
+  siren:    '<circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/><line x1="5.3" y1="5.3" x2="7.4" y2="7.4"/><line x1="16.6" y1="16.6" x2="18.7" y2="18.7"/><line x1="5.3" y1="18.7" x2="7.4" y2="16.6"/><line x1="16.6" y1="7.4" x2="18.7" y2="5.3"/>',
+  scale:    '<circle cx="12" cy="12" r="9"/><line x1="7" y1="12" x2="17" y2="12"/>',
+  target:   '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/>',
+  check:    '<circle cx="12" cy="12" r="9"/><polyline points="8,12.5 11,15.5 16,9"/>',
+  trend:    '<polyline points="3,17 9,11 13,14 21,5"/><polyline points="15,5 21,5 21,11"/>',
+  calendar: '<rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="7" y1="2" x2="7" y2="6"/><line x1="17" y1="2" x2="17" y2="6"/>',
+  book:     '<rect x="4" y="4" width="16" height="16" rx="1.5"/><line x1="12" y1="4" x2="12" y2="20"/>',
+  bars:     '<line x1="5" y1="19" x2="5" y2="10"/><line x1="12" y1="19" x2="12" y2="5"/><line x1="19" y1="19" x2="19" y2="14"/>',
+  refresh:  '<circle cx="12" cy="12" r="8" stroke-dasharray="42 8" transform="rotate(-90 12 12)"/><polygon points="19,4.5 19,10 13.5,7.2" fill="currentColor" stroke="none"/>',
+  download: '<polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/><line x1="4" y1="21" x2="20" y2="21"/>',
+  search:   '<circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15.5" y2="15.5"/>',
+  close:    '<line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/>',
+  person:   '<circle cx="12" cy="8" r="4"/><polygon points="5,20 8,13 16,13 19,20"/>',
+};
+function dicon(name, size) {
+  size = size || 20;
+  const inner = DASH_ICON_PATHS[name] || '';
+  return `<svg class="dash-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`;
+}
+
 // ── Chart.js plugin: draw a total count + label in the center of a doughnut ──
 // Hidden automatically while a tooltip is open over a slice, since the
 // tooltip box can otherwise render on top of it and the two overlap.
@@ -6732,14 +6783,14 @@ const PERMIT_TYPE_LABELS = {
 // gets the same color, instead of shifting when the set of types present
 // changes).
 const PERMIT_TYPE_COLORS = {
-  general:    '#6366F1',
-  height:     '#0EA5E9',
-  confined:   '#8B5CF6',
-  excavation: '#EC4899',
-  lifting:    '#F59E0B',
-  hot:        '#F97316',
-  loto:       '#14B8A6',
-  lockout:    '#14B8A6',
+  general:    '#333333',
+  height:     '#E2001A',
+  confined:   '#6B6B6B',
+  excavation: '#D97706',
+  lifting:    '#8A0E1F',
+  hot:        '#A6000F',
+  loto:       '#9CA3AF',
+  lockout:    '#9CA3AF',
 };
 
 // ── Helper: destroy existing Chart.js instance ────────────────
@@ -7013,18 +7064,18 @@ function _dashExecSnapshotHTML(data) {
     <div class="dash-exec-snapshot">
       <div class="dash-exec-grid">
         <div class="dash-exec-card">
-          <span class="dash-exec-icon">📝</span>
+          <span class="dash-exec-icon">${dicon('doc', 28)}</span>
           <div class="dash-exec-value">${(permits.total || 0).toLocaleString('en-US')}</div>
           <div class="dash-exec-label">إجمالي تصاريح العمل</div>
         </div>
         <div class="dash-exec-card">
-          <span class="dash-exec-icon">🎯</span>
+          <span class="dash-exec-icon">${dicon('target', 28)}</span>
           <div class="dash-exec-value" id="execCompliancePct">…</div>
           <div class="dash-exec-label">نسبة الالتزام بأهداف السلامة</div>
           <div class="dash-exec-sub" id="execComplianceSub"></div>
         </div>
         <div class="dash-exec-card">
-          <span class="dash-exec-icon">🌱</span>
+          <span class="dash-exec-icon">${dicon('check', 28)}</span>
           <div class="dash-exec-value">${paperSaved.toLocaleString('en-US')}</div>
           <div class="dash-exec-label">ورقة تم توفيرها</div>
           <div class="dash-exec-sub">≈ ${PAPER_PER_RECORD} ورقة لكل تصريح / بلاغ / تجربة / محاضرة تم رقمنتها بدل الفورم الورقي</div>
@@ -7067,13 +7118,13 @@ function _dashHeroAndFilters(meta, opts) {
     <div class="dash-hero">
       <div class="dash-hero-row">
         <div>
-          <h1 class="dash-hero-title">📊 لوحة التحكم والإحصائيات</h1>
+          <h1 class="dash-hero-title">${dicon('bars', 24)} لوحة التحكم والإحصائيات</h1>
           <p class="dash-hero-sub">${escapeHtml(roleLabel)} &nbsp;·&nbsp; ${now}</p>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <span class="dash-hero-badge">HSE Platform · Elsewedy Polymers</span>
-          ${meta.role !== 'worker' ? `<button class="dash-refresh-btn" onclick="exportDashboardExcel()">📥 تصدير Excel</button>` : ''}
-          <button class="dash-refresh-btn" onclick="dashRefresh()">🔄 تحديث</button>
+          ${meta.role !== 'worker' ? `<button class="dash-refresh-btn" onclick="exportDashboardExcel()">${dicon('download', 15)} تصدير Excel</button>` : ''}
+          <button class="dash-refresh-btn" onclick="dashRefresh()">${dicon('refresh', 15)} تحديث</button>
         </div>
       </div>
       ${opts.execSnapshot || ''}
@@ -7163,7 +7214,7 @@ function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
   const employeeBanner = isAdminViewingOne ? `
     <div class="dash-emp-banner" style="max-width:1200px;margin:0 auto;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;background:var(--paper,#fff);border:1px solid var(--paper-line,#e2e8f0);border-radius:12px;margin-top:16px;">
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-        <span style="font-size:26px;">👤</span>
+        <span style="color:var(--amber);">${dicon('person', 26)}</span>
         <div>
           <div style="font-weight:800;font-size:15px;">${escapeHtml(viewingEmp && viewingEmp.name || 'موظف غير معروف')}</div>
           <div style="font-size:12.5px;color:var(--muted);margin-top:2px;">
@@ -7184,17 +7235,17 @@ function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
   const hazRemaining   = Math.max(0, EMP_TARGET_HAZARDS - hazSoFar);
 
   const myTargetSection = (!isDept) ? `
-      <div class="dash-section-title">🎯 تارجتك (تدريب ${EMP_TARGET_TRAIN_HOURS} ساعات / ${EMP_TARGET_HAZARDS} بلاغ خطورة)</div>
+      <div class="dash-section-title">${dicon('target', 17)} تارجتك (تدريب ${EMP_TARGET_TRAIN_HOURS} ساعات / ${EMP_TARGET_HAZARDS} بلاغ خطورة)</div>
       <div class="dash-chart-grid">
         <div class="dash-chart-card">
-          <div class="dash-chart-title">🎓 <span>ساعات التدريب</span></div>
+          <div class="dash-chart-title">${dicon('cap', 17)} <span>ساعات التدريب</span></div>
           <div style="padding:12px 4px;">
             <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">
               <span>${trainHoursSoFar.toLocaleString('en-US')} من ${EMP_TARGET_TRAIN_HOURS} ساعة</span>
               <span style="font-weight:700;">${trainPct}%</span>
             </div>
             <div style="background:var(--paper-line);height:10px;border-radius:5px;overflow:hidden;">
-              <div style="height:100%;width:${trainPct}%;background:${trainPct >= 100 ? '#16A34A' : '#4f46e5'};"></div>
+              <div style="height:100%;width:${trainPct}%;background:${trainPct >= 100 ? '#16A34A' : 'var(--amber)'};"></div>
             </div>
             <div style="margin-top:8px;font-size:12px;color:var(--muted);">
               ${trainRemaining > 0 ? `متبقّي <b>${trainRemaining}</b> ساعة تدريب علشان توصل للتارجت` : '🎉 وصلت لتارجت التدريب!'}
@@ -7202,7 +7253,7 @@ function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
           </div>
         </div>
         <div class="dash-chart-card">
-          <div class="dash-chart-title">⚠️ <span>بلاغات الخطورة</span></div>
+          <div class="dash-chart-title">${dicon('alert', 17)} <span>بلاغات الخطورة</span></div>
           <div style="padding:12px 4px;">
             <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">
               <span>${hazSoFar} من ${EMP_TARGET_HAZARDS} بلاغ</span>
@@ -7228,7 +7279,7 @@ function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
       <!-- KPI summary row -->
       <div class="dash-kpi-grid">
         <div class="dash-kpi-card accent-4">
-          <span class="dash-kpi-icon">🎓</span>
+          <span class="dash-kpi-icon">${dicon('cap', 26)}</span>
           <div class="dash-kpi-value" id="kpiTrainingTotal">0</div>
           <div class="dash-kpi-label">${trainLabel}</div>
           <div class="dash-kpi-sub">
@@ -7236,7 +7287,7 @@ function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
           </div>
         </div>
         <div class="dash-kpi-card accent-5">
-          <span class="dash-kpi-icon">⚠️</span>
+          <span class="dash-kpi-icon">${dicon('alert', 26)}</span>
           <div class="dash-kpi-value" id="kpiHazardTotal">0</div>
           <div class="dash-kpi-label">${hazLabel}</div>
           <div class="dash-kpi-sub">
@@ -7245,7 +7296,7 @@ function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
           </div>
         </div>
         <div class="dash-kpi-card accent-3">
-          <span class="dash-kpi-icon">🚨</span>
+          <span class="dash-kpi-icon">${dicon('siren', 26)}</span>
           <div class="dash-kpi-value" id="kpiDrillTotal">0</div>
           <div class="dash-kpi-label">${drillLabel}</div>
           <div class="dash-kpi-sub">
@@ -7254,7 +7305,7 @@ function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
           </div>
         </div>
         <div class="dash-kpi-card accent-1">
-          <span class="dash-kpi-icon">📝</span>
+          <span class="dash-kpi-icon">${dicon('doc', 26)}</span>
           <div class="dash-kpi-value" id="kpiPermitTotal">0</div>
           <div class="dash-kpi-label">${permitLabel}</div>
           <div class="dash-kpi-sub">
@@ -7263,7 +7314,7 @@ function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
           </div>
         </div>
         <div class="dash-kpi-card accent-2">
-          <span class="dash-kpi-icon">⚖️</span>
+          <span class="dash-kpi-icon">${dicon('scale', 26)}</span>
           <div class="dash-kpi-value" id="kpiPenaltyTotal">0</div>
           <div class="dash-kpi-label">${penaltyLabel}</div>
           <div class="dash-kpi-sub">
@@ -7276,16 +7327,16 @@ function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
 
       ${isDept ? `
       <!-- Department-wide target compliance -->
-      <div class="dash-section-title">🎯 نسبة التزام القسم بالأهداف — ${_dashGetCurrentQuarterInfo().label} (تدريب ${EMP_TARGET_TRAIN_HOURS}س سنويًا / ${EMP_TARGET_HAZARDS} بلاغ خطورة سنويًا لكل موظف)</div>
+      <div class="dash-section-title">${dicon('target', 17)} نسبة التزام القسم بالأهداف — ${_dashGetCurrentQuarterInfo().label} (تدريب ${EMP_TARGET_TRAIN_HOURS}س سنويًا / ${EMP_TARGET_HAZARDS} بلاغ خطورة سنويًا لكل موظف)</div>
       <div class="dash-kpi-grid">
         <div class="dash-kpi-card accent-3">
-          <span class="dash-kpi-icon">🎓</span>
+          <span class="dash-kpi-icon">${dicon('cap', 26)}</span>
           <div class="dash-kpi-value" id="kpiDeptTrainAchievedPct">…</div>
           <div class="dash-kpi-label">حققوا تارجت التدريب للربع الحالي</div>
           <div class="dash-kpi-sub" id="kpiDeptTrainAchievedSub"></div>
         </div>
         <div class="dash-kpi-card accent-5">
-          <span class="dash-kpi-icon">⚠️</span>
+          <span class="dash-kpi-icon">${dicon('alert', 26)}</span>
           <div class="dash-kpi-value" id="kpiDeptHazardTargetPct">…</div>
           <div class="dash-kpi-label">حققوا تارجت بلاغات الخطورة (${EMP_TARGET_HAZARDS} بلاغ)</div>
           <div class="dash-kpi-sub" id="kpiDeptHazardTargetSub"></div>
@@ -7294,27 +7345,27 @@ function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
       ` : ''}
 
       <!-- Status donuts -->
-      <div class="dash-section-title">📈 نظرة عامة على الحالة</div>
+      <div class="dash-section-title">${dicon('trend', 17)} نظرة عامة على الحالة</div>
       <div class="dash-chart-grid">
         <div class="dash-chart-card">
-          <div class="dash-chart-title">⚠️ <span>بلاغات الخطورة — الحالة</span></div>
+          <div class="dash-chart-title">${dicon('alert', 17)} <span>بلاغات الخطورة — الحالة</span></div>
           <div class="dash-chart-wrap">${hazards.total === 0 ? '<div class="dash-empty">لا توجد بلاغات في هذه الفترة</div>' : '<canvas id="chartPersonalHazard"></canvas>'}</div>
         </div>
         <div class="dash-chart-card">
-          <div class="dash-chart-title">📝 <span>تصاريح العمل — الحالة</span></div>
+          <div class="dash-chart-title">${dicon('doc', 17)} <span>تصاريح العمل — الحالة</span></div>
           <div class="dash-chart-wrap">${permits.total === 0 ? '<div class="dash-empty">لا توجد تصاريح في هذه الفترة</div>' : '<canvas id="chartPersonalPermit"></canvas>'}</div>
         </div>
         <div class="dash-chart-card">
-          <div class="dash-chart-title">🚨 <span>تجارب الطوارئ — الحالة</span></div>
+          <div class="dash-chart-title">${dicon('siren', 17)} <span>تجارب الطوارئ — الحالة</span></div>
           <div class="dash-chart-wrap">${drills.total === 0 ? '<div class="dash-empty">لا توجد تجارب طوارئ في هذه الفترة</div>' : '<canvas id="chartPersonalDrill"></canvas>'}</div>
         </div>
       </div>
 
       <!-- Detail lists -->
-      <div class="dash-section-title">🗂️ التفاصيل</div>
+      <div class="dash-section-title">${dicon('book', 17)} التفاصيل</div>
       <div class="dash-chart-grid">
         ${_dashListCard({
-          icon: '🎓', title: `${trainLabel} — الأسماء والمواعيد`,
+          icon: dicon('cap', 17), title: `${trainLabel} — الأسماء والمواعيد`,
           items: trainings.list, emptyMsg: 'لا توجد محاضرات مسجلة في هذه الفترة',
           renderRow: t => `
             <div class="dash-list-row">
@@ -7327,7 +7378,7 @@ function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
         })}
 
         ${_dashListCard({
-          icon: '⚠️', title: `${hazLabel} — الأسماء والحالة`,
+          icon: dicon('alert', 17), title: `${hazLabel} — الأسماء والحالة`,
           items: hazards.list, emptyMsg: 'لا توجد بلاغات مسجلة في هذه الفترة',
           renderRow: h => `
             <div class="dash-list-row">
@@ -7340,7 +7391,7 @@ function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
         })}
 
         ${_dashListCard({
-          icon: '🚨', title: `${drillLabel} — الأسماء والحالة`,
+          icon: dicon('siren', 17), title: `${drillLabel} — الأسماء والحالة`,
           items: drills.list, emptyMsg: 'لا توجد تجارب طوارئ مسجلة في هذه الفترة',
           renderRow: d => `
             <div class="dash-list-row">
@@ -7353,7 +7404,7 @@ function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
         })}
 
         ${_dashListCard({
-          icon: '📝', title: `${permitLabel} — الأنواع والحالة`,
+          icon: dicon('doc', 17), title: `${permitLabel} — الأنواع والحالة`,
           items: permits.list, emptyMsg: 'لا توجد تصاريح عمل مسجلة في هذه الفترة',
           renderRow: p => `
             <div class="dash-list-row">
@@ -7366,7 +7417,7 @@ function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
         })}
 
         ${_dashListCard({
-          icon: '⚖️', title: `${penaltyLabel} — الأسباب والتواريخ`,
+          icon: dicon('scale', 17), title: `${penaltyLabel} — الأسباب والتواريخ`,
           items: penalties.list, emptyMsg: 'لا توجد جزاءات مسجلة في هذه الفترة',
           renderRow: p => `
             <div class="dash-list-row">
@@ -7727,7 +7778,7 @@ function renderDashboardHTML(container, data) {
       <!-- KPI Cards -->
       <div class="dash-kpi-grid">
         <div class="dash-kpi-card accent-1">
-          <span class="dash-kpi-icon">📝</span>
+          <span class="dash-kpi-icon">${dicon('doc', 26)}</span>
           <div class="dash-kpi-value" id="kpiPermitTotal">0</div>
           <div class="dash-kpi-label">تصاريح العمل</div>
           <div class="dash-kpi-sub">
@@ -7737,7 +7788,7 @@ function renderDashboardHTML(container, data) {
           </div>
         </div>
         <div class="dash-kpi-card accent-5">
-          <span class="dash-kpi-icon">⚠️</span>
+          <span class="dash-kpi-icon">${dicon('alert', 26)}</span>
           <div class="dash-kpi-value" id="kpiHazardTotal">0</div>
           <div class="dash-kpi-label">بلاغات الخطورة</div>
           <div class="dash-kpi-sub">
@@ -7746,7 +7797,7 @@ function renderDashboardHTML(container, data) {
           </div>
         </div>
         <div class="dash-kpi-card accent-4">
-          <span class="dash-kpi-icon">🎓</span>
+          <span class="dash-kpi-icon">${dicon('cap', 26)}</span>
           <div class="dash-kpi-value" id="kpiTrainingTotal">0</div>
           <div class="dash-kpi-label">المحاضرات التدريبية</div>
           <div class="dash-kpi-sub">
@@ -7755,7 +7806,7 @@ function renderDashboardHTML(container, data) {
           </div>
         </div>
         <div class="dash-kpi-card accent-3">
-          <span class="dash-kpi-icon">🚨</span>
+          <span class="dash-kpi-icon">${dicon('siren', 26)}</span>
           <div class="dash-kpi-value" id="kpiDrillTotal">0</div>
           <div class="dash-kpi-label">تجارب الطوارئ</div>
           <div class="dash-kpi-sub">
@@ -7764,7 +7815,7 @@ function renderDashboardHTML(container, data) {
           </div>
         </div>
         <div class="dash-kpi-card accent-2">
-          <span class="dash-kpi-icon">⚖️</span>
+          <span class="dash-kpi-icon">${dicon('scale', 26)}</span>
           <div class="dash-kpi-value" id="kpiPenaltyTotal">0</div>
           <div class="dash-kpi-label">الجزاءات</div>
           <div class="dash-kpi-sub">
@@ -7774,16 +7825,16 @@ function renderDashboardHTML(container, data) {
       </div>
 
       <!-- Company-wide target compliance -->
-      <div class="dash-section-title">🎯 نسبة الالتزام بالأهداف — ${_dashGetCurrentQuarterInfo().label} (تدريب ${EMP_TARGET_TRAIN_HOURS}س سنويًا / ${EMP_TARGET_HAZARDS} بلاغ خطورة سنويًا لكل موظف)</div>
+      <div class="dash-section-title">${dicon('target', 17)} نسبة الالتزام بالأهداف — ${_dashGetCurrentQuarterInfo().label} (تدريب ${EMP_TARGET_TRAIN_HOURS}س سنويًا / ${EMP_TARGET_HAZARDS} بلاغ خطورة سنويًا لكل موظف)</div>
       <div class="dash-kpi-grid">
         <div class="dash-kpi-card accent-3">
-          <span class="dash-kpi-icon">🎓</span>
+          <span class="dash-kpi-icon">${dicon('cap', 26)}</span>
           <div class="dash-kpi-value" id="kpiTrainAchievedPct">…</div>
           <div class="dash-kpi-label">حققوا تارجت التدريب للربع الحالي</div>
           <div class="dash-kpi-sub" id="kpiTrainAchievedSub"></div>
         </div>
         <div class="dash-kpi-card accent-5">
-          <span class="dash-kpi-icon">⚠️</span>
+          <span class="dash-kpi-icon">${dicon('alert', 26)}</span>
           <div class="dash-kpi-value" id="kpiHazardTargetPct">…</div>
           <div class="dash-kpi-label">حققوا تارجت بلاغات الخطورة (${EMP_TARGET_HAZARDS} بلاغ)</div>
           <div class="dash-kpi-sub" id="kpiHazardTargetSub"></div>
@@ -7791,42 +7842,42 @@ function renderDashboardHTML(container, data) {
       </div>
 
       <!-- Charts Row 1: Status pies -->
-      <div class="dash-section-title">📈 توزيع الإحصائيات</div>
+      <div class="dash-section-title">${dicon('trend', 17)} توزيع الإحصائيات</div>
       <div class="dash-chart-grid">
         <div class="dash-chart-card">
-          <div class="dash-chart-title">🗂️ <span>تصاريح العمل — حسب الحالة</span></div>
+          <div class="dash-chart-title">${dicon('doc', 17)} <span>تصاريح العمل — حسب الحالة</span></div>
           <div class="dash-chart-wrap"><canvas id="chartPermitStatus"></canvas></div>
         </div>
         <div class="dash-chart-card">
-          <div class="dash-chart-title">🔧 <span>تصاريح العمل — حسب النوع</span></div>
+          <div class="dash-chart-title">${dicon('bars', 17)} <span>تصاريح العمل — حسب النوع</span></div>
           <div class="dash-chart-wrap"><canvas id="chartPermitType"></canvas></div>
         </div>
         <div class="dash-chart-card">
-          <div class="dash-chart-title">⚠️ <span>بلاغات الخطورة — حسب الشدة</span></div>
+          <div class="dash-chart-title">${dicon('alert', 17)} <span>بلاغات الخطورة — حسب الشدة</span></div>
           <div class="dash-chart-wrap"><canvas id="chartHazardSeverity"></canvas></div>
         </div>
       </div>
 
       <!-- Charts Row 2: Time series -->
-      <div class="dash-section-title">📅 الاتجاهات الشهرية (آخر 12 شهر)</div>
+      <div class="dash-section-title">${dicon('calendar', 17)} الاتجاهات الشهرية (آخر 12 شهر)</div>
       <div class="dash-chart-grid">
         <div class="dash-chart-card span-2">
-          <div class="dash-chart-title">📉 <span>تصاريح وبلاغات — شهرياً</span></div>
+          <div class="dash-chart-title">${dicon('trend', 17)} <span>تصاريح وبلاغات — شهرياً</span></div>
           <div class="dash-chart-wrap tall"><canvas id="chartMonthly"></canvas></div>
         </div>
       </div>
 
       <!-- Charts Row 3: Training topics + Drills -->
-      <div class="dash-section-title">🎓 التدريب وتجارب الطوارئ</div>
+      <div class="dash-section-title">${dicon('cap', 17)} التدريب وتجارب الطوارئ</div>
       <div class="dash-chart-grid">
         <div class="dash-chart-card">
-          <div class="dash-chart-title">📚 <span>أكثر الموضوعات تدريباً</span></div>
+          <div class="dash-chart-title">${dicon('book', 17)} <span>أكثر الموضوعات تدريباً</span></div>
           <div id="dashTopicsList" class="dash-topic-list" style="padding:8px 0;min-height:180px;">
             ${trainings.topTopics.length === 0 ? '<div class="dash-empty">لا توجد بيانات</div>' :
               trainings.topTopics.map((t, i) => {
                 const max = trainings.topTopics[0].count || 1;
                 const pct = Math.round((t.count / max) * 100);
-                const colors = ['#4f46e5','#0ea5e9','#16A34A','#D97706','#DC2626','#8b5cf6'];
+                const colors = ['#E2001A','#333333','#D97706','#6B6B6B','#8A0E1F','#9CA3AF'];
                 return `<div class="dash-topic-row">
                   <div class="dash-topic-name" title="${escapeHtml(t.label)}">${escapeHtml(t.label)}</div>
                   <div class="dash-topic-bar-bg"><div class="dash-topic-bar" style="width:${pct}%;background:${colors[i%colors.length]};"></div></div>
@@ -7836,20 +7887,20 @@ function renderDashboardHTML(container, data) {
           </div>
         </div>
         <div class="dash-chart-card">
-          <div class="dash-chart-title">🚨 <span>تجارب الطوارئ — الحالة</span></div>
+          <div class="dash-chart-title">${dicon('siren', 17)} <span>تجارب الطوارئ — الحالة</span></div>
           <div class="dash-chart-wrap"><canvas id="chartDrillStatus"></canvas></div>
         </div>
         <div class="dash-chart-card">
-          <div class="dash-chart-title">📊 <span>التدريبات والتجارب — شهرياً</span></div>
+          <div class="dash-chart-title">${dicon('bars', 17)} <span>التدريبات والتجارب — شهرياً</span></div>
           <div class="dash-chart-wrap"><canvas id="chartTrainingsMonthly"></canvas></div>
         </div>
       </div>
 
       <!-- Penalties -->
-      <div class="dash-section-title">⚖️ الجزاءات</div>
+      <div class="dash-section-title">${dicon('scale', 17)} الجزاءات</div>
       <div class="dash-chart-grid">
         ${_dashListCard({
-          icon: '⚖️', title: 'أحدث الجزاءات — الأسماء والأسباب',
+          icon: dicon('scale', 17), title: 'أحدث الجزاءات — الأسماء والأسباب',
           items: penalties.list, emptyMsg: 'لا توجد جزاءات مسجلة في هذه الفترة',
           renderRow: p => `
             <div class="dash-list-row">
@@ -7972,9 +8023,9 @@ function renderDashboardCharts(data) {
   // Shared chart defaults
   Chart.defaults.font.family = 'Cairo, sans-serif';
   Chart.defaults.font.size   = 12;
-  Chart.defaults.color       = '#64748b';
+  Chart.defaults.color       = '#6B6B6B';
 
-  const PALETTE = ['#4f46e5','#0ea5e9','#16A34A','#D97706','#DC2626','#8b5cf6','#ec4899','#14b8a6'];
+  const PALETTE = ['#E2001A','#333333','#D97706','#6B6B6B','#8A0E1F','#9CA3AF','#A6000F','#BFBFBF'];
 
   // Shared tooltip look for every chart in this function
   const _tip = {
@@ -8044,7 +8095,7 @@ function renderDashboardCharts(data) {
           tooltip: { ..._tip, callbacks: { label: (ctx) => ` ${ctx.parsed.x.toLocaleString('en-US')} تصريح` } },
         },
         scales: {
-          x: { grid: { color: '#f1f5f9', drawTicks: false }, border: { display: false },
+          x: { grid: { color: '#EFEFEF', drawTicks: false }, border: { display: false },
             ticks: { precision: 0, maxTicksLimit: 6, font: { size: 11 },
               callback: (v) => Number(v).toLocaleString('en-US') } },
           y: { grid: { display: false }, border: { display: false },
@@ -8099,8 +8150,8 @@ function renderDashboardCharts(data) {
         labels: monthLabels,
         datasets: [
           { label: 'تصاريح العمل', data: Object.values(permits.monthly),
-            borderColor: '#4f46e5', backgroundColor: 'rgba(79,70,229,0.08)',
-            fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#4f46e5' },
+            borderColor: '#1A1A1A', backgroundColor: 'rgba(26,26,26,0.06)',
+            fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#1A1A1A' },
           { label: 'بلاغات الخطورة', data: Object.values(hazards.monthly),
             borderColor: '#DC2626', backgroundColor: 'rgba(239,68,68,0.06)',
             fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#DC2626' },
@@ -8110,8 +8161,8 @@ function renderDashboardCharts(data) {
         interaction: { mode: 'index', intersect: false },
         plugins: { legend: { position: 'top', labels: { boxWidth: 14, padding: 16 } } },
         scales: {
-          x: { grid: { color: '#f0f4f8' } },
-          y: { grid: { color: '#f0f4f8' }, beginAtZero: true, ticks: { stepSize: 1 } }
+          x: { grid: { color: '#EFEFEF' } },
+          y: { grid: { color: '#EFEFEF' }, beginAtZero: true, ticks: { stepSize: 1 } }
         }
       }
     });
@@ -8159,7 +8210,7 @@ function renderDashboardCharts(data) {
         plugins: { legend: { position: 'top', labels: { boxWidth: 12, padding: 12 } } },
         scales: {
           x: { grid: { display: false } },
-          y: { grid: { color: '#f0f4f8' }, beginAtZero: true, ticks: { stepSize: 1 } }
+          y: { grid: { color: '#EFEFEF' }, beginAtZero: true, ticks: { stepSize: 1 } }
         }
       }
     });

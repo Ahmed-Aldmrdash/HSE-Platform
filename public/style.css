@@ -1,44 +1,48 @@
 :root {
-  /* ── Enterprise Design System — Corporate Slate / Blue palette ──────────
-     أُعيدت صياغتها بتاريخ 11 سبتمبر 2026 لتناسب هوية شركة صناعية كبرى:
-     الهوية البصرية الأساسية أصبحت Slate / Corporate Blue / Dark Gray بدل
-     الأحمر (كان --amber يساوي #DC2626 فعليًا، وهو لون تحذير/خطر وليس لونًا
-     مؤسسيًا مناسبًا لهوية الشركة). أسماء المتغيرات القديمة (--amber, --steel,
-     --primary...) أُبقيت كما هي بلا تغيير حتى لا ينكسر أي مكان يستخدمها في
-     هذا الملف أو في public/app.js — تم فقط تغيير *قيمها*. أسماء بديلة أوضح
-     (--brand-*) أُضيفت كذلك لأي كود مستقبلي. */
-  --charcoal: #0F172A;
-  --charcoal-2: #F1F5F9;
+  /* ── Elsewedy Brand Design System — Red / Black / Gray / White ───────
+     أُعيدت صياغتها بتاريخ 11 سبتمبر 2026 لاستخدام هوية السويدي الحقيقية
+     (كانت تحوّلت مؤقتًا لـ Corporate Blue بالغلط). أسماء المتغيرات القديمة
+     (--amber, --steel, --primary...) أُبقيت كما هي بلا تغيير حتى لا ينكسر
+     أي مكان يستخدمها في هذا الملف أو في public/app.js — تم فقط تغيير *قيمها*
+     لتطابق الهوية الرسمية. */
+  --elsewedy-red: #E2001A;
+  --elsewedy-black: #000000;
+  --elsewedy-dark-gray: #333333;
+  --elsewedy-light-gray: #F4F4F4;
+  --elsewedy-white: #FFFFFF;
+
+  --charcoal: #1A1A1A;
+  --charcoal-2: #F4F4F4;
   --paper: #FFFFFF;
-  --paper-line: #E2E8F0;
-  --amber: #1E40AF;        /* كان أحمر (#DC2626) — أصبح Corporate Blue */
-  --amber-dark: #1E3A8A;   /* درجة أغمق لنفس اللون الأساسي (hover/active) */
-  --steel: #334155;        /* Slate الرمادي الداكن — يُستخدم كلون ثانوي مؤسسي */
-  --danger: #DC2626;       /* أحمر التحذير/الخطر بقي كما هو — لون دلالي فقط الآن، وليس لون العلامة التجارية */
+  --paper-line: #E5E5E5;
+  --amber: #E2001A;        /* هوية السويدي الرسمية — أحمر */
+  --amber-dark: #A6000F;   /* درجة أغمق لنفس اللون الأساسي (hover/active) */
+  --steel: #333333;        /* الرمادي الداكن الرسمي — لون ثانوي مؤسسي */
+  --danger: #C81E3A;       /* أحمر تحذير مختلف بدرجته عن أحمر العلامة التجارية لتمييز أفعال الحذف/الرفض */
   --success: #16A34A;
   --warning: #D97706;
   --critical: #7C1D1D;
-  --info: #0369A1;
-  --ink: #0F172A;
-  --muted: #64748B;
+  --info: #333333;
+  --ink: #1A1A1A;
+  --muted: #6B6B6B;
   --radius: 16px;
-  --shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+  --shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.06);
   /* Unified aliases — used across advanced filter boxes / cards so every tab shares one palette */
   --primary: var(--amber);
   --primary-dark: var(--amber-dark);
   --surface: var(--paper);
   --text-color: var(--ink);
-  --slate: #475569;
+  --slate: #333333;
 
   /* ── أسماء واضحة بديلة (يمكن اعتمادها تدريجيًا بدل --amber/--steel) ── */
   --brand-primary: var(--amber);
   --brand-primary-dark: var(--amber-dark);
-  --brand-slate-900: #0F172A;
-  --brand-slate-700: #334155;
-  --brand-slate-500: #64748B;
-  --brand-slate-200: #E2E8F0;
-  --brand-slate-100: #F1F5F9;
-  --focus-ring: 0 0 0 3px rgba(30, 64, 175, 0.25);
+  --brand-slate-900: #1A1A1A;
+  --brand-slate-700: #333333;
+  --brand-slate-500: #6B6B6B;
+  --brand-slate-200: #E5E5E5;
+  --brand-slate-100: #F4F4F4;
+  --focus-ring: 0 0 0 3px rgba(226, 0, 26, 0.22);
 }
 
 * {
@@ -57,7 +61,7 @@ body {
 }
 
 body {
-  background: #F8FAFC;
+  background: #F7F7F7;
   color: var(--ink);
   font-family: 'Cairo', sans-serif;
   font-size: clamp(14px, 3.5vw, 16px);
@@ -1736,10 +1740,10 @@ select {
 }
 
 .chip-avatar.dept_admin {
-  background: #6d28d9;
+  background: #333333;
 }
 
-/* Purple */
+/* Dark gray */
 
 .chip-info {
   display: flex;
@@ -1858,21 +1862,21 @@ select {
 }
 
 .role-badge.super_admin {
-  background: rgba(124, 58, 237, 0.12);
-  color: #7c3aed;
-  border: 1px solid rgba(124, 58, 237, 0.3);
+  background: rgba(124, 29, 29, 0.1);
+  color: var(--critical);
+  border: 1px solid rgba(124, 29, 29, 0.3);
 }
 
 .role-badge.hse_admin {
-  background: rgba(213, 30, 39, 0.1);
+  background: rgba(226, 0, 26, 0.1);
   color: var(--amber);
-  border: 1px solid rgba(213, 30, 39, 0.3);
+  border: 1px solid rgba(226, 0, 26, 0.3);
 }
 
 .role-badge.dept_admin {
-  background: rgba(142, 68, 173, 0.12);
-  color: #8e44ad;
-  border: 1px solid rgba(142, 68, 173, 0.3);
+  background: rgba(51, 51, 51, 0.08);
+  color: #333333;
+  border: 1px solid rgba(51, 51, 51, 0.25);
 }
 
 .um-action-btns {
@@ -2705,15 +2709,15 @@ body[data-session="supervisor"] #empBadgeArea {
 }
 
 .emp-role-badge.hse_admin {
-  background: rgba(2, 132, 199, 0.1);
-  color: #0284c7;
-  border: 1px solid rgba(2, 132, 199, 0.3);
+  background: rgba(226, 0, 26, 0.1);
+  color: var(--amber);
+  border: 1px solid rgba(226, 0, 26, 0.3);
 }
 
 .emp-role-badge.dept_admin {
-  background: rgba(109, 40, 217, 0.1);
-  color: #6d28d9;
-  border: 1px solid rgba(109, 40, 217, 0.3);
+  background: rgba(51, 51, 51, 0.08);
+  color: #333333;
+  border: 1px solid rgba(51, 51, 51, 0.25);
 }
 
 .emp-role-badge.contractor {
@@ -3048,7 +3052,7 @@ body[data-session="supervisor"] #empBadgeArea {
 .btn-mark-all {
   background: none;
   border: none;
-  color: #2563eb;
+  color: var(--amber);
   font-size: 0.8rem;
   font-weight: bold;
   cursor: pointer;
@@ -3065,9 +3069,9 @@ body[data-session="supervisor"] #empBadgeArea {
 }
 
 .notif-pill.active {
-  background: #2563eb;
+  background: var(--amber);
   color: white;
-  border-color: #2563eb;
+  border-color: var(--amber);
 }
 
 .notif-item {
@@ -3085,7 +3089,7 @@ body[data-session="supervisor"] #empBadgeArea {
 }
 
 .notif-item.unread {
-  background: #e7f3ff;
+  background: #FBEAEC;
 }
 
 .notif-icon {
@@ -3126,7 +3130,7 @@ body[data-session="supervisor"] #empBadgeArea {
 .unread-dot {
   width: 8px;
   height: 8px;
-  background: #2563eb;
+  background: var(--amber);
   border-radius: 50%;
   align-self: center;
   flex-shrink: 0;
@@ -3810,27 +3814,54 @@ body[data-session="supervisor"] #empBadgeArea {
 
 /* ── Root palette for the dashboard ─────────────────────────── */
 :root {
-  --dash-bg: #f0f4f8;
+  --dash-bg: #F7F7F7;
   --dash-card-bg: #ffffff;
-  --dash-border: #e2e8f0;
-  --dash-accent-1: #4f46e5;
-  /* indigo */
-  --dash-accent-2: #0ea5e9;
-  /* sky */
+  --dash-border: #E5E5E5;
+  --dash-accent-1: #E2001A;
+  /* Elsewedy red */
+  --dash-accent-2: #333333;
+  /* dark gray */
   --dash-accent-3: #16A34A;
   /* emerald */
   --dash-accent-4: #D97706;
   /* amber */
-  --dash-accent-5: #DC2626;
-  /* red */
-  --dash-accent-6: #8b5cf6;
-  /* violet */
-  --dash-text: #0f172a;
-  --dash-muted: #64748b;
+  --dash-accent-5: #7C1D1D;
+  /* deep maroon */
+  --dash-accent-6: #6B6B6B;
+  /* mid gray */
+  --dash-text: #1A1A1A;
+  --dash-muted: #6B6B6B;
   --dash-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.07), 0 1px 2px rgba(0, 0, 0, 0.04);
   --dash-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
   --dash-shadow-hover: 0 12px 32px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06);
   --dash-radius: 14px;
+}
+
+/* ── Dashboard icon set (inline SVG, replaces emoji) ─────────────────
+   Each icon inherits its color from the container it sits in via
+   currentColor, so a KPI card icon automatically matches that card's
+   accent color without a separate CSS rule per icon/accent pairing. */
+.dash-icon {
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+.dash-hero-title .dash-icon,
+.dash-refresh-btn .dash-icon,
+.dash-exec-icon .dash-icon {
+  color: #fff;
+}
+.dash-kpi-icon {
+  color: var(--dash-accent-1);
+}
+.dash-kpi-card.accent-1 .dash-kpi-icon { color: var(--dash-accent-1); }
+.dash-kpi-card.accent-2 .dash-kpi-icon { color: var(--dash-accent-2); }
+.dash-kpi-card.accent-3 .dash-kpi-icon { color: var(--dash-accent-3); }
+.dash-kpi-card.accent-4 .dash-kpi-icon { color: var(--dash-accent-4); }
+.dash-kpi-card.accent-5 .dash-kpi-icon { color: var(--dash-accent-5); }
+.dash-kpi-card.accent-6 .dash-kpi-icon { color: var(--dash-accent-6); }
+.dash-chart-title .dash-icon {
+  color: var(--dash-accent-1);
 }
 
 /* ── Dashboard wrapper ───────────────────────────────────────── */
@@ -3848,7 +3879,7 @@ body[data-session="supervisor"] #empBadgeArea {
 
 /* ── Dashboard header ────────────────────────────────────────── */
 .dash-hero {
-  background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 60%, #4f46e5 100%);
+  background: linear-gradient(135deg, #000000 0%, #333333 55%, #E2001A 100%);
   color: #fff;
   padding: 28px 24px 24px;
   margin-bottom: 0;
@@ -4004,7 +4035,7 @@ body[data-session="supervisor"] #empBadgeArea {
 
 .dash-quick-btn {
   border: 1px solid var(--dash-border);
-  background: #f8fafc;
+  background: #F4F4F4;
   color: var(--dash-text);
   border-radius: 50px;
   padding: 6px 14px;
@@ -4017,7 +4048,7 @@ body[data-session="supervisor"] #empBadgeArea {
 }
 
 .dash-quick-btn:hover {
-  background: #f0f4f8;
+  background: #ECECEC;
   border-color: var(--dash-accent-1);
 }
 
@@ -4025,7 +4056,7 @@ body[data-session="supervisor"] #empBadgeArea {
   background: var(--dash-accent-1);
   border-color: var(--dash-accent-1);
   color: #fff;
-  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
+  box-shadow: 0 2px 8px rgba(226, 0, 26, 0.3);
 }
 
 .dash-filter-divider {
@@ -4042,7 +4073,7 @@ body[data-session="supervisor"] #empBadgeArea {
   font-size: 0.8rem;
   font-family: Cairo, sans-serif;
   color: var(--dash-text);
-  background: #f8fafc;
+  background: #F4F4F4;
   transition: border-color 0.18s;
   outline: none;
 }
@@ -4058,7 +4089,7 @@ body[data-session="supervisor"] #empBadgeArea {
   font-size: 0.82rem;
   font-family: Cairo, sans-serif;
   color: var(--dash-text);
-  background: #f8fafc;
+  background: #F4F4F4;
   min-width: 160px;
   outline: none;
   transition: border-color 0.18s;
@@ -4083,8 +4114,8 @@ body[data-session="supervisor"] #empBadgeArea {
 }
 
 .dash-apply-btn:hover {
-  background: #4338ca;
-  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
+  background: var(--amber-dark);
+  box-shadow: 0 2px 8px rgba(226, 0, 26, 0.35);
 }
 
 /* ── KPI card grid ───────────────────────────────────────────── */
@@ -4181,7 +4212,7 @@ body[data-session="supervisor"] #empBadgeArea {
 }
 
 .dash-kpi-pill {
-  background: #f0f4f8;
+  background: #F4F4F4;
   border-radius: 50px;
   padding: 2px 8px;
   font-weight: 600;
@@ -4204,8 +4235,8 @@ body[data-session="supervisor"] #empBadgeArea {
 }
 
 .dash-kpi-pill.blue {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: #EAEAEA;
+  color: #333333;
 }
 
 /* ── Section title ───────────────────────────────────────────── */
@@ -4299,7 +4330,7 @@ body[data-session="supervisor"] #empBadgeArea {
 .dash-topic-bar-bg {
   flex: 1;
   height: 8px;
-  background: #f0f4f8;
+  background: #F0F0F0;
   border-radius: 4px;
   overflow: hidden;
 }
@@ -4393,7 +4424,7 @@ body[data-session="supervisor"] #empBadgeArea {
 .dash-loading-spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid #e2e8f0;
+  border: 3px solid #E5E5E5;
   border-top-color: var(--dash-accent-1);
   border-radius: 50%;
   animation: dashSpin 0.8s linear infinite;
