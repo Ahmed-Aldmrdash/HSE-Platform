@@ -7109,6 +7109,72 @@ app.get('/verify/hazard/:id', (req, res) => {
   }));
 });
 
+// ============================================================
+// 📊 DASHBOARD EXCEL EXPORT WITH EMBEDDED CHART IMAGES
+// ============================================================
+// مكتبة xlsx.js (SheetJS) المجانية المستخدمة في التصدير الأصلي للوحة
+// التحكم (client-side) لا تدعم كتابة صور أو رسوم بيانية داخل ملف
+// الإكسيل إطلاقًا — هذا قيد في النسخة المجانية نفسها. الحل: المتصفح
+// يلتقط كل Chart.js Canvas ظاهر على الشاشة كصورة PNG (canvas.toDataURL،
+// بدون أي مكتبة إضافية) ويرسلها هنا، والسيرفر يبني ملف إكسيل جديد
+// بالكامل عبر ExcelJS (يدعم تضمين الصور فعليًا) — نفس بيانات الجداول
+// بالضبط، بالإضافة لورقة "الرسوم البيانية" تحتوي الصور نفسها التي
+// يراها المستخدم في الشاشة. 11 سبتمبر 2026.
+app.post('/api/dashboard/export-excel-charts', authenticateToken, requireRole('super_admin', 'hse_admin', 'dept_admin', 'maint_admin'), async (req, res) => {
+  try {
+    const { summaryRows, permitRows, hazardRows, trainingRows, drillRows, charts } = req.body || {};
+    if (!Array.isArray(charts) || charts.length === 0) {
+      return res.status(400).json({ error: 'لا توجد رسوم بيانية لتضمينها' });
+    }
+
+    const wb = new ExcelJS.Workbook();
+    const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF7C1D1D' } };
+    const whiteBold = { bold: true, color: { argb: 'FFFFFFFF' } };
+
+    // ── ملخص ──
+    const wsSummary = wb.addWorksheet('ملخص');
+    wsSummary.columns = [{ header: 'البند', key: 'label', width: 32 }, { header: 'القيمة', key: 'value', width: 30 }];
+    wsSummary.getRow(1).font = whiteBold; wsSummary.getRow(1).fill = headerFill;
+    (summaryRows || []).forEach(r => wsSummary.addRow(r));
+
+    function addDataSheet(name, headers, rows, widths) {
+      const ws = wb.addWorksheet(name);
+      ws.columns = headers.map((h, i) => ({ header: h, key: 'c' + i, width: widths[i] }));
+      ws.getRow(1).font = whiteBold; ws.getRow(1).fill = headerFill;
+      (rows && rows.length ? rows : [headers.map(() => '')]).forEach(r => ws.addRow(r));
+    }
+    addDataSheet('تصاريح العمل', ['النوع', 'التاريخ', 'الحالة'], permitRows, [26, 16, 14]);
+    addDataSheet('بلاغات الخطورة', ['الوصف', 'التاريخ', 'الحالة', 'القسم'], hazardRows, [30, 16, 14, 20]);
+    addDataSheet('التدريب', ['العنوان', 'التاريخ', 'عدد الساعات', 'المدرب'], trainingRows, [30, 16, 12, 20]);
+    addDataSheet('تجارب الطوارئ', ['العنوان', 'التاريخ', 'الحالة', 'الموقع'], drillRows, [30, 16, 14, 20]);
+
+    // ── الرسوم البيانية (الصور) ──
+    const wsCharts = wb.addWorksheet('الرسوم البيانية');
+    let rowCursor = 1;
+    for (const chart of charts) {
+      if (!chart || !chart.dataUrl || typeof chart.dataUrl !== 'string') continue;
+      const match = chart.dataUrl.match(/^data:image\/(png|jpeg);base64,(.+)$/);
+      if (!match) continue;
+      const buffer = Buffer.from(match[2], 'base64');
+      wsCharts.getCell(`A${rowCursor}`).value = chart.title || '';
+      wsCharts.getCell(`A${rowCursor}`).font = { bold: true, size: 13, color: { argb: 'FF7C1D1D' } };
+      rowCursor += 1;
+      const imageId = wb.addImage({ buffer, extension: match[1] === 'png' ? 'png' : 'jpeg' });
+      wsCharts.addImage(imageId, { tl: { col: 0, row: rowCursor - 1 }, ext: { width: 560, height: 280 } });
+      rowCursor += 16; // ~ارتفاع الصورة بالصفوف + فاصل
+    }
+    wsCharts.getColumn(1).width = 80;
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="dashboard_charts_${Date.now()}.xlsx"`);
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error('[Dashboard] Excel-with-charts export failed:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'فشل إنشاء ملف Excel' });
+  }
+});
+
 // ── 404 fallback ──────────────────────────────────────────────
 app.use((req, res) => {
   if (req.path.startsWith('/api/')) {

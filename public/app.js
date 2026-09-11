@@ -7318,6 +7318,104 @@ window.exportDashboardExcel = function() {
   XLSX.writeFile(wb, `لوحة_التحكم_${dateStr}.xlsx`);
 };
 
+/**
+ * exportDashboardExcelWithCharts — نفس بيانات exportDashboardExcel لكن
+ * الملف يُبنى على السيرفر (ExcelJS) بدل المتصفح، عشان نقدر نضيف صور
+ * الرسوم البيانية الفعلية (Chart.js) جوه ورقة "الرسوم البيانية" —
+ * مكتبة xlsx.js المجانية اللي بتبني الملف في المتصفح مالهاش أي دعم
+ * لتضمين صور، فده مش ممكن يتعمل من غير مرور على السيرفر.
+ */
+window.exportDashboardExcelWithCharts = async function() {
+  const data = _dashLastData;
+  if (!data) {
+    showToast('لا توجد بيانات محمّلة للتصدير بعد', 'error');
+    return;
+  }
+  const btn = document.getElementById('dashExportChartsBtn');
+  const origHtml = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span> جارِ التجهيز…'; }
+
+  try {
+    const { permits, hazards, trainings, drills, meta } = data;
+    const roleLabel = {
+      super_admin: 'مدير النظام — كل الأقسام',
+      hse_admin:   'مشرف السلامة — كل الأقسام',
+      dept_admin:  `مشرف قسم ${meta.scopeDept || ''}`,
+      worker:      'إحصائيات شخصية',
+    }[meta.role] || meta.role;
+
+    const summaryRows = [
+      { label: 'نطاق التقرير', value: roleLabel },
+      { label: 'من تاريخ', value: meta.dateFrom || 'الكل' },
+      { label: 'إلى تاريخ', value: meta.dateTo || 'الكل' },
+      { label: 'تاريخ إنشاء التقرير', value: new Date(meta.generatedAt || Date.now()).toLocaleString('ar-EG') },
+      { label: 'إجمالي تصاريح العمل', value: permits.total },
+      { label: '  ↳ موافق عليها', value: permits.byStatus.approved },
+      { label: '  ↳ قيد الانتظار', value: permits.byStatus.pending },
+      { label: '  ↳ مرفوضة', value: permits.byStatus.rejected },
+      { label: 'إجمالي بلاغات الخطورة', value: hazards.total },
+      { label: '  ↳ مفتوحة', value: hazards.byStatus.open },
+      { label: '  ↳ محلولة', value: hazards.byStatus.resolved },
+      { label: 'إجمالي المحاضرات التدريبية', value: trainings.total },
+      { label: '  ↳ إجمالي الحضور', value: trainings.totalAttendees },
+      { label: 'إجمالي تجارب الطوارئ', value: drills.total },
+      { label: '  ↳ إجمالي الحضور', value: drills.totalAttendees },
+    ];
+    const permitRows = (permits.list || []).map(p => ([p.title, p.date ? new Date(p.date).toLocaleDateString('ar-EG') : '—', _dashExportStatusText(p.status)]));
+    const hazardRows = (hazards.list || []).map(h => ([h.title, h.date ? new Date(h.date).toLocaleDateString('ar-EG') : '—', _dashExportStatusText(h.status), h.department || '']));
+    const trainingRows = (trainings.list || []).map(t => ([t.title, t.date ? new Date(t.date).toLocaleDateString('ar-EG') : '—', t.hours, t.trainer || '']));
+    const drillRows = (drills.list || []).map(d => ([d.title, d.date ? new Date(d.date).toLocaleDateString('ar-EG') : '—', _dashExportStatusText(d.status), d.location || '']));
+
+    // ── Capture every currently-rendered chart canvas as a PNG ──
+    const chartMeta = [
+      ['chartPermitStatus', 'حالة تصاريح العمل'],
+      ['chartPermitType', 'تصاريح العمل حسب النوع'],
+      ['chartHazardSeverity', 'بلاغات الخطورة حسب الشدة'],
+      ['chartMonthly', 'الاتجاه الشهري'],
+      ['chartDrillStatus', 'حالة تجارب الطوارئ'],
+      ['chartTrainingsMonthly', 'المحاضرات التدريبية شهريًا'],
+    ];
+    const charts = [];
+    chartMeta.forEach(([id, title]) => {
+      const canvas = document.getElementById(id);
+      if (canvas && canvas.width > 0 && canvas.height > 0) {
+        try { charts.push({ title, dataUrl: canvas.toDataURL('image/png') }); } catch (e) { /* skip unreadable canvas */ }
+      }
+    });
+
+    if (charts.length === 0) {
+      showToast('لا توجد رسوم بيانية ظاهرة حاليًا على الشاشة للتصدير', 'error');
+      return;
+    }
+
+    const res = await authFetch('/api/dashboard/export-excel-charts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ summaryRows, permitRows, hazardRows, trainingRows, drillRows, charts })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(err.error || 'فشل إنشاء ملف Excel', 'error');
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `لوحة_التحكم_بالرسوم_${new Date().toISOString().split('T')[0]}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast('تم تصدير الملف بنجاح ✓', 'success');
+  } catch (e) {
+    console.error('exportDashboardExcelWithCharts error', e);
+    showToast('خطأ في الاتصال بالسيرفر', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+  }
+};
+
 // ── Shared: hero header + filter bar (used by every role) ─────
 // ── Executive opening snapshot ──────────────────────────────────────────────
 // Three headline numbers shown INSIDE the dark hero band, above the filter
@@ -7401,6 +7499,7 @@ function _dashHeroAndFilters(meta, opts) {
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <span class="dash-hero-badge">HSE Platform · Elsewedy Polymers</span>
           ${meta.role !== 'worker' ? `<button class="dash-refresh-btn" onclick="exportDashboardExcel()">${dicon('download', 15)} تصدير Excel</button>` : ''}
+          ${meta.role !== 'worker' ? `<button class="dash-refresh-btn" id="dashExportChartsBtn" onclick="exportDashboardExcelWithCharts()">📊 تصدير بالرسوم البيانية</button>` : ''}
           <button class="dash-refresh-btn" onclick="dashRefresh()">${dicon('refresh', 15)} تحديث</button>
         </div>
       </div>
