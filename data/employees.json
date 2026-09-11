@@ -1,0 +1,7554 @@
+[
+  {
+    "empCode": "271",
+    "name": "مدحت يونس سالم يونس",
+    "department": "HSE",
+    "jobTitle": "HSE  Director",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "2546",
+    "name": "محمد عبدالمنعم عبدالله عبدالله",
+    "department": "Logistics",
+    "jobTitle": "Logistics Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "2591",
+    "name": "إيهاب صلاح الدين عبدالمنعم محمد الدمرداش",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "2870",
+    "name": "عمرو محمد أحمد عبدالوهاب",
+    "department": "Foreign Procurement",
+    "jobTitle": "Foreign Procurement Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "3063",
+    "name": "لؤى محمود السيد على حجاج",
+    "department": "Foreign Procurement",
+    "jobTitle": "Foreign Procurement Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5501",
+    "name": "اسماعيل الدساوى عبد الرحمن شحاتة",
+    "department": "Electrical Maintenance",
+    "jobTitle": "Electrical Maintenance Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5502",
+    "name": "محمد شحات عواد حجاب",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5504",
+    "name": "جمال محمد أحمد سليمان",
+    "department": "Quality Control",
+    "jobTitle": "Quality Control Team Leader",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5506",
+    "name": "عبد الرحمن عبد العزيز أحمد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5507",
+    "name": "رمضان حسن أحمد عبد الله",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5508",
+    "name": "ايمن إسماعيل متولى السيد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5509",
+    "name": "يوسف محمد البخارى سعد",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Team Leader",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5510",
+    "name": "محمد حليم عطية مرة",
+    "department": "Production - PVC",
+    "jobTitle": "Production Team Leader",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5514",
+    "name": "مجدى عباس حامد الهورينى",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5515",
+    "name": "ياسر على عبد الحميد على",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5516",
+    "name": "صبرى عبد الله متولى على",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5517",
+    "name": "امين محمد خليل الشبراوى",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5519",
+    "name": "نبيل أحمد عبد اللطيف الشرقاوى",
+    "department": "Production - PVC",
+    "jobTitle": "Production Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5520",
+    "name": "عبد الحميد ابو سريع عبد الحميد ابو مندور",
+    "department": "Production - PVC",
+    "jobTitle": "Production Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5521",
+    "name": "سيد ابو سريع عبد الحميد ابو مندور",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5522",
+    "name": "وائل السيد مليجى سلام",
+    "department": "Quality Control",
+    "jobTitle": "Quality Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5523",
+    "name": "تيسير ربيع تونى أحمد",
+    "department": "Warehouse",
+    "jobTitle": "Forklift Driver G2",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5524",
+    "name": "محمود أحمد مصطفى الحاطى",
+    "department": "Housekeeping",
+    "jobTitle": "Gardener",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5526",
+    "name": "حمدى أمين رزق أمين",
+    "department": "Production - PVC",
+    "jobTitle": "Forklift Driver G2",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5527",
+    "name": "رضا محفوظ حسين مصطفى",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5529",
+    "name": "رمضان أحمد رمضان سيد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5530",
+    "name": "رأفت معوض عبد العزيز محمد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5531",
+    "name": "مصطفى محمد عمارة الغرباوى",
+    "department": "Omylene",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5533",
+    "name": "السيد عبد الحميد أبو السعود جاد",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5536",
+    "name": "محمد محمد عبد الحكيم يوسف",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5537",
+    "name": "محمد سعيد عبد العال محمد",
+    "department": "Production Planning",
+    "jobTitle": "Planning Senior Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5541",
+    "name": "إبراهيم سعد محمد إبراهيم",
+    "department": "Housekeeping",
+    "jobTitle": "Cleaner Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5544",
+    "name": "كمال كامل عبد الحميد",
+    "department": "IT Operations",
+    "jobTitle": "IT Support Team Leader",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5545",
+    "name": "اشرف محمد عباس احمد",
+    "department": "Warehouse",
+    "jobTitle": "Forklift Driver G2",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5546",
+    "name": "علاء الدين فؤاد عبد الرحمن محمد",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Storekeeper",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5547",
+    "name": "عماد محمد سلامة ربيع",
+    "department": "Transportation",
+    "jobTitle": "Truck Driver",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5548",
+    "name": "محمد عبد الله عبد الحميد عبد الحميد",
+    "department": "Customer Service",
+    "jobTitle": "Loading Assistant",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5550",
+    "name": "محمود إبراهيم علي أحمد",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5551",
+    "name": "حمدى شحات عواد حجاب",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5552",
+    "name": "ناجى محمود عبد الرازق عبد الحميد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5553",
+    "name": "عيسى عبد المجيد حسين عبد المجيد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5554",
+    "name": "محمد محمد على أحمد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Team Leader",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5555",
+    "name": "جمال حسن حسين حجاب",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5556",
+    "name": "مصطفى كامل صالح عواد",
+    "department": "HSE",
+    "jobTitle": "HSE Team Leader",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5557",
+    "name": "حمدى عبد المنعم يوسف  عبد الحى",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5558",
+    "name": "مصطفى عبد الحميد مصطفى عبد الحميد",
+    "department": "Electrical Maintenance",
+    "jobTitle": "Electrical Maintenance Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5559",
+    "name": "هانى فتحى أمين إبراهيم",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5560",
+    "name": "محمد عبد الحميد ابو السعود جاد",
+    "department": "Housekeeping",
+    "jobTitle": "Gardener",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5562",
+    "name": "انور صبحى محمد الماحى",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5566",
+    "name": "احمد على عبد الحميد محمود",
+    "department": "Omylene",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5567",
+    "name": "محمد حلمى محمد عيد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5568",
+    "name": "عماد عبد الغنى محمود  محمد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5569",
+    "name": "عماد محمود حافظ خميس",
+    "department": "Production - PVC",
+    "jobTitle": "Forklift Driver G2",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5570",
+    "name": "رمضان عبد المنعم يوسف  شريف",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5571",
+    "name": "ابراهيم فؤاد فرج عبد السلام",
+    "department": "Transportation",
+    "jobTitle": "Truck Driver",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5572",
+    "name": "سالم سيد سيد محمد عبد الله",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5574",
+    "name": "سيد أحمد رمضان سيد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Team Leader",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5575",
+    "name": "مجدى ضاحى محمد عبد العال",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Storekeeper",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5576",
+    "name": "ايهاب ابراهيم حسين ابراهيم",
+    "department": "Local Sales",
+    "jobTitle": "Local Sales Director",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5578",
+    "name": "سامى سعد عطية مرة",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5584",
+    "name": "رضا عبد العليم عبد العزيز",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Storekeeper",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5585",
+    "name": "سعيد إبراهيم حنفى إبراهيم السكرى",
+    "department": "Production Planning",
+    "jobTitle": "Planning Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5587",
+    "name": "محسن فتحى عبد العزيز",
+    "department": "Production - Poles",
+    "jobTitle": "Welding Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5589",
+    "name": "عدلى منصور بيومى محمد",
+    "department": "Production - PVC",
+    "jobTitle": "Forklift Driver G2",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5592",
+    "name": "شريف عبدالمطلب سالم حسن",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Storekeeper",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5593",
+    "name": "هانى توفيق حسن محمود",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5594",
+    "name": "حسين رجب حسين محمد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5595",
+    "name": "هانى محمد محمد بلال",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Storekeeper",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5596",
+    "name": "حسين فرج حسين فرج",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5598",
+    "name": "مصطفى عبد الباسط محمود محمد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5599",
+    "name": "محمد هداية أمين القيم",
+    "department": "Omylene",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5600",
+    "name": "عبد الناصر عبد العزيز السيد محمد",
+    "department": "Preventive Maintenance",
+    "jobTitle": "Preventive Maintenance Supervsior",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5601",
+    "name": "سامى عبد العظيم حسن الدقونى",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5602",
+    "name": "عصام السيد أبو سريع إسماعيل",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5603",
+    "name": "نور السعيد يوسف محمد",
+    "department": "Transportation",
+    "jobTitle": "Truck Driver",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5604",
+    "name": "سلامه احمد عبد الهادى",
+    "department": "Production - Poles",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5605",
+    "name": "عبد العزيز محمد احمد",
+    "department": "Production - Poles",
+    "jobTitle": "Production Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5606",
+    "name": "جلال خيرى اسماعيل محمد",
+    "department": "Production - Poles",
+    "jobTitle": "Production Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5607",
+    "name": "ابراهيم محمد امين أحمد",
+    "department": "Production - Poles",
+    "jobTitle": "Production Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5608",
+    "name": "احمد فهمى عبد الله",
+    "department": "Production - Poles",
+    "jobTitle": "Production Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5609",
+    "name": "محمد عبد الخالق ابراهيم",
+    "department": "Production - Poles",
+    "jobTitle": "Production Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5612",
+    "name": "شريف إبراهيم أبو العلا إبراهيم",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5613",
+    "name": "محمد حمدين العوضى محمد",
+    "department": "HSE",
+    "jobTitle": "HSE Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5615",
+    "name": "محمد مسعد إبراهيم عطية",
+    "department": "Production - PVC",
+    "jobTitle": "Production Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5616",
+    "name": "عبد الرحمن عويس محمود على",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5617",
+    "name": "شحات أحمد شحاتة أبورمية",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5619",
+    "name": "محمد عبد المنعم إبراهيم حسن",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5621",
+    "name": "خالد منصور إبراهيم عبيد",
+    "department": "Local Sales",
+    "jobTitle": "Area Sales Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5622",
+    "name": "محمد عبد الفتاح نصر خضر",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5624",
+    "name": "محمد عبد الله عبد ربه عاشور",
+    "department": "Quality Control",
+    "jobTitle": "Quality Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5628",
+    "name": "ياسر سيد محمد إسماعيل",
+    "department": "General Accounting",
+    "jobTitle": "Senior Accountant",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5631",
+    "name": "محمود السيد المحمدى أحمد",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5634",
+    "name": "نور حمدى محمد سلامه",
+    "department": "Production - Poles",
+    "jobTitle": "Production Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5635",
+    "name": "ابراهيم سالم حسين محمد",
+    "department": "Production - Poles",
+    "jobTitle": "Production Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5636",
+    "name": "على عبد الخالق علي الهلوتى",
+    "department": "Production - Poles",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5637",
+    "name": "نيازى محمد محمد سنبل",
+    "department": "Production - Poles",
+    "jobTitle": "Production Senior Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5639",
+    "name": "محمد فرج عبد الرازق فرج",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5640",
+    "name": "على رزق على رزق",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5641",
+    "name": "البخارى محمد البخارى سعد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5642",
+    "name": "رضا محمد سعد مصباح",
+    "department": "Warehouse",
+    "jobTitle": "Forklift Driver G2",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5644",
+    "name": "حلمى ماهر حلمى أحمد",
+    "department": "Administration",
+    "jobTitle": "Administration Assistant",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5645",
+    "name": "رمضان سالم محمد سيد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5646",
+    "name": "اشرف عبد الهادى عبد الهادي الجد",
+    "department": "Transportation",
+    "jobTitle": "Truck Driver",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5647",
+    "name": "على السعيد السيد على",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5648",
+    "name": "حامد على محمد على",
+    "department": "Production - Poles",
+    "jobTitle": "Production Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5649",
+    "name": "وحيد الراضى عباس نصر",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5650",
+    "name": "مصطفى شعبان محمد محمود",
+    "department": "Transportation",
+    "jobTitle": "Truck Driver",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5651",
+    "name": "نادر جلال حسين احمد",
+    "department": "Production - Poles",
+    "jobTitle": "Production Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5652",
+    "name": "حسن حسن على خير",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5653",
+    "name": "سليمان أمين محمد محمد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5654",
+    "name": "الطنطاوي الطنطاوي محمد الطنطاوى",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Storekeeper",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5655",
+    "name": "حسام محمد بدوى محمد",
+    "department": "General Accounting",
+    "jobTitle": "Accounts Payable Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5656",
+    "name": "تامر على أحمد على",
+    "department": "General Accounting",
+    "jobTitle": "General Accounting Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5657",
+    "name": "طارق سعيد عبد العال",
+    "department": "Local Sales",
+    "jobTitle": "Area Sales Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5658",
+    "name": "نور حسين سعد عطية",
+    "department": "Production - PVC",
+    "jobTitle": "Forklift Driver G2",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5659",
+    "name": "وليد حسن محمد محمد",
+    "department": "Customer Service",
+    "jobTitle": "Export Assistant",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5661",
+    "name": "محمود علي نظير عبد المجيد",
+    "department": "Housekeeping",
+    "jobTitle": "Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5662",
+    "name": "احمد حلمى محمد عيد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5663",
+    "name": "سامح جمال محمد إبرهيم",
+    "department": "Quality Control",
+    "jobTitle": "Samples Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5664",
+    "name": "عصام عطية ابو الفتوح محمد",
+    "department": "Housekeeping",
+    "jobTitle": "Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5665",
+    "name": "اسماعيل عبد السميع محمد موسى",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Storekeeper",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5666",
+    "name": "أيمن سعد عبد الحميد أحمد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5667",
+    "name": "عبد الله أبو سريع أحمد حسن",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5668",
+    "name": "أحمد السيد المحمدى أحمد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5669",
+    "name": "السيد محمد على سند",
+    "department": "General Accounting",
+    "jobTitle": "Accounting Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5670",
+    "name": "نظمى أبو العنين السيد حشيش",
+    "department": "Treasury Operations",
+    "jobTitle": "Cashier",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5671",
+    "name": "أحمد أحمد فؤاد أحمد حسين",
+    "department": "HR Operations",
+    "jobTitle": "HR Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5672",
+    "name": "عماد سعيد عبد الرسول عبد الهادى",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5673",
+    "name": "محمود أبوعتاب السيد فرج",
+    "department": "Quality Control",
+    "jobTitle": "Quality Control Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5674",
+    "name": "عاطف عمر حسانين عمر",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5675",
+    "name": "محمد شحات سيد موسى",
+    "department": "Housekeeping",
+    "jobTitle": "Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5676",
+    "name": "عصام سيد إبراهيم عبد الغنى",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5677",
+    "name": "أحمد عسجد عبد الغنى محمد",
+    "department": "Administration",
+    "jobTitle": "Administration Assistant",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5678",
+    "name": "سعيد سيد سلامة حسين",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5679",
+    "name": "حسن محمد السيد على القطاوى",
+    "department": "Warehouse",
+    "jobTitle": "Forklift Driver G2",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5680",
+    "name": "أيمن عبد الجواد محمد شرف",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5681",
+    "name": "ناصر محمد عبد المجيد سالم",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5682",
+    "name": "تامر صلاح عبد الرحيم",
+    "department": "Government Relations",
+    "jobTitle": "Government Relations Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5683",
+    "name": "محمد محمد عبد اللطيف أحمد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5685",
+    "name": "محمود فتحى منصور عمر",
+    "department": "Local Sales",
+    "jobTitle": "Area Sales Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5686",
+    "name": "محمد عبد المعز ضيف",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5687",
+    "name": "اشرف جلال صالح جاد",
+    "department": "Treasury Operations",
+    "jobTitle": "Cashier",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5688",
+    "name": "ياسر جودة عبد الصمد عبد الجواد",
+    "department": "Warehouse",
+    "jobTitle": "Forklift Driver G2",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5689",
+    "name": "عبد الباسط إبراهيم عبد العال",
+    "department": "Operations",
+    "jobTitle": "Operations Director",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5690",
+    "name": "عزت اسماعيل محمد حفناوى",
+    "department": "Cafeteria",
+    "jobTitle": "Office Boy",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5691",
+    "name": "مصطفي إبراهيم علي أحمد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5693",
+    "name": "اسامة يوسف على السيد",
+    "department": "Customer Service",
+    "jobTitle": "Loading Senior Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5694",
+    "name": "أحمد محمد عصمت عبد العزيز جودى",
+    "department": "Local Sales",
+    "jobTitle": "Area Sales Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5695",
+    "name": "احمد عبد العزيز يوسف خطاب",
+    "department": "Quality Control",
+    "jobTitle": "Quality Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5696",
+    "name": "حمدى محروس يوسف أبو صبرة",
+    "department": "Warehouse",
+    "jobTitle": "Forklift Driver G2",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5697",
+    "name": "كرم على عبد القادر على",
+    "department": "Transportation",
+    "jobTitle": "Senior Auto Mechanic",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5698",
+    "name": "ولاء عبد الفتاح محمدى إبراهيم",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5699",
+    "name": "حسن عبد الغنى محمود محمد فرحات",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5700",
+    "name": "وليد حليم عطيه مرة",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5701",
+    "name": "السيد شرف محمد حسن",
+    "department": "Quality Control",
+    "jobTitle": "Quality Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5702",
+    "name": "محمد عبد الحميد هلال بدوى",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5703",
+    "name": "محمد السيد بحيرى رضوان",
+    "department": "Transportation",
+    "jobTitle": "Truck Driver",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5706",
+    "name": "احمد إبراهيم محمد إبراهيم",
+    "department": "Foreign Procurement",
+    "jobTitle": "Foreign Procurement Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5708",
+    "name": "عادل الامام اسماعيل شرف الدين",
+    "department": "Production - Poles",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5709",
+    "name": "السعيد صابر فهمى عبدالحميد",
+    "department": "Production - Poles",
+    "jobTitle": "Production Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5710",
+    "name": "السيد السيد شعبان حدوة",
+    "department": "Transportation",
+    "jobTitle": "Truck Driver",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5711",
+    "name": "محمد فتحى عبده سالم",
+    "department": "Production - Poles",
+    "jobTitle": "Production Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5712",
+    "name": "محمد محمود عوض الله",
+    "department": "Production - Poles",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5714",
+    "name": "فوزى محمد محمد السيد",
+    "department": "R&D",
+    "jobTitle": "R&D Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5715",
+    "name": "محمد مختار أنور حسن",
+    "department": "Customer Service",
+    "jobTitle": "Customer Service Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5716",
+    "name": "محمد أحمد أحمد أحمد محمد",
+    "department": "IT Applications",
+    "jobTitle": "SCM Application Senior Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5717",
+    "name": "حمدى هلال نصر عبد الشافي",
+    "department": "Production - Poles",
+    "jobTitle": "Production Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5719",
+    "name": "ماهر حسن سليمان علي",
+    "department": "Preventive Maintenance",
+    "jobTitle": "Preventive Maintenance Supervsior",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5720",
+    "name": "محمد عرفان غازى شرف الدين",
+    "department": "Production - Poles",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5721",
+    "name": "وائل نبيل عطيه عبد المجيد",
+    "department": "Local Sales",
+    "jobTitle": "Local Sales Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5722",
+    "name": "ابراهيم عبد الرحمن احمد محمد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5723",
+    "name": "احمد سمير حسين محمد",
+    "department": "General Accounting",
+    "jobTitle": "Accounts Receivable Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5724",
+    "name": "إبراهيم غمري محمود حسين",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5725",
+    "name": "حسام الدين سيد على أحمد",
+    "department": "Customer Service",
+    "jobTitle": "Customer Service Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5726",
+    "name": "عبد الفتاح لطفي إبراهيم السيد عليوة",
+    "department": "Customer Service",
+    "jobTitle": "Loading Assistant",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5728",
+    "name": "درويش حسنين درويش حسنين",
+    "department": "Administration",
+    "jobTitle": "Administration Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5729",
+    "name": "السعيد هداية أمين القيم",
+    "department": "Production - PVC",
+    "jobTitle": "Forklift Driver G2",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5730",
+    "name": "عيسى على نظير عبد المجيد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5731",
+    "name": "وليد عبد الرحمن أحمد عبد الرحمن",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5732",
+    "name": "محمد رضا عبد الوهاب حجاج",
+    "department": "Warehouse",
+    "jobTitle": "Forklift Driver G2",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5733",
+    "name": "يسرى عبد الفتاح محمد داود",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5734",
+    "name": "عبد البارى حمدى عبد البارى القيم",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5735",
+    "name": "محمد نجيب محمد السيد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5736",
+    "name": "محمد أحمد أحمد جاد",
+    "department": "Customer Service",
+    "jobTitle": "Loading Assistant",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5737",
+    "name": "وليد محمد عبد الحليم عبد الوهاب",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Storekeeper",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5738",
+    "name": "ياسر حسن أحمد عفيفي",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5739",
+    "name": "أحمد أبو طالب محمد أبو طالب",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5740",
+    "name": "مصطفى عبده أحمد محمد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5741",
+    "name": "محمدى رمضان محمدى محمد جابر",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5742",
+    "name": "محمود أحمد التيجانى عبد العزيز",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5743",
+    "name": "أحمد حسين عبد الجليل طلبة",
+    "department": "HSE",
+    "jobTitle": "HSE Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5746",
+    "name": "نهى مصطفى عبد الحميد البابلى",
+    "department": "Logistics",
+    "jobTitle": "Logistics Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5748",
+    "name": "شعبان حسن إسماعيل حفناوى",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5749",
+    "name": "أحمد محمد عيد حسن",
+    "department": "Omylene",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5750",
+    "name": "محمد فهمى عفيفى فهمى",
+    "department": "R&D",
+    "jobTitle": "R&D Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5752",
+    "name": "بكر رضا حامد عبد الرحمن عنبة",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5753",
+    "name": "سامح سعيد شحاتة ابو مسلم",
+    "department": "Quality Assurance",
+    "jobTitle": "Quality Assurance Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5754",
+    "name": "وليد عبد الحليم حافظ إبراهيم",
+    "department": "Production - Poles",
+    "jobTitle": "Forklift Driver G2",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5755",
+    "name": "مصطفى أحمد محمد أحمد عجلان",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5756",
+    "name": "محمد سيد على عبد المجيد",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5757",
+    "name": "حامد ابراهيم محمد محمد",
+    "department": "Electrical Maintenance",
+    "jobTitle": "Electrical Maintenance Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5758",
+    "name": "عرفات محمد ابراهيم داوود فرج",
+    "department": "Omylene",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5759",
+    "name": "أيمن شعبان عبد العزيز عواد",
+    "department": "Warehouse",
+    "jobTitle": "Forklift Driver G2",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5760",
+    "name": "أحمد غيطانى سيد أحمد علاء الدين",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5761",
+    "name": "رأفت ابراهيم اسماعيل محمد",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5762",
+    "name": "محمد أحمد سيد محمد  حفناوى",
+    "department": "Housekeeping",
+    "jobTitle": "Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5765",
+    "name": "طارق عز الدين عبدة محمد",
+    "department": "Quality Control",
+    "jobTitle": "Quality Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5767",
+    "name": "أحمد محمد عبد الحليم سليمان",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5768",
+    "name": "محمد سليمان عبد الغنى عبد المجيد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5769",
+    "name": "أحمد سعد هاشم عبد السلام",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5770",
+    "name": "رمضان أحمد على موسى",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5772",
+    "name": "محمد السيد إسماعيل عطيه",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5773",
+    "name": "محمد رجب محمد علي",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5774",
+    "name": "محمد علي أحمد احمد فرحات",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5776",
+    "name": "محمد عايد سلامة  سالم",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5777",
+    "name": "مني حسن عبد القادر مصطفي",
+    "department": "Supply Chain",
+    "jobTitle": "Supply Chain Director",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5780",
+    "name": "أمين محمد ابراهيم شحات",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5781",
+    "name": "هانى سعيد محمد متولى",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5782",
+    "name": "خالد محمد صالح أحمد عبدة",
+    "department": "Housekeeping",
+    "jobTitle": "Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5783",
+    "name": "ايهاب عيد محمود محمد",
+    "department": "Quality Control",
+    "jobTitle": "Quality Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5784",
+    "name": "عشرى عمر محمد عبد الرحمن",
+    "department": "HSE",
+    "jobTitle": "HSE Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5785",
+    "name": "ايمن سعد صادق بحيرى",
+    "department": "IT Applications",
+    "jobTitle": "MIS Senior Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5786",
+    "name": "باسم سعيد عبد العال محمد",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Storekeeper",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5787",
+    "name": "حسام محمد عبد السميع عبد الفتاح",
+    "department": "Preventive Maintenance",
+    "jobTitle": "Preventive Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5789",
+    "name": "خالد أحمد محمد المهدي نور",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5790",
+    "name": "محمد إبراهيم عبد المنعم عبد اللطيف",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5791",
+    "name": "حمادة محمد سيد محمد",
+    "department": "Omylene",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5792",
+    "name": "محمد رجب عبد الغنى حسن النجار",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5793",
+    "name": "ناجى ابراهيم أحمد السيد",
+    "department": "Treasury Operations",
+    "jobTitle": "Treasury Operations Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5794",
+    "name": "محمد جودة عواد عبد الوهاب",
+    "department": "Local Sales",
+    "jobTitle": "Local Sales Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5795",
+    "name": "أحمد نادي حسين حسن",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5796",
+    "name": "احمد على حسن علي التليتى",
+    "department": "Cafeteria",
+    "jobTitle": "Office Boy",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5797",
+    "name": "عصام سالم علي عبد العال",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5798",
+    "name": "فيصل محمود محمود شديد",
+    "department": "Housekeeping",
+    "jobTitle": "Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5799",
+    "name": "بشندى أبو الفضل إبراهيم أحمد بواب",
+    "department": "Housekeeping",
+    "jobTitle": "Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5800",
+    "name": "محمود على عبد العاطى أحمد",
+    "department": "Omylene",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5801",
+    "name": "سامح محمد عطية ناصر الديب",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5802",
+    "name": "عبد الله محمد عبد الله البقلى",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Storekeeper",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5803",
+    "name": "محمد ابراهيم شريف همام",
+    "department": "Warehouse",
+    "jobTitle": "Forklift Driver G2",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5805",
+    "name": "اسامة عبد الموجود جودة محمود",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5806",
+    "name": "محمد سيد حسن عبدالنبى",
+    "department": "Export - PVC",
+    "jobTitle": "Export Sales Director",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5807",
+    "name": "علاء فتحى عبد الخالق إبراهيم",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5808",
+    "name": "على بدر محمود بدر",
+    "department": "IT Operations",
+    "jobTitle": "IT Support Senior Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5809",
+    "name": "عطيه أبو سريع عطيه سيد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5810",
+    "name": "عماد حمدي حافظ إبراهيم",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5811",
+    "name": "أحمد محمد عطاالله محمود خطاب",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5812",
+    "name": "عامر أمين حسين محمد شاهين",
+    "department": "HSE",
+    "jobTitle": "HSE Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5813",
+    "name": "محمد مرضى عيد عباس",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5814",
+    "name": "هاني سمير فهمي مصطفي عامر",
+    "department": "Cafeteria",
+    "jobTitle": "Senior Chef",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5815",
+    "name": "هشام محمد الصابرى محمود الزيبق",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5816",
+    "name": "رجب إبراهيم منصور امين",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5817",
+    "name": "مصطفى أبو الفتوح مصطفى ابراهيم",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5818",
+    "name": "أحمد مصطفى حسن محمدى خفاجى",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5819",
+    "name": "محمد سالم عبد الفتاح عبد اللطيف",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5820",
+    "name": "محمود بهجت إسماعيل فرحات",
+    "department": "R&D",
+    "jobTitle": "R&D Data Entry",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5821",
+    "name": "اسامة عبد العزيز عبد العال محمد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5822",
+    "name": "محمد حامد محمد محمد محمد سليمان",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5823",
+    "name": "خالد عبد الغنى محمود عبد الغنى الشريف",
+    "department": "HSE",
+    "jobTitle": "HSE Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5824",
+    "name": "سيد محمد سيد سليمان حرب",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5826",
+    "name": "حمادة نعيم عبد الهادى أحمد",
+    "department": "Cafeteria",
+    "jobTitle": "Office Boy",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5827",
+    "name": "محمد محمد محمود منصور وافى",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5828",
+    "name": "محمد سعد عبد الهادى محمود سعيد",
+    "department": "Local Sales",
+    "jobTitle": "Local Sales Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5829",
+    "name": "محمد عبد الرحمن عبد الرحمن علي",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5831",
+    "name": "خليل خليل حمودة عمر حمودة",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5832",
+    "name": "اسلام اسماعيل حسن بواب",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5833",
+    "name": "ايمن محمد عباس فرج الروبى",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5835",
+    "name": "على عبد الفتاح عبد الغنى محمد أبو عيشة",
+    "department": "Housekeeping",
+    "jobTitle": "Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5836",
+    "name": "عبد الفتاح سيد متولى محمد ابوسريع",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5837",
+    "name": "عواد غمري عواد سليمان مرة",
+    "department": "Cafeteria",
+    "jobTitle": "Chef",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5838",
+    "name": "محمود عبد الظاهر ابراهيم محمد السيد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5839",
+    "name": "حمدى سيد محمد على قزامل",
+    "department": "Warehouse",
+    "jobTitle": "Forklift Driver G2",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5840",
+    "name": "احمد كمال احمد محمد سليمان",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5841",
+    "name": "احمد محمد سالم محمد محمود",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5842",
+    "name": "محمد فرج عواض محمد على",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5843",
+    "name": "أسامة فرج حسين على",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5844",
+    "name": "عزوز قطب محمد حسن وافى",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5845",
+    "name": "وليد سيد محمد الليثى",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5846",
+    "name": "محمد عيد عبد الغنى محمد",
+    "department": "Housekeeping",
+    "jobTitle": "Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5847",
+    "name": "محمد سيد صبحى على حسين",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5848",
+    "name": "نادر سعيد أمين سيد أحمد",
+    "department": "Production Planning",
+    "jobTitle": "Planning Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5849",
+    "name": "أحمد محمد خليل ابراهيم  دياب",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5850",
+    "name": "محمد اسماعيل عبد المجيد محمد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5852",
+    "name": "السيد عادل على سليم",
+    "department": "Quality Control",
+    "jobTitle": "Weighing technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5854",
+    "name": "محمود السيد محمد هلال",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Storekeeper",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5856",
+    "name": "محمود شحات عبد المنعم محمد عبد المنعم",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5858",
+    "name": "محمد عطا الله محمد أحمد عبد المنعم",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5859",
+    "name": "أحمد عزت أحمد محمد",
+    "department": "Quality Control",
+    "jobTitle": "Quality Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5860",
+    "name": "بهاء الدين ابراهيم السيد عبد الرازق",
+    "department": "HR Operations",
+    "jobTitle": "Personnel Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5861",
+    "name": "هانى محمد رزق محمد سلامة",
+    "department": "Quality Control",
+    "jobTitle": "Quality Control Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5862",
+    "name": "مصطفى صابر محمد عبد الغنى الدكرورى",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5863",
+    "name": "أحمد محمد علي عطيه",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5866",
+    "name": "محمد نبيل عبد الغنى عبد الغفار الروبى",
+    "department": "Cafeteria",
+    "jobTitle": "Office Boy",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5868",
+    "name": "عبد العظيم محمود عبد المنعم عبد الدايم",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5869",
+    "name": "محسب عبدالله على إبراهيم ابو الجود",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5870",
+    "name": "محمد اسماعيل أحمد يونس",
+    "department": "Omylene",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5872",
+    "name": "أحمد فولى محمد محمود",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5873",
+    "name": "هانى عبد الحميد سالم جاد البكليش",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5874",
+    "name": "سيد أبو سريع إبراهيم علي",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5875",
+    "name": "محمد رشيد محمد رشيد ندا",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5876",
+    "name": "أيمن محمد محمد محمد عيسى",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5877",
+    "name": "موسي عبد الغني دسوقي عبد المجيد",
+    "department": "Production Planning",
+    "jobTitle": "Planning Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5878",
+    "name": "سليمان عبد الحليم سليمان عبد الحليم",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5879",
+    "name": "محمود غريب عبد اللطيف عبد الله",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5880",
+    "name": "رضا عبد الغنى محمود عبد الغنى الشريف",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5882",
+    "name": "احمد سامي مسلم علي",
+    "department": "Transportation",
+    "jobTitle": "Auto Electrician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5883",
+    "name": "مصطفى عبد الونيس محمود النساج",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5884",
+    "name": "حسن محمد محمود همام",
+    "department": "Housekeeping",
+    "jobTitle": "Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5885",
+    "name": "محمد حسن سيد صالح عفيفي",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Storekeeper",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5886",
+    "name": "عابد أحمد سليمان سيد أحمد",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5887",
+    "name": "مصطفى محمد مصطفى محمد الشرقاوى",
+    "department": "Transportation",
+    "jobTitle": "Auto Mechanic",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5888",
+    "name": "أمير متولي محمد متولي",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5890",
+    "name": "هشام محمد اسماعيل حسين",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5891",
+    "name": "ممدوح عبد النبي إبراهيم بهنساوى",
+    "department": "Quality Control",
+    "jobTitle": "Quality Control Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5892",
+    "name": "سامح سيد شبل عبد الرحمن",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5893",
+    "name": "مصطفى محمد يسرى مصطفى العزب",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5894",
+    "name": "مسعود ربيع أحمد حسن",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5895",
+    "name": "عمرو حسن على حسن",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5896",
+    "name": "سيد محمد محمد إبراهيم سلومه",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5898",
+    "name": "محمد محمد منصور خليل إبراهيم",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5899",
+    "name": "ابراهيم محمد ابراهيم على التليتى",
+    "department": "Omylene",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5900",
+    "name": "مصطفي سري أمين مرسى مرسى",
+    "department": "Cafeteria",
+    "jobTitle": "Chef",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5901",
+    "name": "مجدي السيد أبو الفتوح رمضان",
+    "department": "Quality Control",
+    "jobTitle": "Quality Control Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5902",
+    "name": "صبري مهدي بنداري محمد على",
+    "department": "Quality Control",
+    "jobTitle": "Quality Control Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5903",
+    "name": "عمرو سعيد محمد إسماعيل أبو إسماعيل",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5904",
+    "name": "وليد سعيد كامل عبد الله",
+    "department": "Administration",
+    "jobTitle": "Administration Senior Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5905",
+    "name": "سالم محمد سالم عباس",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5906",
+    "name": "إبراهيم عبد الموجود جودة محمود",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Plumbing Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5907",
+    "name": "مجدى محمد محمود عبد النبى",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5910",
+    "name": "سيد مرسي مرسي السيد إبراهيم",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5911",
+    "name": "عبد الحليم منصور مهدى أمام منصور",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5912",
+    "name": "صالح محمد أحمد السيد",
+    "department": "Customer Service",
+    "jobTitle": "Loading Assistant",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5914",
+    "name": "عمرو جلال محروس عبد السلام",
+    "department": "R&D",
+    "jobTitle": "R&D Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5915",
+    "name": "خالد السيد إسماعيل عطية",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5916",
+    "name": "محمد عبد الفتاح سيد بدوي الاطرونى",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5917",
+    "name": "حسن توفيق محمد محمد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5918",
+    "name": "أحمد نصحي محمد عبدالعزيز ابو العلا",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Storekeeper",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5920",
+    "name": "حمدي حسن عبد الحارس عبد الكريم",
+    "department": "Transportation",
+    "jobTitle": "Driver",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5921",
+    "name": "أحمد محمد جاد الرب محمدين",
+    "department": "Quality Control",
+    "jobTitle": "Weighing technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5922",
+    "name": "احمد المرسى عبد الوهاب",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5923",
+    "name": "ابراهيم السيد عبد العزيز السيد",
+    "department": "Production - Poles",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5924",
+    "name": "حسن يوسف عبد الرحمن يوسف",
+    "department": "Logistics",
+    "jobTitle": "Logistics Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5925",
+    "name": "محمود عبد العزيز محمد حبيب",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5928",
+    "name": "عبد الله عادل محمد محمد عبد العال",
+    "department": "Local Sales",
+    "jobTitle": "Local Sales Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5929",
+    "name": "وائل احمد حامد حمدى",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5930",
+    "name": "حماده محمد ابو عتاب احمد مصطفى",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5931",
+    "name": "عبد العزيز محمد عبد العزيز محمد محمد",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5932",
+    "name": "علاء أبو مسلم السيد أبومسلم",
+    "department": "Quality Assurance",
+    "jobTitle": "Quality Assurance Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5933",
+    "name": "حسن عيسى ابراهيم فرج",
+    "department": "Quality Control",
+    "jobTitle": "Quality Control Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5934",
+    "name": "أحمد ثروت على بكرى على زيتون",
+    "department": "R&D",
+    "jobTitle": "Senior Chemist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5935",
+    "name": "والى محمود عوض ابراهيم",
+    "department": "General Accounting",
+    "jobTitle": "Cost Control Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5936",
+    "name": "محمود عبد الحكيم أحمد سليمان",
+    "department": "Transportation",
+    "jobTitle": "Truck Driver",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5937",
+    "name": "أحمد سيد أحمد عودة سالم",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5938",
+    "name": "ايمن عبد الجليل هاشم النحراوى",
+    "department": "Warehouse",
+    "jobTitle": "Forklift Driver G2",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5939",
+    "name": "اسلام اسماعيل عبد الحميد محمد رضوان",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5940",
+    "name": "على حسن على حسن زقزوق",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5941",
+    "name": "حسين حسن حسين أبو دشيش",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5943",
+    "name": "محمد عبد الله حسين عواد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5945",
+    "name": "خالد سعيد محمد عيد الصباغ",
+    "department": "Housekeeping",
+    "jobTitle": "Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5947",
+    "name": "حسين صابر أبو زيد إبراهيم",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5948",
+    "name": "مصطفي أنور سالم  شليان غنيم",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5949",
+    "name": "محمد جمال عبد الغنى محمد حسن",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5950",
+    "name": "خالد حسين عبد الجليل طلبة",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5951",
+    "name": "مصطفي عبد الله مصطفي عبد الحميد",
+    "department": "Omylene",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5952",
+    "name": "سعيد إبراهيم أسماعيل محمد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5953",
+    "name": "أحمد محمد اسماعيل حسين",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5954",
+    "name": "حمدان صبحي محمد حسن مرة",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5955",
+    "name": "سيد أحمد توفيق محمد عيسى",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5956",
+    "name": "محمد خطاب محمد خطاب",
+    "department": "Production - Poles",
+    "jobTitle": "Production Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5957",
+    "name": "صهيب محمد عبد الرحمن عبد الحى",
+    "department": "Systems & DBA",
+    "jobTitle": "DBA Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5958",
+    "name": "حاتم عبد اللطيف عبد الحافظ على",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5959",
+    "name": "ايهاب حليم عطية مرة",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5961",
+    "name": "احمد السيد محمد حجازى",
+    "department": "Production - Poles",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5962",
+    "name": "ابراهيم صلاح ابراهيم بدوى",
+    "department": "Local Sales",
+    "jobTitle": "Local Sales Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5963",
+    "name": "هشام جمال عبد الله ابراهيم",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5965",
+    "name": "ايمان عبد المنعم مدبولى أحمد",
+    "department": "Logistics",
+    "jobTitle": "Logistics Senior Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5966",
+    "name": "سلامة محمد أحمد ابو عوف مصطفى",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5967",
+    "name": "إبراهيم صابر إسماعيل محمد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5968",
+    "name": "سعيد محمود إسماعيل محمود شديد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5969",
+    "name": "حازم عبد الفتاح عبد الحميد عبد الفتاح",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5970",
+    "name": "محمد السيد أحمد على عفيفى",
+    "department": "Quality Control",
+    "jobTitle": "Quality Control Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5971",
+    "name": "بشير ابراهيم شريف همام",
+    "department": "Housekeeping",
+    "jobTitle": "Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5972",
+    "name": "سالم ربيع سالم  محمد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5973",
+    "name": "كريم كمال سيد محمد",
+    "department": "Local Sales",
+    "jobTitle": "Local sales Senior Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5974",
+    "name": "أشرف رضا محمد حافظ",
+    "department": "R&D",
+    "jobTitle": "R&D Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5975",
+    "name": "هانى حسن محمود حسن نافع",
+    "department": "R&D",
+    "jobTitle": "R&D Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5976",
+    "name": "محمود مصطفى عبد الحميد البابلى",
+    "department": "Budgeting & Reporting",
+    "jobTitle": "Budgeting & Reporting Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5977",
+    "name": "محمد محمد منصور منصور مصطفى",
+    "department": "Cafeteria",
+    "jobTitle": "Office Boy",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5979",
+    "name": "أحمد حسن عبدالجواد عنانى",
+    "department": "Quality Control",
+    "jobTitle": "Quality Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5980",
+    "name": "عبدالحليم على رضا محمد واصل",
+    "department": "Local Procurement",
+    "jobTitle": "Local Procurement Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5981",
+    "name": "عمرو فايز عبد الرحمن إبراهيم حماد",
+    "department": "IT Applications",
+    "jobTitle": "SCM Application Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5982",
+    "name": "ابراهيم محسن ابراهيم مرسى",
+    "department": "Local Sales",
+    "jobTitle": "Local Sales Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5983",
+    "name": "محمد على محمد محمود",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5984",
+    "name": "السيد على السيد إبراهيم",
+    "department": "Local Sales",
+    "jobTitle": "Local sales Senior Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5986",
+    "name": "إبراهيم عبدالله إبراهيم السيد الديب",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5987",
+    "name": "عاطف عبدالله سويلم حسن",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5988",
+    "name": "هانى أحمد صالح عبد الرحمن بكر",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5989",
+    "name": "معوض سعيد محمد إسماعيل أبو إسماعيل",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5990",
+    "name": "حاتم شوقى متولى عطيه",
+    "department": "Production - Poles",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5991",
+    "name": "جمال السعيد مأمون طلبة",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5992",
+    "name": "محمد أحمد الرافعي محمدي صالح",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5993",
+    "name": "محمد محمد مصطفي أبو دشيش",
+    "department": "Cafeteria",
+    "jobTitle": "Chef",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5994",
+    "name": "صلاح محمد الطوخى السيد",
+    "department": "Export - PVC",
+    "jobTitle": "Export Sales Director",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5995",
+    "name": "هيثم محمد عبدالحق  أحمد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5996",
+    "name": "اسماعيل محمود جاب الله عطية رشيد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5997",
+    "name": "ممدوح أحمد عبد العزيز علي حامد",
+    "department": "Customs Clearance",
+    "jobTitle": "Customs Clearance Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5998",
+    "name": "شاكر علاء الدين عبدالفتاح رمضان السيد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "5999",
+    "name": "علاء محمد محمد عبد الرازق أبو عيدة",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6001",
+    "name": "سيد صبيح أبو سريع صبيح",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6002",
+    "name": "حسين سيد سلامة حسين",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6003",
+    "name": "طارق محمد السيد محمد أبو النصر",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6004",
+    "name": "حسن على حسن أحمد",
+    "department": "R&D",
+    "jobTitle": "R&D Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6005",
+    "name": "عمرو رضا حامد عبد الرحمن عنبة",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6007",
+    "name": "عصام نجاح حامد عبد الرحمن",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6008",
+    "name": "عون جمال حسن سليمان أبو عميرة",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6009",
+    "name": "محمد رجب محمد عوض الله",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6010",
+    "name": "عبد المنعم عطا الله محمد أحمد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6011",
+    "name": "محمد فتحى السيد على",
+    "department": "Quality Control",
+    "jobTitle": "Quality Control Team Leader",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6012",
+    "name": "عبد الحميد السيد أحمد أحمد عبد اللطيف",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6013",
+    "name": "محمد رفيع سلامة منصور",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6014",
+    "name": "شريف محمد سلامة حسين",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6015",
+    "name": "أسامة سالم محمد على",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6016",
+    "name": "عماد محروس سلامة منصور",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6018",
+    "name": "سيد محمد أحمد نصر محمد",
+    "department": "Warehouse",
+    "jobTitle": "Forklift Driver G2",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6019",
+    "name": "سيد محمود حسين فرج أبو عبل",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6021",
+    "name": "حسين محمد حسين عبد الله",
+    "department": "Production - Poles",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6022",
+    "name": "أيمن محمد أحمد محمد الدسوقى",
+    "department": "Quality Control",
+    "jobTitle": "Senior Chemist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6023",
+    "name": "محمد عبد العاطى عامر عبد الحميد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6024",
+    "name": "شهاب الدين أحمد عبد السلام سالم",
+    "department": "Local Sales",
+    "jobTitle": "Area Sales Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6025",
+    "name": "امير شعبان فرغلى محمد فرغلى",
+    "department": "Quality Control",
+    "jobTitle": "Quality Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6026",
+    "name": "مصطفى سيد عبد الهادى محمد سرور",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6027",
+    "name": "خالد على عبدالله أحمد",
+    "department": "Transportation",
+    "jobTitle": "Truck Driver",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6028",
+    "name": "محمد عبد الفتاح شحاتة حسينى محمد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6030",
+    "name": "خالد عوض أحمد محمد على",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6031",
+    "name": "خالد عبد المنعم منصور قزامل",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6032",
+    "name": "عمرو أبو مسلم السيد أبو مسلم",
+    "department": "Preventive Maintenance",
+    "jobTitle": "Preventive maintenance Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6033",
+    "name": "أمير ابرهيم محمود سليمان",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6034",
+    "name": "عبد الرحمن محمود هاشم متولى",
+    "department": "HR Operations",
+    "jobTitle": "Personnel Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6035",
+    "name": "شلبى عبد الله أحمد السيد",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6036",
+    "name": "محمد السيد العربى صابر عزوز",
+    "department": "Transportation",
+    "jobTitle": "Welding technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6038",
+    "name": "هشام محمد عبدالعزيز على خضر",
+    "department": "Omylene",
+    "jobTitle": "Production Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6039",
+    "name": "حسام عبد الفتاح عبد الحميد عبد الفتاح",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6042",
+    "name": "هشام على مصطفى محمد",
+    "department": "IT Applications",
+    "jobTitle": "Application Development Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6043",
+    "name": "أحمد محمد عرفة عبد المجيد سعد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6044",
+    "name": "محمد عصام سيد محمد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6045",
+    "name": "محمد عادل على أبو غيدة",
+    "department": "Local Sales",
+    "jobTitle": "Local Sales Coordinator",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6046",
+    "name": "محمود عبده أحمد خليفة",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6047",
+    "name": "محمد السيد عبدالعزيز عبد الواحد",
+    "department": "Quality Control",
+    "jobTitle": "Weighing technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6048",
+    "name": "حسن عبد الموجود حسن سليمان",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6049",
+    "name": "محمد على  متولى مليجى",
+    "department": "Omylene",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6050",
+    "name": "عمر جمال عبد الوهاب محمد",
+    "department": "Preventive Maintenance",
+    "jobTitle": "Preventive Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6051",
+    "name": "على حسن أحمد عمار",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6052",
+    "name": "سيف الحق على عبد العزيزمحمد",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6053",
+    "name": "أحمد صلاح محمد أمين جمعة",
+    "department": "Administration",
+    "jobTitle": "Administration Senior Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6054",
+    "name": "عبد الله مصطفى محمود مصطفى",
+    "department": "Production - PVC",
+    "jobTitle": "Production Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6056",
+    "name": "محمد جمال عبد العزيز داود",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6057",
+    "name": "محمد سيد محمد حسن",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6058",
+    "name": "محمد عبد الله امبابى",
+    "department": "Production - Poles",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6059",
+    "name": "احمد مصطفي خضر ابو زيد",
+    "department": "Cafeteria",
+    "jobTitle": "Office Boy",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6060",
+    "name": "ابراهيم عبد اللطيف محمد الدقوني",
+    "department": "Transportation",
+    "jobTitle": "Driver",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6061",
+    "name": "احمد عبد اللطيف هارون مصطفي",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6062",
+    "name": "عبد الجواد ربيع عبد الجواد",
+    "department": "Cafeteria",
+    "jobTitle": "Office Boy",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6063",
+    "name": "فارس محمد السيد عبد العزيز",
+    "department": "Transportation",
+    "jobTitle": "Driver",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6064",
+    "name": "اشرف غيطاني خضر عبد اللطيف",
+    "department": "Housekeeping",
+    "jobTitle": "Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6065",
+    "name": "حسين عبد النبي محمد سيد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6066",
+    "name": "سيد حسين احمد بسطويسي عجلان",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6067",
+    "name": "سمير محمد جمعه ابو مندور",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6068",
+    "name": "مصطفي عبد السلام محمد مصطفي داود",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6069",
+    "name": "عصام الدين عاطف السيد التلاوي",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6070",
+    "name": "احمد حمدي محمد حافظ",
+    "department": "Cafeteria",
+    "jobTitle": "Chef",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6071",
+    "name": "محمد محمود احمد الحلوجى",
+    "department": "Quality Control",
+    "jobTitle": "Quality Control Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6072",
+    "name": "امير عبد القادر عطيه شحات",
+    "department": "Transportation",
+    "jobTitle": "Truck Driver",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6073",
+    "name": "محمد سليم غريب سليم",
+    "department": "Transportation",
+    "jobTitle": "Heavy Truck Driver",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6074",
+    "name": "عبد الله أبوزيد يوسف ابو خشبة",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6075",
+    "name": "حسن شوقي سلامه حسن ابو اسماعيل",
+    "department": "Transportation",
+    "jobTitle": "Auto Mechanic",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6076",
+    "name": "احمد عبد الستار عبد الهادي محمود النبراوي",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6077",
+    "name": "عمرو اسامه محمد خاطر",
+    "department": "Top Management",
+    "jobTitle": "Egyplast Managing Director",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6078",
+    "name": "محمد جمال على محمد",
+    "department": "Quality Control",
+    "jobTitle": "Quality Control Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6079",
+    "name": "محمد جمال عبدالمعبود عبدالكريم",
+    "department": "Transportation",
+    "jobTitle": "Truck Driver",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6080",
+    "name": "احمد محمد الياس محمد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6081",
+    "name": "بركات أحمد محمود محمد",
+    "department": "Electrical Maintenance",
+    "jobTitle": "Electrical Maintenance Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6082",
+    "name": "عمر فتحى عباس محمود",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6083",
+    "name": "أشرف سيد عطالله أحمد خليفة",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6084",
+    "name": "صبرى سلامه عبد الوهاب حجاج",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6085",
+    "name": "شعبان اسماعيل سيد حسين",
+    "department": "Quality Control",
+    "jobTitle": "Quality Control Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6086",
+    "name": "احمد رمضان منصور فرغلى منصور",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6087",
+    "name": "حازم يحيى عبدالمطلب الطنانى",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6088",
+    "name": "احمد محمد محمد عرابي",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6089",
+    "name": "محمد شعبان سلامة عبد الرحمن",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6092",
+    "name": "محمد رضا محمد احمد اسماعيل",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6093",
+    "name": "محمود محمد صابر ابراهيم",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6094",
+    "name": "مى زكريا بكرى على",
+    "department": "Export - Master Batch",
+    "jobTitle": "Export Sales Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6095",
+    "name": "محمد ابراهيم محمد احمد",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6096",
+    "name": "اسلام سعد محمد عبد الحميد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6098",
+    "name": "محمد طارق زكريا ابراهيم",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6099",
+    "name": "عمرو صلاح احمد محمد",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6100",
+    "name": "محمد محمد عبدالوهاب محمد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6101",
+    "name": "وهيب احمد جودة احمد ابو الخير",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6102",
+    "name": "محمد سليمان عبدالمطلب سليمان",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Supervisor",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6104",
+    "name": "اسامه سامى فهيم ابوالعنين",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6105",
+    "name": "أحمد محمد عبدالفضيل محمد",
+    "department": "Technical Office",
+    "jobTitle": "Technical Office Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6106",
+    "name": "عبدالله محمد السيد سالم",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6107",
+    "name": "مصطفى محمد عبدالله شاهين",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6109",
+    "name": "اسلام أحمد على حسن نصر",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6110",
+    "name": "محمود شحات محمود على النفراوى",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6112",
+    "name": "لؤى ابراهيم محمد عبدالعال",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6113",
+    "name": "هانى رمضان اسماعيل حسن",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6115",
+    "name": "احمد محمد السيد محمود",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6116",
+    "name": "محمود كمال عطا الله مبروك",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6118",
+    "name": "عاطف سيد عبدالغنى على",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6119",
+    "name": "محمود السيد عبدالرحمن عبدالجليل",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6121",
+    "name": "عبدالرحمن حمدى السيد محمد العو",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6123",
+    "name": "عبدالله شعبان عبده أحمد رمضان",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6125",
+    "name": "محمود بدوى عطية محمود",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6126",
+    "name": "حماده عاشور كامل عبدالمجيد",
+    "department": "Omylene",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6128",
+    "name": "سند فريد محمد فريد",
+    "department": "Omylene",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6129",
+    "name": "محمد أحمد ابراهيم على التليتى",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6130",
+    "name": "هيثم محمد عونى عبدالعزيز",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Storekeeper",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6131",
+    "name": "محمد حسن سيد رمضان",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6132",
+    "name": "محمد جمال عبدالغنى محمد بحيرى",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6133",
+    "name": "أحمد يسرى عبدالفضيل قاسم",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6134",
+    "name": "محمد محمود محمد طه",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6135",
+    "name": "سيد محمد محمد ابراهيم بدوي",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6136",
+    "name": "محمد أحمد لطفي محمد منصور",
+    "department": "Quality Control",
+    "jobTitle": "Senior Chemist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6137",
+    "name": "احمد جمال فرج احمد حسين",
+    "department": "Local Sales",
+    "jobTitle": "Local sales Senior Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6138",
+    "name": "محمود فتحى حسن السيد",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6139",
+    "name": "حسين تيسير قاسم احمد",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6141",
+    "name": "كمال عبدالهادى عطيه عبده",
+    "department": "Omylene",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6142",
+    "name": "ممدوح رافعى نبيه الزين السيد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6143",
+    "name": "فادي احمد فؤاد احمد حسين",
+    "department": "Local Sales",
+    "jobTitle": "Local Sales Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6144",
+    "name": "سليمان طارق سليمان الشحات",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6145",
+    "name": "احمد محمد عبد الوهاب ابراهيم حماد",
+    "department": "Quality Control",
+    "jobTitle": "Quality Control Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6147",
+    "name": "أحمد سيد محمد توفيق",
+    "department": "Talent Management & Development",
+    "jobTitle": "Talent Management & Development Team Leader",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6148",
+    "name": "حسام السيد احمد طنطاوي",
+    "department": "Omylene",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6150",
+    "name": "حسام حسن عبد المنعم عبد الرحمن",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6151",
+    "name": "محمد عبد الحميد محمود عبد الحميد سليمان",
+    "department": "Omylene",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6152",
+    "name": "مصطفي محمود مصطفي اسماعيل",
+    "department": "Business Development",
+    "jobTitle": "Business Development Director",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6154",
+    "name": "دينا سليمان سليمان رويحل",
+    "department": "Foreign Procurement",
+    "jobTitle": "Foreign Procurement Senior Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6155",
+    "name": "عمر سعد منصور حسن حسن",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6156",
+    "name": "عمرو عادل عبد الرحيم علي",
+    "department": "Local Sales",
+    "jobTitle": "Local Sales Coordinator",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6157",
+    "name": "محمد عبد العزيز حسن محمد",
+    "department": "Omylene",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6158",
+    "name": "سامح بلال احمد مسيل",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6160",
+    "name": "خالد محمد عبدالحميد ابوالسعود",
+    "department": "Preventive Maintenance",
+    "jobTitle": "Preventive Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6163",
+    "name": "محمد سامي طنطاوي محمد الدمنهوري",
+    "department": "Electrical Maintenance",
+    "jobTitle": "Electrical Maintenance Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6164",
+    "name": "كريم ابراهيم العليمى على جمعه",
+    "department": "Preventive Maintenance",
+    "jobTitle": "Preventive Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6166",
+    "name": "نزية مجدي محمد محمد",
+    "department": "Electrical Maintenance",
+    "jobTitle": "Electrical Maintenance Senior Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6167",
+    "name": "محمد احمد صالح احمد صالح",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Senior Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6168",
+    "name": "عبد الهادي حمدي عبد الهادي سليمان",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6169",
+    "name": "احمد وجية امين مرسي",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6171",
+    "name": "محمد سعيد محمد يوسف جمعه",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6173",
+    "name": "محمود حسن محمد ابراهيم",
+    "department": "HSE",
+    "jobTitle": "HSE Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6175",
+    "name": "فتحي محمد محمد احمد",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Storekeeper",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6200",
+    "name": "هشام رضا عبد الله علي",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6201",
+    "name": "سيد محمد سيد علي",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6210",
+    "name": "عبدالله ناجى عبدالله الحنفى شريف",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6374",
+    "name": "محمد محمود السيد البهى البارودى",
+    "department": "Technical Office",
+    "jobTitle": "Technical Office Senior Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6379",
+    "name": "محمد ابراهيم جمعه على",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6380",
+    "name": "حمدان احمد محمد عثمان",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6381",
+    "name": "رمضان سيد احمد عوده",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6382",
+    "name": "محمود خالد صبحى محمد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6383",
+    "name": "اسامه فوزى عبدالعال محمد",
+    "department": "Foreign Procurement",
+    "jobTitle": "Foreign Procurement Senior Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6384",
+    "name": "اسلام جمال عبدالعظيم الدقونى",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6386",
+    "name": "حسين عاشور كامل عبدالمجيد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6568",
+    "name": "محمود قدرى محمد محمود",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6775",
+    "name": "محمود عبدالله حسين عواد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6777",
+    "name": "احمد عبدالباسط عبدالفتاح محمد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6781",
+    "name": "ايمن احمد محمد احمد",
+    "department": "Quality Control",
+    "jobTitle": "Quality Control Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "6782",
+    "name": "احمد طارق عيد ابراهيم",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "7566",
+    "name": "محمود جمال بيومى على",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "7843",
+    "name": "محمد عبدالمنعم محمد ابراهيم",
+    "department": "Production - Poles",
+    "jobTitle": "Production Senior Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "8201",
+    "name": "خالد حمدى عاشور سالم",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "8442",
+    "name": "اسلام كرم على عبد القادر",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "8555",
+    "name": "احمد السيد احمد حسن",
+    "department": "Omylene",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "8556",
+    "name": "ابراهيم عبدالعزيز امبابى السيد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "8578",
+    "name": "عبدالعزيز احمد عبدالعزيز احمد",
+    "department": "HSE",
+    "jobTitle": "HSE Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "8931",
+    "name": "احمد سعيد حموده شحاته",
+    "department": "Quality Control",
+    "jobTitle": "Quality Control Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "10141",
+    "name": "حسام أحمد محمد حسنى",
+    "department": "Production Planning",
+    "jobTitle": "Planning Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "11558",
+    "name": "محمد محمد سيد على",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Storekeeper",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "12194",
+    "name": "أحمد محمد امام سكوتة",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Senior Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "13591",
+    "name": "محمود محمد محمود عبد العزيز",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "13674",
+    "name": "حسين محمد محمود خليل",
+    "department": "Finance",
+    "jobTitle": "Finance Director",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "14957",
+    "name": "سامر محمد السيد علي",
+    "department": "Local Sales",
+    "jobTitle": "Local sales Senior Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "15157",
+    "name": "سعيد السيد ابراهيم حسن",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "15158",
+    "name": "ياسر محمود خلاف محمود",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Senior Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "15159",
+    "name": "علي محمود عبد العزيز سليمان",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "15834",
+    "name": "عبدالصمد خالد عبدالصمد مشعل",
+    "department": "Housekeeping",
+    "jobTitle": "Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "16816",
+    "name": "ميرنا سليمان سليمان رويحل",
+    "department": "Export - PVC",
+    "jobTitle": "Export Sales Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "16821",
+    "name": "المعتصم بالله مسعد محمود الشربيني",
+    "department": "Business Development",
+    "jobTitle": "Business Development Senior Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "16824",
+    "name": "محمد مصطفي محمد ربيع عبد اللطيف",
+    "department": "Local Sales",
+    "jobTitle": "Local sales Senior Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "16854",
+    "name": "محمود محمد عبد المنعم ابو زيد",
+    "department": "Process",
+    "jobTitle": "Process Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "17315",
+    "name": "أحمد محمد عبد الخالق ابراهيم",
+    "department": "IT Operations",
+    "jobTitle": "IT Support Senior Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "18214",
+    "name": "ابراهيم محمد السيد بحيري",
+    "department": "Omylene",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "21675",
+    "name": "محمود خالد عيد هلال",
+    "department": "General Accounting",
+    "jobTitle": "Accounts Payable Accountant",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "22634",
+    "name": "اسلام بدوي عبد الجواد بدران هديب",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "22774",
+    "name": "محمد سعيد محمد صديق",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "22814",
+    "name": "محمد عبد الباسط عبد الله السعيد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "23294",
+    "name": "مجدي محمد عبد الرحيم حسن",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "24194",
+    "name": "كمال محمد محمود سيد احمد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "26234",
+    "name": "أحمد ايمن احكام محمد رزق",
+    "department": "Electrical Maintenance",
+    "jobTitle": "Electrical Maintenance Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "26714",
+    "name": "محمد أسامه عبد الوهاب عبد الرحمن",
+    "department": "Preventive Maintenance",
+    "jobTitle": "Preventive Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "26734",
+    "name": "محمد سليم جابر",
+    "department": "Export - Master Batch",
+    "jobTitle": "Export Sales Director",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "26754",
+    "name": "نقولا جورج الخوري",
+    "department": "Total Quality Management",
+    "jobTitle": "Product & TQM Director",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "27194",
+    "name": "محمد صابر عبد الرحمن عبد  الغني",
+    "department": "Quality Control",
+    "jobTitle": "Quality Control Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "27214",
+    "name": "حسام مسعد شعبان اسماعيل",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "27734",
+    "name": "نبيل حمدي عبد الهادي سليمان",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "27754",
+    "name": "أحمد السيد محمد السيد عسكر",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "27834",
+    "name": "محمد رمضان علي شلبي",
+    "department": "Electrical Maintenance",
+    "jobTitle": "Electrical Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "28334",
+    "name": "عبدالرحمن اسامه امين",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "29014",
+    "name": "مؤمن عيد علي محمد",
+    "department": "Production - Poles",
+    "jobTitle": "Production Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "29234",
+    "name": "مجدي سعيد رجب محمد",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Plumbing Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "29874",
+    "name": "علي مصطفى محمد حسين عبد الله",
+    "department": "Production - Poles",
+    "jobTitle": "Welding technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "31734",
+    "name": "حسام الدين نبيل سيد احمد",
+    "department": "Production Planning",
+    "jobTitle": "Planning Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "33034",
+    "name": "محمد احمد محمد علي",
+    "department": "Housekeeping",
+    "jobTitle": "Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "33114",
+    "name": "أحمد ممدوح متولي محمد",
+    "department": "Local Sales",
+    "jobTitle": "Local Sales Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "34174",
+    "name": "إيمان إبراهيم كامل محمد",
+    "department": "Quality Assurance",
+    "jobTitle": "Quality Assurance Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "34494",
+    "name": "مصطفي عادل جلال صالح",
+    "department": "Production - PVC",
+    "jobTitle": "Production Senior Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "35774",
+    "name": "إسلام عبد اللاه عبد الغني عبد السلام",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "35814",
+    "name": "أحمد أسامة محمد عبد الرحمن",
+    "department": "Production - Poles",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "35835",
+    "name": "أحمد أمين سيد أحمد",
+    "department": "Production - Poles",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "36294",
+    "name": "أحمد علي أحمد محمد",
+    "department": "Production - Poles",
+    "jobTitle": "Welding technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "37614",
+    "name": "احمد محمد حلمي منصور",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "37895",
+    "name": "عماد حمدينو عباس مصطفي",
+    "department": "Transportation",
+    "jobTitle": "Driver",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "37915",
+    "name": "سلامه محمد سلامه حسن",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "38015",
+    "name": "هشام مجدي سيد محمد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "38055",
+    "name": "محمود مبروك السيد مهدي",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "38074",
+    "name": "عبدالرحمن الامير عبدالسلام احمد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "38314",
+    "name": "عبدالرحمن ابراهيم أبوالفضل ابراهيم",
+    "department": "Quality Control",
+    "jobTitle": "Quality Control Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "38315",
+    "name": "قاسم نبيل قاسم عبدالمقصود",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "38474",
+    "name": "عبدالرحمن محمد محمد العربي",
+    "department": "Quality Control",
+    "jobTitle": "Quality Control Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "43594",
+    "name": "ايهاب توفيق احمد توفيق",
+    "department": "Process",
+    "jobTitle": "Process Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "46414",
+    "name": "هدايه محمد هدايه امين",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "46454",
+    "name": "على محمد محمد محمد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "46595",
+    "name": "السيد جمال عبدالمنعم عبدالحميد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "46974",
+    "name": "اسلام علي عيسي محمد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "47174",
+    "name": "محمود محمد محمود السيد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "47874",
+    "name": "محمد طارق محمد حفني",
+    "department": "Quality Control",
+    "jobTitle": "Quality Control Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "48454",
+    "name": "محمد عبدالهادي عطيه عبده",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "48474",
+    "name": "محمد صبري عبدالله سيد احمد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "49074",
+    "name": "حسين وليد حسين محمد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "49094",
+    "name": "محمد مصطفي ابراهيم حسن",
+    "department": "Quality Control",
+    "jobTitle": "Chemist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "50994",
+    "name": "محمد خالد يحي علي",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "52634",
+    "name": "محمد عطا الشحات محمد",
+    "department": "R&D",
+    "jobTitle": "Chemist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "52654",
+    "name": "محمد رضا محمد عبدالمنعم",
+    "department": "Quality Control",
+    "jobTitle": "Chemist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "52674",
+    "name": "محمد حسين محمد حسين",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "52694",
+    "name": "باسم ناصر ابراهيم شريف",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "52734",
+    "name": "محمود محمد عبدالعظيم عبدالله",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "52794",
+    "name": "طارق السعيد عبداللطيف علي",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "53074",
+    "name": "احمد رجب عبدالجليل بدر",
+    "department": "General Accounting",
+    "jobTitle": "Accounts Payable Accountant",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "53094",
+    "name": "احمد سامي طنطاوي محمد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "53154",
+    "name": "محمد حسن محمد ابو المجد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "53155",
+    "name": "عبدالله ثابت عبدالعزيز علي",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "53834",
+    "name": "فتحي محمد عبدالحميد ابوالسعود",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "53874",
+    "name": "احمد محمد حسن علي",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "54036",
+    "name": "وائل سيف الدين عادل يوسف",
+    "department": "HR Business Partner",
+    "jobTitle": "HR Senior Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "54319",
+    "name": "عبدالعزيز أحمد عبدالعزيز حامد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "54322",
+    "name": "محمد أشرف عبدالمنعم سليمان",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "54323",
+    "name": "عبدالله نبيل الامير أبوالعطا",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "54326",
+    "name": "عمرو على عبدالرازق على",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "54327",
+    "name": "محمود يحيي عبدالفتاح محمد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "54414",
+    "name": "اسلام عماد أحمد علي",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "54417",
+    "name": "احمد رجب عبدالسميع احمد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Junior Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "54418",
+    "name": "محمد أحمد مصطفي محمد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "54436",
+    "name": "يوسف أحمد يوسف السيد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "54477",
+    "name": "عبدالله مصطفي كامل علي",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "54496",
+    "name": "محمد فضل محمد حسن",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "54662",
+    "name": "محمد عادل رحيم عيد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "54699",
+    "name": "فاروق محمد فاروق غريب",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "54841",
+    "name": "حسام صابر الهادي محمد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "55404",
+    "name": "أحمد محمد أحمد متولي",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "55744",
+    "name": "اسلام سيد سيد اسماعيل",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "55745",
+    "name": "محمد عبداللطيف هارون مصطفي",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "55973",
+    "name": "أحمد محمد عبدالباقي عبدالحميد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "56000",
+    "name": "محمد سعيد كامل عبدالله",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Storekeeper",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "56060",
+    "name": "مصطفي مجدي سيد عبدالمؤمن",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "56106",
+    "name": "مصطفي محمود امام بكر",
+    "department": "R&D",
+    "jobTitle": "Chemist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "56245",
+    "name": "محمد السيد عبدالحميد زاهر",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "56308",
+    "name": "مصطفي محمد عوض أحمد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "56511",
+    "name": "احمد محمود عبدالحميد علي",
+    "department": "Electrical Maintenance",
+    "jobTitle": "Electrical Maintenance Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "56620",
+    "name": "احمد جمال سعيد محمود",
+    "department": "R&D",
+    "jobTitle": "Chemist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "57527",
+    "name": "احمد جمعه عبدالله علي",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "57696",
+    "name": "محمد حسام محمد بدوي",
+    "department": "Customer Service",
+    "jobTitle": "Loading Assistant",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "57735",
+    "name": "ياسمين احمد عسجد عبدالغني",
+    "department": "Quality Assurance",
+    "jobTitle": "Quality Assurance Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "57736",
+    "name": "محمد مجدي حسن توفيق",
+    "department": "HSE",
+    "jobTitle": "HSE Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "57855",
+    "name": "احمد محمد رشدي محمود",
+    "department": "Production - PVC",
+    "jobTitle": "Production Junior Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "58415",
+    "name": "على عمر شاكر احمد",
+    "department": "Transportation",
+    "jobTitle": "Driver",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "58501",
+    "name": "على عبدالحفيظ محمد احمد",
+    "department": "Administration",
+    "jobTitle": "Administration coordinator",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "58527",
+    "name": "احمد حسيني صابر أمين",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "58740",
+    "name": "محمد محمود السيد محمود",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "58753",
+    "name": "عرفات رضوان سامي رضوان",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "58780",
+    "name": "محمد عبدالسند اسماعيل حسن",
+    "department": "HSE",
+    "jobTitle": "HSE Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "58826",
+    "name": "محمد جميل عبدالعزيز حسن",
+    "department": "General Accounting",
+    "jobTitle": "Accounts Receivable Accountant",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "58913",
+    "name": "اسلام فوزي عبدالعال محمد",
+    "department": "Local Sales",
+    "jobTitle": "Local Sales Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "58936",
+    "name": "ضحى محمد احمد محمود",
+    "department": "General Accounting",
+    "jobTitle": "Accounts Receivable Accountant",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "58937",
+    "name": "مروى جمال احمد علي",
+    "department": "Administration",
+    "jobTitle": "Administration Senior Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "58982",
+    "name": "نورالدين احمد ابراهيم محمد",
+    "department": "Local Sales",
+    "jobTitle": "Local Sales Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "58995",
+    "name": "ابراهيم صابر عطيه عبدالعزيز",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "59099",
+    "name": "يوسف الحسين مصطفى مصطفى",
+    "department": "Local Procurement",
+    "jobTitle": "Local Procurement Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "59122",
+    "name": "عمرو رأفت احمد عبدالفتاح",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "59355",
+    "name": "احمد محسن مصطفي ابوالنجا",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "59457",
+    "name": "علي محمود حسنى عجمى",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "59464",
+    "name": "مصطفي محمد عبدالباقي عبدالحميد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "59482",
+    "name": "محمد رضا السيد عبدالهادى",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "59695",
+    "name": "احمد سيد احمد سيد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "60892",
+    "name": "احمد سامح احمد عبدالرحمن",
+    "department": "Treasury Operations",
+    "jobTitle": "Treasury Operations Accountant",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "61224",
+    "name": "محمود عبدالنبي درويش حسين",
+    "department": "Transportation",
+    "jobTitle": "Truck Driver",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "61228",
+    "name": "عمرو حافظ محمد ميرزا اسماعيل",
+    "department": "Export - Master Batch",
+    "jobTitle": "Export Sales Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "61285",
+    "name": "كريم علي احمد علي احمد",
+    "department": "Quality Control",
+    "jobTitle": "Chemist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "61286",
+    "name": "محمد علاء مصطفي محمد",
+    "department": "Quality Control",
+    "jobTitle": "Chemist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "61335",
+    "name": "ريهام محمدين محمد أحمد",
+    "department": "Technical Support",
+    "jobTitle": "Technical Support Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "61339",
+    "name": "هشام السيد البصلي",
+    "department": "Export - Master Batch",
+    "jobTitle": "Export Sales Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "61350",
+    "name": "محمد احمد فتحي السيد",
+    "department": "Quality Control",
+    "jobTitle": "Chemist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "61351",
+    "name": "محمد عماد عبدالله محمد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "61512",
+    "name": "عمر فولي محمد محمود",
+    "department": "Quality Control",
+    "jobTitle": "Chemist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "61699",
+    "name": "احمد مصطفى احمد احمد مطر",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "61701",
+    "name": "محمد سعيد حمدى محمد",
+    "department": "Warehouse",
+    "jobTitle": "Forklift Driver G2",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "61774",
+    "name": "عبدالفتاح محمد عبدالفتاح نصر",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "61822",
+    "name": "محمد على جمعه على مره",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "61823",
+    "name": "محمد احمد عبدالعزيز احمد",
+    "department": "Quality Control",
+    "jobTitle": "Quality Control Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "61878",
+    "name": "علاء فتوه احمد توفيق",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Storekeeper",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "61880",
+    "name": "محمد كرم على عبدالقادر",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "61906",
+    "name": "مصطفى اشرف ابراهيم عبدالحى",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "61907",
+    "name": "حسن عبدالله حسن عبدالله",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "61912",
+    "name": "محمد محمد سالم محمد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "61927",
+    "name": "عبدالرحمن رمضان سالم محمد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "61930",
+    "name": "كريم محمد عبدالمتعال الحفناوى",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "61931",
+    "name": "شعبان مصطفى شعبان محمد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "61932",
+    "name": "احمد محمد عطيه نصر",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "61943",
+    "name": "احمد خالد بدوي خليل",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "61987",
+    "name": "يوسف محمد سيد محمد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "62031",
+    "name": "اسلام محمد احمد محمود",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "62083",
+    "name": "محمد محمود فتحى عتمان",
+    "department": "HSE",
+    "jobTitle": "HSE Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "62150",
+    "name": "احمد عفيفي محمد صادق",
+    "department": "HSE",
+    "jobTitle": "HSE Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "62224",
+    "name": "عمر محمود سعيد محمود",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "62243",
+    "name": "احمد شحات احمد شحاته",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "62254",
+    "name": "حسام كمال الدين حسين ابراهيم",
+    "department": "Foreign Procurement",
+    "jobTitle": "Foreign Procurement Coordinator",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "62323",
+    "name": "احمد خالد عبدالسلام محمد",
+    "department": "R&D",
+    "jobTitle": "Chemist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "62324",
+    "name": "محمد سيد فكرى حسين",
+    "department": "R&D",
+    "jobTitle": "Chemist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "62325",
+    "name": "محمد حامد نجدى حامد",
+    "department": "R&D",
+    "jobTitle": "Chemist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "62326",
+    "name": "يوسف حمدى محروس يوسف",
+    "department": "Warehouse",
+    "jobTitle": "Forklift Driver G2",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "62334",
+    "name": "سمر رمضان محمد عبدالسلام",
+    "department": "R&D",
+    "jobTitle": "Chemist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "62359",
+    "name": "احمد معتز محمد مصطفى",
+    "department": "Warehouse",
+    "jobTitle": "Forklift Driver G2",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "63175",
+    "name": "احمد عبدالنبي درويش حسين",
+    "department": "Transportation",
+    "jobTitle": "Truck Driver",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "63177",
+    "name": "حسين سعد محمد ابراهيم",
+    "department": "Preventive Maintenance",
+    "jobTitle": "Preventive Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "63324",
+    "name": "على فاروق على عبدالرحمن",
+    "department": "Customs Clearance",
+    "jobTitle": "Customs Clearance Coordinator",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "63733",
+    "name": "احمد علاء حسين سلامه",
+    "department": "Preventive Maintenance",
+    "jobTitle": "Preventive Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "63734",
+    "name": "عمر احمد محمد احمد طنطاوى",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "63735",
+    "name": "محمود رجب محمد عوده",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "63737",
+    "name": "هيثم احمد طلعت محمد",
+    "department": "Export - Master Batch",
+    "jobTitle": "Export Sales Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "63788",
+    "name": "حسين عبدالباسط عبدالباسط حسين",
+    "department": "General Accounting",
+    "jobTitle": "Accounts Payable Accountant",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "63882",
+    "name": "محمد ممدوح محمد حسن",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "63931",
+    "name": "محمد ايهاب عبد الفتاح عبدالباري",
+    "department": "Local Sales",
+    "jobTitle": "Local Sales Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "64025",
+    "name": "محمد رضا محمد عراقى",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "64026",
+    "name": "محمد ابراهيم حفناوى ابراهيم",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "64027",
+    "name": "محمد اسماعيل محمد عبدالحميد",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "64228",
+    "name": "محمد مسلم نصار السيد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "64229",
+    "name": "مصطفى حسن ابوطالب عبدالفتاح",
+    "department": "HSE",
+    "jobTitle": "HSE Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "64235",
+    "name": "علاء جمال عشري سيد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "64236",
+    "name": "طه محمد انور محمد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "64237",
+    "name": "معاذ شعبان سلامة عبدالرحمن",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "64240",
+    "name": "محمد عواد عيد محمد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "64278",
+    "name": "عبدالرحمن جعفر محمد صالح",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "64279",
+    "name": "عبدالرحمن احمد محمد حسين",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "64280",
+    "name": "فتحى منير محمود عبدالحميد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "64281",
+    "name": "عبدالفتاح عواد عبدالفتاح عواد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "64282",
+    "name": "احمد سيد عطيه سالم",
+    "department": "Production Planning",
+    "jobTitle": "Planning Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "64285",
+    "name": "مصطفى محمد ابراهيم الدسوقى",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "64286",
+    "name": "محمد حسن درويش حسن",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "64287",
+    "name": "كريم جمال محمد صادق",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "64364",
+    "name": "عبدالرحمن علي عبدالحميد علي",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "64540",
+    "name": "احمد وائل احمد محمد",
+    "department": "Electrical Maintenance",
+    "jobTitle": "Electrical Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "64624",
+    "name": "محمود محب محمد على",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "64725",
+    "name": "زياد ايهاب محمد اسماعيل",
+    "department": "HSE",
+    "jobTitle": "HSE Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "64759",
+    "name": "عيسى محمد عيسى عيسى",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Storekeeper",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "64793",
+    "name": "احمد نصر احمد نصر",
+    "department": "Transportation",
+    "jobTitle": "Driver",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "64920",
+    "name": "احمد محمد الصغير عبداللاه",
+    "department": "HR Operations",
+    "jobTitle": "Personnel Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "65066",
+    "name": "محمود عبدالعزيز احمد محمود",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "65069",
+    "name": "عبدالرحمن طارق محمد ابراهيم",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Storekeeper",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "65085",
+    "name": "طارق سيد على احمد",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Storekeeper",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "65086",
+    "name": "عبدالرحمن فضل عبدالرحمن محمد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "65164",
+    "name": "احمد حسن محمد عبدالفتاح",
+    "department": "Quality Control",
+    "jobTitle": "Quality Control Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "65165",
+    "name": "محمد خالد رجب محمد",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "65197",
+    "name": "هاني وليد هاني أحمد",
+    "department": "Logistics",
+    "jobTitle": "Logistics Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "65248",
+    "name": "عبدالخالق محمود عبدالخالق احمد",
+    "department": "Production - Poles",
+    "jobTitle": "Production Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "65249",
+    "name": "عبدالرحمن رضا سعد عطيه",
+    "department": "Quality Control",
+    "jobTitle": "Quality Control Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "65250",
+    "name": "احمد عبدالعظيم سيد عبدالعظيم",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "65251",
+    "name": "محمد ابراهيم سعد محمد",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "65340",
+    "name": "محمد فاروق ابراهيم عواد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "65341",
+    "name": "السيد حمزه السيد حمزه",
+    "department": "Quality Control",
+    "jobTitle": "Chemist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "65504",
+    "name": "رمضان عبدالغني رمضان سيد",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "65537",
+    "name": "انس محمد ناجى عبدالرحيم",
+    "department": "R&D",
+    "jobTitle": "Chemist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "65598",
+    "name": "محمد حماده سعيد علي",
+    "department": "Quality Control",
+    "jobTitle": "Chemist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "65654",
+    "name": "خالد احمد محمد عادل",
+    "department": "Treasury Operations",
+    "jobTitle": "Treasury Operations Accountant",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "65757",
+    "name": "محمد عبدالرحمن سعيد حامد",
+    "department": "General Accounting",
+    "jobTitle": "Accounts Receivable Accountant",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "65772",
+    "name": "محمود قاسم عبدالرحمن عبدالحليم",
+    "department": "Quality Control",
+    "jobTitle": "Quality Control Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "65773",
+    "name": "احمد محمد محمد عبداالله",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "65935",
+    "name": "هشام السيد طه السويدى",
+    "department": "Quality Control",
+    "jobTitle": "Quality Control Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "65936",
+    "name": "حسن عمرو حسن حلمى",
+    "department": "Process",
+    "jobTitle": "Process Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "65937",
+    "name": "احمد حسام صابر هاشم",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "65989",
+    "name": "محمد حمدى السعيد الطنطاوى",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "66136",
+    "name": "محمد احمد عبداللطيف عبدالستار",
+    "department": "R&D",
+    "jobTitle": "Chemist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "66137",
+    "name": "حسام مصطفى محمد مكاوى",
+    "department": "R&D",
+    "jobTitle": "Chemist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "66194",
+    "name": "محمد ياسر عبدالمنعم محمد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "66338",
+    "name": "عزت فؤاد عطيه على",
+    "department": "Transportation",
+    "jobTitle": "Truck Driver",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "66499",
+    "name": "احمد هانى صبحى عبدالحفيظ",
+    "department": "HSE",
+    "jobTitle": "HSE Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "66501",
+    "name": "محمود عادل زكي بيومي",
+    "department": "Local Sales",
+    "jobTitle": "Area Sales Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "66661",
+    "name": "حسام محمد رمضان مسلم",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "66866",
+    "name": "محمود عصام رفاعى طرفاوى",
+    "department": "Local Procurement",
+    "jobTitle": "Local Procurement Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "66928",
+    "name": "محمود رضا محمود كامل",
+    "department": "R&D",
+    "jobTitle": "Chemist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "66929",
+    "name": "محمد عبدالله محسن نصر",
+    "department": "R&D",
+    "jobTitle": "Chemist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "67134",
+    "name": "هشام جمال سلامه احمد",
+    "department": "Warehouse",
+    "jobTitle": "Forklift Driver G2",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "67216",
+    "name": "محمد ياسر احمد توفيق",
+    "department": "General Accounting",
+    "jobTitle": "Accounts Payable Accountant",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "67217",
+    "name": "محمد عماد سعيد عبدالرسول",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "67261",
+    "name": "محمد رضا ابراهيم على",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "67263",
+    "name": "عمر حسن احمد طنطاوى",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "67483",
+    "name": "مراد فؤاد محمد غريب",
+    "department": "Business Development",
+    "jobTitle": "Business Development Senior Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "67484",
+    "name": "اسلام نور محمود عبدالخالق",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "67485",
+    "name": "احمد سعيد حسين محمود",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "67486",
+    "name": "مصطفى محمد ابوالحديد محمد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "67493",
+    "name": "مصطفي محمد حسن عبدالغنى",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "67500",
+    "name": "محمد اكرامى محمد البخارى",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "67501",
+    "name": "احمد صابر عبدالرحمن عبدالغنى",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "67505",
+    "name": "احمد الحسن محمد شاهين",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "67573",
+    "name": "معاذ فوزى فتحى احمد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "67606",
+    "name": "احمد السيد محمد امام",
+    "department": "HR Business Partner",
+    "jobTitle": "HR Senior Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "67660",
+    "name": "احمد مصطفى محمد نجيب",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "67664",
+    "name": "محمد سالم احمد محمد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "67665",
+    "name": "محمود حسين عطيه عطيه",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "67701",
+    "name": "محمد عبدالحميد اسماعيل عبدالحميد",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "67735",
+    "name": "مصطفى صبحى على ابراهيم",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "67736",
+    "name": "محمد احمد ماهر محمد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "67773",
+    "name": "حسن عبدالمحسن حسن عبدالمحسن",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Worker",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "67792",
+    "name": "محمد اشرف عبدالرحمن محمد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "68019",
+    "name": "عمرو عادل عبدالحميد بيومي",
+    "department": "Quality Control",
+    "jobTitle": "Chemist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "68034",
+    "name": "امنيه فتحى عبدالله نصر",
+    "department": "Export - Master Batch",
+    "jobTitle": "Export Sales Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "68727",
+    "name": "احمد خلف ابراهيم حسن",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "69092",
+    "name": "محمود محمد نصار معوض",
+    "department": "Transportation",
+    "jobTitle": "Truck Driver",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "69152",
+    "name": "معاذ عادل رمضان محمد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "69278",
+    "name": "ايمن عادل فاروق محمد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "69311",
+    "name": "فتحى جمال فتحى احمد",
+    "department": "Quality Control",
+    "jobTitle": "Quality Control Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "69312",
+    "name": "عمر محمد سيد على",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "69313",
+    "name": "عبدالعزيز محمد عبدالعزيز عبدالعزيز",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "69314",
+    "name": "عبدالله محمد احمد محمد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "69365",
+    "name": "محمد خالد سيد احمد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "69366",
+    "name": "عبدالله سيد عبدالكريم سيد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "69415",
+    "name": "أنطونيو مونوز كانتوس",
+    "department": "Export - Master Batch",
+    "jobTitle": "Export Sales Manager",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "69431",
+    "name": "محمد صفوت حسين سيد",
+    "department": "IT Applications",
+    "jobTitle": "Oracle Developer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "69459",
+    "name": "فارس مطيع الاحمدى ابراهيم",
+    "department": "Electrical Maintenance",
+    "jobTitle": "Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "69564",
+    "name": "حاتم عادل حاتم العزباوى",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "69776",
+    "name": "ابوبكر اسماعيل شعبان اسماعيل",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "69777",
+    "name": "حسن اشرف حسن احمد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "69928",
+    "name": "عبدالرحمن ابراهيم عبدالرحمن عيد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "69929",
+    "name": "يوسف امين محمد احمد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70041",
+    "name": "بهاء محمد حسن بحار",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70230",
+    "name": "هشام مجدى شديد سيد",
+    "department": "Process",
+    "jobTitle": "Process Section Head",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70239",
+    "name": "وليد محسن عبدالفتاح محمد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70398",
+    "name": "على محمد على محمد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70399",
+    "name": "عبدالرحمن على سيد اسماعيل",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70400",
+    "name": "محمد مجدى محمد عبدالرحيم",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70401",
+    "name": "محمد رضا على عبدالرحمن",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70402",
+    "name": "احمد خالد ابراهيم محمد",
+    "department": "Electrical Maintenance",
+    "jobTitle": "Electrical Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70403",
+    "name": "احمد محمد محمد كامل",
+    "department": "Transportation",
+    "jobTitle": "Truck Driver",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70404",
+    "name": "هدير عصام فتحى طلبه",
+    "department": "Production Planning",
+    "jobTitle": "Planning Specialist",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70405",
+    "name": "محمد ايمن لطفى امام",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70434",
+    "name": "عبدالفتاح السيد عبدالفتاح السيد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70436",
+    "name": "ابراهيم صابر ابراهيم سليمان",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70437",
+    "name": "مصطفى احمد محمود مصطفى",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70477",
+    "name": "محمود طه عبدالفتاح سيد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70479",
+    "name": "عبدالهادى رضا السيد عبدالهادى",
+    "department": "Production - Poles",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70480",
+    "name": "احمد على عبدالغنى محمد",
+    "department": "Production - Poles",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70481",
+    "name": "ايمن احمد عبدالرازق شحاته",
+    "department": "Production - Poles",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70482",
+    "name": "محمد هانى رشدى محمود",
+    "department": "Production - Poles",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70483",
+    "name": "محمد وليد عبدالرحمن عبدالمجيد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70484",
+    "name": "مصطفى محمود محمد محمود",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70492",
+    "name": "الحسينى محمد حمدى محمد",
+    "department": "Production - Poles",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70493",
+    "name": "اسلام حسنى سليمان على",
+    "department": "Production - Poles",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70494",
+    "name": "حسن محمد جابر عبدالرحمن",
+    "department": "Production - Poles",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70495",
+    "name": "على احمد على محمد",
+    "department": "Production - Poles",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70496",
+    "name": "ابراهيم عصام حسن حسن",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70590",
+    "name": "احمد صلاح محمود امين",
+    "department": "Production - Poles",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70591",
+    "name": "يوسف عبدالحميد محمد سالم",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70592",
+    "name": "عبدالله عاطف محمد عبدالحميد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70593",
+    "name": "مصطفى محمد عبدالكريم سيد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70594",
+    "name": "محمد فتحى محمد على",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70595",
+    "name": "محمود عمر محمود عمر",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70596",
+    "name": "عبده اشرف عبدالحميد غمرى",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70598",
+    "name": "فتحى محمد احمد ابراهيم",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70600",
+    "name": "هشام محمود عبدالغنى شفيق",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70601",
+    "name": "طه سيد ابوالفتوح عوض",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70602",
+    "name": "ابراهيم محمد ابراهيم السيد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70603",
+    "name": "عبدالرحمن عبدالله محمد حموده",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70605",
+    "name": "محمد عادل محمد عبدالمجيد",
+    "department": "Quality Control",
+    "jobTitle": "Quality Control Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70691",
+    "name": "محمد حمدى صبحى عبدالجواد",
+    "department": "Production - Poles",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70789",
+    "name": "احمد عادل عبدالصبور همام",
+    "department": "Production - Poles",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70790",
+    "name": "عبدالله على محمود على",
+    "department": "Production - Poles",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70792",
+    "name": "شعبان وائل شعبان امام",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70793",
+    "name": "عبدالله احمد السيد سالم",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70794",
+    "name": "مراون جمعه سعد حسن",
+    "department": "Production - Poles",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70895",
+    "name": "محمد سفير السيد محمد",
+    "department": "Supply Chain",
+    "jobTitle": "Supply Chain Director",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70896",
+    "name": "محمود اسامه مصيلحى مصطفى",
+    "department": "Production - Poles",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "70963",
+    "name": "حسام عبدالرحمن عبدالحميد كامل",
+    "department": "Warehouse",
+    "jobTitle": "Warehouse Storekeeper",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71056",
+    "name": "محمد حسن عرفه عبدالغفار",
+    "department": "Warehouse",
+    "jobTitle": "Forklift Driver G2",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71211",
+    "name": "احمد رضا على محمد",
+    "department": "Transportation",
+    "jobTitle": "Truck Driver",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71212",
+    "name": "محمود محمد شرف ذكى",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71213",
+    "name": "احمد منصور احمد على",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71214",
+    "name": "حسين السعيد عبدالمتعال عبدالحميد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71215",
+    "name": "محمد اسامه ابوالحسن توفيق",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71217",
+    "name": "على محمد عبدالمتعال عبدالحميد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71218",
+    "name": "محمد رضا سيد احمد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71220",
+    "name": "سعد رجب سعد محمد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71221",
+    "name": "احمد ابراهيم الششتاوى محمد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71222",
+    "name": "عبدالرحمن محمد عبدالحميد محمد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71223",
+    "name": "مصطفى احمد محمد الشحات",
+    "department": "Mechanical Maintenance",
+    "jobTitle": "Mechanical Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71224",
+    "name": "محمد السيد عبيد على",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71225",
+    "name": "محمد شحات محمد عيسى",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71282",
+    "name": "محمود احمد سيد محمد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71283",
+    "name": "محمد السيد محمد بدوى",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71285",
+    "name": "محمد عبدالغنى هادى سلامه",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71367",
+    "name": "محمد طارق محمد عبدالخالق",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71368",
+    "name": "عبدالرحمن عصام عبدالرحمن محمود",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71369",
+    "name": "على محمد الحسينى يوسف",
+    "department": "Transportation",
+    "jobTitle": "Truck Driver",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71371",
+    "name": "محمد على عطيه محمد",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71372",
+    "name": "صلاح سيد مصطفى عبدالغنى",
+    "department": "Production - Master Batch",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71373",
+    "name": "خالد وليد سلامه على",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71374",
+    "name": "حسن محمد حسن ابوالعلا",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71375",
+    "name": "محمد عبدالمنعم محمد ابراهيم",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71376",
+    "name": "اسلام سعيد ابراهيم على",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71377",
+    "name": "سعيد سلامه توفيق محمد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71378",
+    "name": "مجدى احمد السيد احمد",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71408",
+    "name": "فهد السيد محمد محمد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71409",
+    "name": "عبدالرحمن خالد عبدالرحمن عطيه",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71477",
+    "name": "فارس وليد عطيه منصور",
+    "department": "Electrical Maintenance",
+    "jobTitle": "Electrical Maintenance Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71478",
+    "name": "عطاالله نجيب عطاالله نجيب",
+    "department": "Production - PVC",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71479",
+    "name": "احمد محمد كمال حامد",
+    "department": "Production - Special Compounds",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71830",
+    "name": "محمد سامح السباعى ابراهيم",
+    "department": "Electrical Maintenance",
+    "jobTitle": "Electrical Maintenance Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71831",
+    "name": "محمود محمد سلامه عبدالفتاح",
+    "department": "Production - Poles",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71888",
+    "name": "عمر صابر على ابراهيم",
+    "department": "Production - Poles",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71889",
+    "name": "محمد احمد كمال محمد",
+    "department": "Production - Poles",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71890",
+    "name": "نادر عطيه محمود زكى",
+    "department": "Production - Poles",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71891",
+    "name": "ابراهيم محمد درويش مصطفى",
+    "department": "Production - Poles",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "71892",
+    "name": "احمد عاطف احمد منصور",
+    "department": "Production - Poles",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "72092",
+    "name": "عبدالله صلاح صابر عبدالله",
+    "department": "Electrical Maintenance",
+    "jobTitle": "Electrical Maintenance Engineer",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "72093",
+    "name": "احمد عادل احمد محمد",
+    "department": "Production - Poles",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "72094",
+    "name": "يوسف احمد ابراهيم عواد",
+    "department": "Production - Poles",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "72095",
+    "name": "وليد محمد محمود محمد",
+    "department": "Warehouse",
+    "jobTitle": "Forklift Driver G2",
+    "role": "worker",
+    "phone": ""
+  },
+  {
+    "empCode": "72096",
+    "name": "صبرى محمد حسين على",
+    "department": "Production - Poles",
+    "jobTitle": "Production Assistant Technician",
+    "role": "worker",
+    "phone": ""
+  }
+]
