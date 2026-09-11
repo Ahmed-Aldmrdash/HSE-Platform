@@ -13,3 +13,17 @@ data/*.db-shm
 # JSON→SQLite migration). Fully redundant with data/app.db — kept on disk
 # only, never in git, so the repo doesn't carry the same data twice.
 data/_legacy_json_backup/
+
+# i18n scratch dir from the AR/EN translation pass — the maintainable parts
+# (scripts + dictionary source) live in tools/i18n/ instead.
+.i18n-tmp/
+
+# Reports regenerated on demand by tools/i18n/*.js
+tools/i18n/*_report.json
+tools/i18n/*_missing.json
+tools/i18n/review_needed.json
+tools/i18n/module_level_skipped.json
+
+# Safety copies written by the in-app "clear module data" action — runtime
+# artifacts, same reason data/_legacy_json_backup/ is excluded.
+data/clear-backups/

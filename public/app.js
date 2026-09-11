@@ -37,15 +37,52 @@ function toggleDarkMode() {
 }
 
 // ============================================================
-// 🌐 EN/AR — عربي/إنجليزي (تبديل حقيقي وليس نصف حل)
+// 🌐 EN/AR — ترجمة كاملة للواجهة: نصوص وأرقام وتواريخ
 // ============================================================
-// التغطية الكاملة تشمل: كل عناصر التنقل (التابات) في كل الأدوار، شاشة
-// دخول الموظف، أزرار عامة (تسجيل الخروج...)، وشاشة المدير التنفيذي
-// بالكامل (renderExecutiveView تتحقق من اللغة الحالية وتبني نصوصها
-// بالإنجليزية مباشرة). محتوى ديناميكي أعمق (نماذج التصاريح التفصيلية،
-// سجلات كل تبويب) يبقى عربيًا حاليًا — تغطية كاملة له تتطلب ترجمة آلاف
-// السطور، خارج نطاق هذا التحديث. اتجاه الصفحة (RTL) يبقى ثابتًا في كل
-// الأحوال لتفادي كسر تخطيط الصفحة بالكامل. 11 سبتمبر 2026.
+// كل نص عربي يُعرض على الشاشة يمر على T() لحظة الرسم، وكل تاريخ/رقم يمر على
+// LOC()، فالتبديل بين العربية والإنجليزية يغيّر الواجهة بالكامل — وليس
+// القوائم الرئيسية فقط كما كان سابقًا.
+//
+// مفتاح القاموس هو النص العربي نفسه (وليس رمزًا مثل tabUsers)، حتى لا يحتاج
+// أي نص جديد إلى تسجيل مفتاح يدويًا: أي نص لا يجد ترجمة يظهر عربيًا كما هو
+// بدل أن يختفي أو يتحول إلى مفتاح غير مفهوم.
+//
+// ثلاث طبقات تغطي كل الواجهة:
+//   1) T()            — النصوص التي يبنيها JS وقت الرسم (app.js).
+//   2) I18N_STATIC    — النصوص المكتوبة مباشرة في index.html: تُلتقط نسخة
+//                       عربية منها مرة واحدة عند الإقلاع ثم تُترجم ذهابًا
+//                       وإيابًا دون أن تضيع النسخة الأصلية.
+//   3) LOC()/LOC_LATN — تنسيق التواريخ والأرقام حسب اللغة.
+//
+// اتجاه الصفحة يبقى RTL في الوضعين عمدًا: التخطيط كله مبني على RTL وقلبه
+// يكسر الصفحة بالكامل، وهو تغيير أوسع من نطاق الترجمة.
+
+const I18N_STRINGS = {"دخول المشرف":"Admin Login","سجّل الدخول للاطلاع على الطلبات والموافقة عليها":"Sign in to view and approve requests","اسم المستخدم":"Username","الكود الوظيفي (empCode)":"Employee Code (empCode)","أدخل الكود الوظيفي (مثال: EMP001)":"Enter employee code (e.g. EMP001)","كلمة المرور":"Password","دخول":"Login","اسم المستخدم أو كلمة المرور غير صحيحة":"Incorrect username or password","🔒 يجب تغيير كلمة المرور":"🔒 Password Change Required","حسابك ما زال يستخدم كلمة مرور افتراضية معروفة. لأسباب أمنية، يجب تعيين كلمة مرور خاصة بك قبل المتابعة.":"Your account is still using a known default password. For security reasons, you must set your own password before continuing.","كلمة المرور الحالية":"Current Password","كلمة المرور الجديدة (8 أحرف على الأقل)":"New Password (8 characters minimum)","تأكيد كلمة المرور الجديدة":"Confirm New Password","تغيير كلمة المرور والمتابعة":"Change Password & Continue","القسم:":"Department:","خروج":"Logout","،":",","لا يوجد":"None","نعم":"Yes","لا":"No","لا ينطبق":"N/A","نوع الطلب":"Request Type","بيانات الطلب":"Request Details","الإدارة الطالبة / القسم":"Requesting Department","سيتم تعبئته تلقائياً":"Filled automatically","الوردية":"Shift","تاريخ التنفيذ":"Execution Date","رقم طلب سابق لنفس العمل (إن وجد)":"Previous request number for the same work (if any)","اختياري":"Optional","من الساعة":"From","إلى الساعة":"To","نهاية مفتوحة / حتى انتهاء العمل":"Open-ended / until work is complete","بيانات مقدّم الطلب (مسئول التنفيذ)":"Requester Details (Person In Charge)","الكود الوظيفي":"Employee Code","(اكتب كودك لتعبئة بياناتك تلقائياً)":"(Enter your code to auto-fill your details)","مثال: EMP001":"e.g. EMP001","الاسم":"Name","الاسم بالكامل":"Full Name","الصفة":"Position","موظف":"Employee","!-- Speed & department leaderboard (من /api/executive/overview) — نظرة\n           على مستوى الشركة كلها، فتظهر فقط لـ super_admin/hse_admin؛ أدمن\n           القسم يبقى مقصورًا على بيانات قسمه فقط في باقي الصفحة. --":"!-- Speed & department leaderboard --","% · بلاغات خطورة":"% · hazard reports","(الصيانة)":"(Maintenance)","(المنسوب:":"(Attributed to:","(بعد فحصها وقبولها)":"(after review and acceptance)","(بواسطة:":"(by:","(تدريب":"(training","(تم تخطي":"(skipped",")؟\\nهذه العملية لا يمكن التراجع عنها.":")?\\nThis action cannot be undone.","+ إضافة خطر":"+ Add Hazard","+ إضافة صنف":"+ Add Item","+ إضافة صنف جديد":"+ Add New Item","+ إضافة قسم":"+ Add Section","+ إضافة قسم فحص جديد (":"+ Add New Inspection Section (","+ طلب جديد":"+ New Request","- تم إجراء التجربة ب...&#10;- قام العامل ... بـ ...&#10;- ...":"- The drill was conducted...&#10;- Employee ... did ...&#10;- ...","-- كل الأقسام --":"-- All Departments --","/ مفتوح:":"/ Open:","27 بند فحص":"27 checklist items","33 بند فحص":"33 checklist items","<div class=\"dash-empty\">لا توجد بلاغات في هذه الفترة</div>":"<div class=\"dash-empty\">No reports in this period</div>","<div class=\"dash-empty\">لا توجد بيانات</div>":"<div class=\"dash-empty\">No data</div>","<div class=\"dash-empty\">لا توجد تجارب طوارئ في هذه الفترة</div>":"<div class=\"dash-empty\">No emergency drills in this period</div>","<div class=\"dash-empty\">لا توجد تصاريح في هذه الفترة</div>":"<div class=\"dash-empty\">No permits in this period</div>","<div class=\"empty\" style=\"color:var(--danger);\">فشل تحميل الأصناف</div>":"<div class=\"empty\" style=\"color:var(--danger);\">Failed to load items</div>","<div class=\"empty\" style=\"color:var(--danger);\">فشل تحميل الأقسام</div>":"<div class=\"empty\" style=\"color:var(--danger);\">Failed to load sections</div>","<div class=\"empty\" style=\"color:var(--danger);\">فشل تحميل المستخدمين</div>":"<div class=\"empty\" style=\"color:var(--danger);\">Failed to load users</div>","<div class=\"empty\" style=\"color:var(--danger);\">فشل تحميل سجل التدقيق</div>":"<div class=\"empty\" style=\"color:var(--danger);\">Failed to load audit log</div>","<div class=\"empty\" style=\"padding:20px\"><div class=\"icon\">📊</div>لا توجد بيانات كافية بعد</div>":"<div class=\"empty\" style=\"padding:20px\"><div class=\"icon\">📊</div>Not enough data yet</div>","<div class=\"empty\" style=\"padding:20px;color:var(--danger);\">فشل التحميل</div>":"<div class=\"empty\" style=\"padding:20px;color:var(--danger);\">Failed to load</div>","<div class=\"empty\"><div class=\"icon\">⚠️</div>لا توجد بلاغات حالياً</div>":"<div class=\"empty\"><div class=\"icon\">⚠️</div>No reports currently</div>","<div class=\"empty\"><div class=\"icon\">👤</div>لا يوجد مستخدمون</div>":"<div class=\"empty\"><div class=\"icon\">👤</div>No users</div>","<div class=\"empty\"><div class=\"icon\">🛡️</div>لا توجد عمليات مسجّلة بعد — سيبدأ السجل بالامتلاء تلقائيًا مع أي اعتماد/رفض/حذف جديد</div>":"<div class=\"empty\"><div class=\"icon\">🛡️</div>No actions logged yet — the log fills automatically with every new approval/rejection/deletion</div>","<div class=\"empty\"><div class=\"icon\">🦺</div>لا توجد أصناف مطابقة — أضف صنفًا جديدًا أو عدّل الفلاتر</div>":"<div class=\"empty\"><div class=\"icon\">🦺</div>No matching items — add a new item or adjust the filters</div>","<div class=\"empty\"><div class=\"icon\">🦺</div>لا توجد أقسام بعد — أضف قسمًا جديدًا</div>":"<div class=\"empty\"><div class=\"icon\">🦺</div>No sections yet — add a new section</div>","<div class=\"empty\">خطأ في جلب البيانات</div>":"<div class=\"empty\">Error fetching data</div>","<div class=\"empty\">لا توجد تجارب طوارئ جارية الآن. يمكنك إنشاء تجربة جديدة.</div>":"<div class=\"empty\">No emergency drills in progress. You can create a new drill.</div>","<div class=\"empty\">لا توجد محاضرات جارية. يمكنك إنشاء محاضرة جديدة.</div>":"<div class=\"empty\">No sessions in progress. You can create a new session.</div>","<div class=\"empty\">لم تسجل حضور في أي تجربة حتى الآن.</div>":"<div class=\"empty\">You haven't attended any drills yet.</div>","<div class=\"empty\">لم تسجل حضور في أي محاضرة حتى الآن.</div>":"<div class=\"empty\">You haven't attended any sessions yet.</div>","<div class=\"loading\">جارِ التحميل…</div>":"<div class=\"loading\">Loading…</div>","<div class=\"loading\">جارِ تحميل الجزاءات…</div>":"<div class=\"loading\">Loading penalties…</div>","<div class=\"loading\">جارِ تحميل المستخدمين…</div>":"<div class=\"loading\">Loading users…</div>","<div class=\"loading\">جارِ تحميل الموظفين…</div>":"<div class=\"loading\">Loading employees…</div>","<div class=\"loading\">جارِ تحميل بلاغاتك…</div>":"<div class=\"loading\">Loading your reports…</div>","<div class=\"loading\">جارِ تحميل سجلك…</div>":"<div class=\"loading\">Loading your history…</div>","<div class=\"loading-inline\"><span class=\"btn-spinner\"></span> جارِ تحميل الأصناف…</div>":"<div class=\"loading-inline\"><span class=\"btn-spinner\"></span> Loading items…</div>","<h4 style=\"margin-top:24px; color:var(--danger);\">🗑️ سلة محذوفات المحاضرات</h4>":"<h4 style=\"margin-top:24px; color:var(--danger);\">🗑️ Deleted Sessions</h4>","<h4 style=\"margin-top:24px;\">سجل تجارب الطوارئ السابقة</h4>":"<h4 style=\"margin-top:24px;\">Past Emergency Drills</h4>","<li style=\"padding:16px; text-align:center; color:var(--muted);\">لا توجد إشعارات</li>":"<li style=\"padding:16px; text-align:center; color:var(--muted);\">No notifications</li>","<span class=\"btn-spinner\"></span> جارِ التجهيز…":"<span class=\"btn-spinner\"></span> Preparing…","<span style=\"color:var(--danger);font-weight:700;\">غير مسجل ⚠</span>":"<span style=\"color:var(--danger);font-weight:700;\">Not registered ⚠</span>","<span style=\"font-size:11px; background:#e2e8f0; color:#334155; padding:2px 6px; border-radius:4px;\">بيانات مستوردة</span>":"<span style=\"font-size:11px; background:#e2e8f0; color:#334155; padding:2px 6px; border-radius:4px;\">Imported data</span>","<tr><td colspan=\"5\" style=\"text-align:center; color:var(--muted);\">لا يوجد حضور حتى الآن. رمز الجلسة ظاهر للعمال.</td></tr>":"<tr><td colspan=\"5\" style=\"text-align:center; color:var(--muted);\">No attendance yet. The session code is visible to employees.</td></tr>","<tr><td colspan=\"7\"><div class=\"empty\" style=\"padding:20px;text-align:center;\"><div class=\"icon\">👤</div>لا توجد نتائج مطابقة للبحث</div></td></tr>":"<tr><td colspan=\"7\"><div class=\"empty\" style=\"padding:20px;text-align:center;\"><div class=\"icon\">👤</div>No matching results</div></td></tr>","Executive View — عرض تنفيذي للمؤشرات":"Executive View — read-only metrics overview","_أشهر":"_months","disabled title=\"لا يمكن حذف Super Admin\"":"disabled title=\"Cannot delete Super Admin\"","| السبب:":"| Reason:","| المستهدف:":"| Target:","| المشرف:":"| Supervisor:","| حضور مؤكد:":"| Confirmed attendance:","| حضور:":"| Attendance:","| حُذفت في:":"| Deleted on:","· وردية":"· shift","؟":"?","؟ سيتم حذف كل سجلات فحصه الشهرية أيضًا.":"? All of its monthly inspection records will also be deleted.","؟\\nهذه العملية لا يمكن التراجع عنها.":"?\\nThis action cannot be undone.","آخر 3 أشهر":"Last 3 months","آخر 30 يوم":"Last 30 days","آخر 6 أشهر":"Last 6 months","آخر 7 أيام":"Last 7 days","آخر سنة":"Last year","أ) متطلبات عامة":"A) General Requirements","أبريل":"April","أحدث الجزاءات — الأسماء والأسباب":"Latest Penalties — Names & Reasons","أخرى":"Other","أخرى:":"Other:","أدخل الأداة الأخرى...":"Enter the other tool...","أدخل الكود الوظيفي (":"Enter employee code (","أدخل رمز الجلسة (PIN)":"Enter session code (PIN)","أدمن القسم":"Department Admin","أدمن صيانة":"Maintenance Admin","أدمن قسم":"Dept. Admin","أدمن قسم / منطقة (Dept Admin)":"Dept./Area Admin (Dept Admin)","أرسل":"Send","أسماء القائمين بالعمل":"Names of Workers Performing the Task","أسماء القائمين بالعمل (كل اسم في سطر)":"Names of workers performing the task (one name per line)","أغسطس":"August","أغلقه:":"Closed by:","أكتوبر":"October","أكثر الموضوعات تدريباً":"Most Common Training Topics","أماكن مغلقة":"Confined Spaces","أهلاً بك":"Welcome","أو افتح تاب":"or open a tab","إجراءات":"Actions","إجراءات التحكم والوقاية":"Control & Prevention Measures","إجمالي البلاغات":"Total Reports","إجمالي التصاريح":"Total Permits","إجمالي الحضور:":"Total Attendance:","إجمالي المحاضرات التدريبية":"Total Training Sessions","إجمالي الموظفين":"Total Employees","إجمالي بلاغات الخطورة":"Total Hazard Reports","إجمالي تجارب الطوارئ":"Total Emergency Drills","إجمالي تصاريح العمل":"Total Work Permits","إجمالي ساعات التدريب (القسم)":"Total Training Hours (Department)","إجمالي ساعات تدريب الموظف":"Employee's Total Training Hours","إجمالي ساعات تدريبك":"Your Total Training Hours","إجمالي:":"Total:","إجمالي: 0 موظف":"Total: 0 employees","إحصائيات شخصية":"Personal Statistics","إحصائياتك الشخصية":"Your Personal Statistics","إدارة السلامة":"Safety Management","إرسال البلاغ ←":"Submit Report ←","إرسال الطلب للمشرف":"Send Request to Supervisor","إضافة":"Add","إغلاق":"Close","إغلاق جبري":"Forced Closure","إغلاق قسري":"Forced Closure","إلغاء":"Cancel","إلى":"To","إلى تاريخ":"To Date","إنشاء":"Create","ابحث بالاسم أو الملاحظة...":"Search by name or note...","اتلغت عملية المسح — لازم تكتب \"تأكيد\" بالظبط":"Wipe cancelled — you must type \"confirm\" exactly","احتفظ برقم الطلب ده — اضغط زر":"Save this request number — press the button","اختر برنامج الفحص للبدء — سلامة المعدات وحواجز الحماية بالمصنع":"Choose an inspection program to start — equipment and guard safety across the plant","اختر مكان العمل...":"Select a work location...","ارتفاع":"Working at Height","استرجاع":"Restore","استيراد":"Import","اسم القسم *":"Section Name *","اسم القسم مطلوب":"Section name is required","اسم المسؤول الموقّع":"Signing Officer's Name","اسم المُبلِّغ / العامل":"Reporter / Worker Name","اسم مدير المنطقة":"Area Manager's Name","اسم مشرف السلامة":"Safety Officer's Name","اسم مقدم الطلب":"Requester's Name","اسم من قام بالحذف":"Deleted By","اسم/نوع الصنف مطلوب":"Item name/type is required","اشرح طبيعة العمل المطلوب تنفيذه":"Describe the nature of the work to be performed","اعتماد":"Approve","اعتمدته الإدارة:":"Approved by management:","اكتمل العمل بأمان":"Work completed safely","اكتمل بأمان":"Completed safely","الآن":"Now","الأدوات والعدد":"Tools & Equipment","الأولى":"First","الإجراء المتخذ":"Action Taken","الإجراء المتخذ:":"Action Taken:","الإدارة":"Department","الإسعافات الأولية":"First Aid","الإصابة المحتملة:":"Potential Injury:","الإيجابيات (سطر لكل نقطة)":"Positives (one point per line)","الاتجاه الشهري":"Monthly Trend","الاتجاهات الشهرية (آخر 12 شهر)":"Monthly Trends (Last 12 Months)","الاحتمالية L (1-5)":"Likelihood L (1-5)","الاسم الكامل":"Full Name","الاسم/النوع":"Name/Type","الاسم/النوع *":"Name/Type *","الالتزام":"Compliance","البلاغات":"Reports","البند":"Item","البيانات الأساسية (العنوان، المكان، التاريخ، الوقت) مطلوبة":"Basic details (title, location, date, time) are required","التاريخ":"Date","التحقق":"Verification","التدريب":"Training","التدريب وتجارب الطوارئ":"Training & Emergency Drills","التدريبات":"Training Sessions","التدريبات والتجارب — شهرياً":"Training & Drills — Monthly","التعامل الآمن مع المواد الكيميائية":"Safe Handling of Chemicals","التفاصيل":"Details","الثالثة":"Third","الثانية":"Second","الجزاءات":"Penalties","الجزاءات النشطة":"Active Penalties","الجزاءات على الموظف":"Employee's Penalties","الجزاءات عليك":"Your Penalties","الجزاءات_":"Penalties_","الحالة":"Status","الحل المقترح:":"Suggested Resolution:","الدور":"Role","الربع الأول (يناير–مارس)":"Q1 (January–March)","الربع الثالث (يوليو–سبتمبر)":"Q3 (July–September)","الربع الثاني (أبريل–يونيو)":"Q2 (April–June)","الربع الرابع (أكتوبر–ديسمبر)":"Q4 (October–December)","الرجاء إدخال الرمز المكون من 4 أرقام":"Please enter the 4-digit code","الرجاء ملء جميع الحقول المطلوبة (*)":"Please fill in all required fields (*)","السبب:":"Reason:","السلامة الكهربائية":"Electrical Safety","السلامة والصحة المهنية العامة":"General Occupational Health & Safety","السلبيات (سطر لكل نقطة، اتركه فارغاً لو لا يوجد)":"Negatives (one point per line, leave blank if none)","الشدة S (1-5)":"Severity S (1-5)","الصلاحية":"Permission","الصيانة":"Maintenance","العامل المثالي":"Ideal Worker","العمل على ارتفاعات":"Work at Heights","العنوان":"Title","الغرض من التجربة":"Purpose of the Drill","الفترة الزمنية:":"Time Period:","الفحص الشهري /":"Monthly Inspection /","القائم بالفحص":"Inspected By","القائمون بالعمل":"Workers Performing the Task","القسم (Department)":"Department","القسم / المسمى":"Department / Title","القيمة":"Value","الكل":"All","الكود":"Code","الكود غير مسجل، يرجى كتابة البيانات يدوياً":"Code not registered, please enter the details manually","الكود والاسم مطلوبان":"Code and name are required","المحاضرات التدريبية":"Training Sessions","المحاضرات التدريبية شهريًا":"Training Sessions — Monthly","المحاضرات السابقة (":"Past Sessions (","المحذوفات":"Deleted Items","المدرب":"Trainer","المدير التنفيذي":"Managing Director","المسمى الوظيفي":"Job Title","المشرف":"Supervisor","المعدة / الماكينة / العملية":"Equipment / Machine / Process","المعدة/الماكينة":"Equipment/Machine","المكان":"Location","المكان:":"Location:","الملاحظات":"Notes","المنطقة":"Area","الموضوع":"Topic","الموظفين":"Employees","الموقع":"Location","النسخة الاحتياطية ملف JSON واحد يشمل كل بيانات النظام — الاسترجاع يستبدل البيانات الحالية بالكامل.":"The backup is a single JSON file containing all system data — restoring it fully replaces the current data.","النوع":"Type","الوصف":"Description","الوظيفة":"Job","الوقت":"Time","الي":"To","اماكن مغلقة":"Confined Spaces","انتظار":"Pending","انتظار:":"Pending:","انتهت صلاحية جلستك. يرجى تسجيل الدخول مجدداً.":"Your session has expired. Please sign in again.","ب)":"B)","ب) تفريغ زيت (إن وجد)":"B) Oil Discharge (if applicable)","بالظبط:":"exactly:","بالكامل (":"in full (","بانتظار أدمن القسم":"Awaiting Dept. Admin","بانتظار البدء":"Awaiting Start","بانتظار السلامة والصحة المهنية":"Awaiting HSE Approval","بانتظار مراجعة المشرف":"Awaiting Supervisor Review","بتاريخ:":"on:","بتواريخ:":"on:","بحث (اسم/ملاحظة)":"Search (name/note)","بحث برقم/اسم/قسم/مكان الصنف…":"Search by item number/name/section/location…","برجاء استكمال الحقول المطلوبة التالية:\n•":"Please complete the following required fields:\n•","برنامج":"Program","برنامج P1":"Program P1","برنامج P2":"Program P2","بعد":"after","بلاغ":"report","بلاغ بنجاح! (مغلق:":"report successfully! (closed:","بلاغ خطورة":"Hazard Report","بلاغ خطورة سنويًا لكل موظف)":"hazard reports per employee annually)","بلاغ خطورة علشان توصل للتارجت":"hazard report(s) to reach the target","بلاغ خطورة)":"hazard report)","بلاغ)":"report)","بلاغات":"reports","بلاغات الخطورة":"Hazard Reports","بلاغات الخطورة المقدمة":"Hazard Reports Submitted","بلاغات الخطورة حسب الشدة":"Hazard Reports by Severity","بلاغات الخطورة — الحالة":"Hazard Reports — Status","بلاغات الخطورة — حسب الشدة":"Hazard Reports — by Severity","بلاغات الموظف عن مخاطر":"Employee's Hazard Reports","بلاغات خطورة القسم":"Department Hazard Reports","بلاغاتك عن مخاطر":"Your Hazard Reports","بنجاح":"successfully","بند غير مستوفٍ في قائمة التحقق":"unmet checklist item(s)","بنود عامة":"General Items","بنود قائمة تحقق = لا":"Checklist Items = No","بهذا الفلتر":"with this filter","بواسطة:":"by:","بيانات لحظية — آخر تحديث":"Live data — last updated","تأكيد":"Confirm","تأكيد الرفض":"Confirm Rejection","تارجت":"Target","تارجت البلاغات":"Reports Target","تارجت التدريب (ساعات)":"Training Target (Hours)","تارجتك (تدريب":"Your target (training","تاريخ إنشاء التقرير":"Report Creation Date","تاريخ الإنشاء":"Creation Date","تاريخ البلاغ":"Report Date","تاريخ التوقيع":"Signature Date","تاريخ الحذف":"Deletion Date","تاريخ الفحص":"Inspection Date","تتبع الطلب ده":"track this request","تجارب الطوارئ":"Emergency Drills","تجارب الطوارئ التي حضرتها":"Emergency Drills You Attended","تجارب الطوارئ التي حضرها الموظف":"Emergency Drills Attended by Employee","تجارب الطوارئ — الحالة":"Emergency Drills — Status","تجارب طوارئ (آخر سنة)":"Emergency Drills (last year)","تجارب طوارئ القسم":"Department Emergency Drills","تجربة":"drill","تجربة طوارئ":"Emergency Drill","تجربة:":"Drill:","تحديث":"Refresh","تحديث لحظي":"Live update","تحذير: استرجاع هذه النسخة الاحتياطية سيستبدل كل البيانات الحالية في النظام (التصاريح، البلاغات، الموظفين...) بمحتوى الملف. هل أنت متأكد؟":"Warning: restoring this backup will replace ALL current system data (permits, reports, employees...) with the file's contents. Are you sure?","تدريب":"training","ترتيب الأقسام حسب الالتزام بالسلامة":"Department Ranking by Safety Compliance","تسجيل الخروج":"Logout","تسجيل الدخول ←":"Login ←","تسجيل فحص":"Record Inspection","تسجيل نتيجة فحص —":"Record Inspection Result —","تصاريح العمل":"Work Permits","تصاريح العمل حسب النوع":"Work Permits by Type","تصاريح العمل — الحالة":"Work Permits — Status","تصاريح العمل — حسب الحالة":"Work Permits — by Status","تصاريح العمل — حسب النوع":"Work Permits — by Type","تصاريح عمل القسم":"Department Work Permits","تصاريح عمل الموظف":"Employee's Work Permits","تصاريح عملك":"Your Work Permits","تصاريح وبلاغات — شهرياً":"Permits & Reports — Monthly","تصدير Excel":"Export Excel","تصريح":"permit","تصريح عمل":"Work Permit","تصريح قديم بنجاح! (اترّبط بموظف:":"old permit successfully! (linked to employee:","تطبيق الفلتر":"Apply Filter","تعديل":"Edit","تعديل المستخدم:":"Edit User:","تعديل بيانات الصنف":"Edit Item Details","تعذر تحميل بيانات الريبورت":"Failed to load report data","تعذّر تحميل الجزاءات، حاول مجدداً":"Failed to load penalties, please try again","تعذّر تحميل المؤشرات، حاول تحديث الصفحة":"Failed to load metrics, please refresh the page","تعذّر تحميل مكتبة التصدير، حاول تحديث الصفحة":"Failed to load the export library, please refresh the page","تعذّر تسجيل الحضور":"Failed to record attendance","تعذّر تصدير الملف":"Failed to export file","تفاصيل الإصلاح (الصيانة):":"Repair Details (Maintenance):","تفاصيل العمل":"Work Details","تفاصيل تنفيذ التجربة (سطر لكل خطوة)":"Drill Execution Details (one step per line)","تقييم المخاطر":"Risk Assessment","تقييم المخاطر (الخطر 1 و 2 وإجراءات الوقاية)":"Risk Assessment (Hazard 1 & 2 and Preventive Measures)","تليفون:":"Phone:","تم إبلاغ القسم المعني والمتخصصين":"The relevant department and specialists have been notified","تم إرسال البلاغ بنجاح! شكراً لتعاونك.":"Report submitted successfully! Thank you for your cooperation.","تم إرسال الطلب":"Request sent","تم استرجاع":"Restored","تم استيراد":"Imported","تم اعتماد الصورة بنجاح ✅":"Image approved successfully ✅","تم الإبلاغ 📢":"Notified 📢","تم الإصلاح والإغلاق بنجاح":"Repaired and closed successfully","تم الإصلاح والإغلاق 🟢":"Repaired & Closed 🟢","تم الإنشاء! الرمز السري للجلسة:":"Created! Session PIN:","تم الاستعادة بنجاح":"Restored successfully","تم الاستيراد ✓ —":"Imported ✓ —","تم البدء بالإصلاح بنجاح":"Repair started successfully","تم التوجيه لـ:":"Routed to:","تم التوجيه للصيانة بنجاح":"Routed to maintenance successfully","تم الحذف النهائي بنجاح":"Permanently deleted successfully","تم الحذف نهائياً":"Permanently deleted","تم الحل وإغلاق البلاغ 🟢":"Resolved & Closed 🟢","تم الحل والإغلاق 🟢":"Resolved & Closed 🟢","تم العثور على":"Found","تم النقل إلى سلة المحذوفات":"Moved to deleted items","تم النقل للمحذوفات بنجاح":"Moved to deleted items successfully","تم تحديث البلاغ بنجاح":"Report updated successfully","تم تحديث البيانات بنجاح ✅":"Data updated successfully ✅","تم تحميل الملف المجمع بنجاح!":"Combined file downloaded successfully!","تم تحميل سجل الإكسيل بنجاح 📊":"Excel log downloaded successfully 📊","تم تصدير":"Exported","تم تصدير الملف بنجاح ✓":"File exported successfully ✓","تم تغيير كلمة المرور بنجاح ✓":"Password changed successfully ✓","تم حذف الصنف":"Item deleted","تم حذف القسم":"Section deleted","تم حذف الموظف":"Employee deleted","تم حذف نتيجة الفحص":"Inspection result deleted","تم حفظ التعديل ✓":"Changes saved ✓","تم حفظ نتيجة الفحص ✓":"Inspection result saved ✓","تم رفض البلاغ":"Report rejected","تم رفض البلاغ نهائياً":"Report permanently rejected","تم رفض البلاغ وتم إشعار مشرف السلامة":"Report rejected and the safety officer has been notified","تم رفض البلاغ:":"Report rejected:","تم عرض أحدث 10 محاضرات من إجمالي":"Showing the latest 10 sessions out of a total of","تمت إضافة الصنف بنجاح ✓":"Item added successfully ✓","تمت إضافة القسم بنجاح ✓":"Section added successfully ✓","تمت استعادة المحاضرة":"Session restored","تمت المعالجة بنجاح":"Handled successfully","تنبيه هام ⚠️: هل أنت متأكد من حذف المحاضرة نهائياً؟ لا يمكن التراجع عن هذا الإجراء!":"Important ⚠️: are you sure you want to permanently delete this session? This action cannot be undone!","تنبيه هام! هل أنت متأكد من الحذف النهائي؟ لا يمكن التراجع عن هذا الإجراء.":"Important! Are you sure about this permanent deletion? This action cannot be undone.","توجيه بواسطة:":"Routed by:","توزيع الإحصائيات":"Statistics Breakdown","ثانية":"Second","ج)":"C)","ج) تشغيل خامة خاصة (إن وجد)":"C) Running Special Material (if applicable)","جاري العمل على حل المشكلة":"Working on resolving the issue","جاري تحضير ملف الإكسيل...":"Preparing the Excel file...","جاري رفع السجل واستيراد البيانات...":"Uploading the log and importing data...","جاري رفع الشيت واستيراد الجزاءات...":"Uploading the sheet and importing penalties...","جاري رفع سجل التصاريح القديمة واستيراد البيانات...":"Uploading the old permits log and importing data...","جاري مسح":"Wiping","جارِ استرجاع النسخة الاحتياطية…":"Restoring backup…","جارِ استيراد السجل القديم…":"Importing the old log…","جارِ الإرسال...":"Sending...","جارِ الإرسال…":"Sending…","جارِ الإضافة…":"Adding…","جارِ التحقق…":"Verifying…","جارِ التحميل…":"Loading…","جارِ الحفظ…":"Saving…","جارِ تحميل الأصناف…":"Loading items…","جارِ تحميل الأقسام…":"Loading sections…","جارِ تحميل السجل…":"Loading the log…","جارِ تحميل المؤشرات…":"Loading metrics…","جارِ تحميل لوحة التحكم…":"Loading dashboard…","جارِ رفع الملف وتحليله…":"Uploading and parsing the file…","جديد،":"new,","جزاء":"penalty","جزاء بنجاح!":"penalty successfully!","جزاءات القسم":"Department Penalties","جميع الحقول مطلوبة":"All fields are required","جهة الصيانة:":"Maintenance team:","حالة الإغلاق":"Closure Status","حالة الإغلاق:":"Closure Status:","حالة البلاغ":"Report Status","حالة تجارب الطوارئ":"Emergency Drills Status","حالة تصاريح العمل":"Work Permits Status","حدث خطأ":"An error occurred","حدث خطأ أثناء الإرسال":"An error occurred while sending","حدث خطأ أثناء الاتصال بالخادم":"An error occurred while connecting to the server","حدث خطأ أثناء الرفع":"An error occurred during upload","حدث خطأ أثناء المسح":"An error occurred during the wipe","حدث خطأ أثناء تصدير ملف الإكسيل":"An error occurred while exporting the Excel file","حذف":"Delete","حذف الصنف نهائيًا":"Permanently delete item","حذف الفحص":"Delete Inspection","حذف القسم":"Delete Section","حذف من لوحة التحكم":"Deleted from dashboard","حذف نتيجة فحص الشهر":"Delete this month's inspection result","حرج":"Critical","حصل خطأ أثناء التحديث":"An error occurred during the update","حصل خطأ في الإرسال، حاول تاني":"An error occurred while sending, please try again","حصل خطأ في الإضافة":"An error occurred while adding","حصل خطأ في الإغلاق، حاول تاني":"An error occurred while closing, please try again","حصل خطأ في الاتصال بالسيرفر":"An error occurred connecting to the server","حصل خطأ في التحقق، حاول تاني":"An error occurred during verification, please try again","حصل خطأ في الرفض، حاول تاني":"An error occurred while rejecting, please try again","حصل خطأ في الموافقة، حاول تاني":"An error occurred while approving, please try again","حصل خطأ في حفظ الكود، حاول تاني":"An error occurred saving the code, please try again","حضور:":"Attendance:","حفر":"Excavation","حفظ":"Save","حفظ نتيجة الفحص":"Save Inspection Result","حفظ وتسجيل الدخول ✓":"Save & Login ✓","حققوا تارجت التدريب للربع الحالي":"reached the training target for the current quarter","حققوا تارجت بلاغات الخطورة (":"reached the hazard reports target (","حُذف بواسطة:":"Deleted by:","خطأ أثناء التحديث":"Error during update","خطأ أثناء التصدير":"Error during export","خطأ اتصال":"Connection error","خطأ في الاتصال":"Connection error","خطأ في الاتصال أثناء الاستيراد":"Connection error during import","خطأ في الاتصال بالخادم":"Error connecting to the server","خطأ في الاتصال بالسيرفر":"Error connecting to the server","خطأ في البحث":"Search error","خطورة ضعيفة 🟢":"Low Risk 🟢","خطورة عالية 🔴":"High Risk 🔴","خطورة متوسطة 🟡":"Medium Risk 🟡","دقيقة":"minute","ديسمبر":"December","رئيس قسم":"Area Head","راجعه":"Reviewed By","رفض":"Reject","رفضه:":"Rejected by:","رفع":"Lifting","رقم التليفون":"Phone Number","رقم الطلب":"Request Number","رقم طلب سابق:":"Previous request number:","رقم/كود":"Number/Code","رقم/كود الصنف":"Item Number/Code","رمز الجلسة (PIN)":"Session Code (PIN)","رمز غير صحيح":"Incorrect code","س سنويًا /":"hrs/year /","ساخن":"Hot Work","ساعات":"hours","ساعات /":"hours /","ساعات التدريب":"Training Hours","ساعات التدريب المنجزة":"Training Hours Completed","ساعات تدريب":"training hours","ساعة":"hour","ساعة تدريب علشان توصل للتارجت":"training hour(s) to reach the target","ساعة من إجمالي 8 ساعات":"hour(s) out of a total of 8 hours","سبب الجزاء":"Penalty Reason","سبب الحذف":"Deletion Reason","سبب الرفض (اختياري)":"Rejection Reason (optional)","سبب الرفض:":"Rejection Reason:","سبب رفض الصيانة (":"Maintenance rejection reason (","سبب رفض المشرف:":"Supervisor's rejection reason:","سبب عدم الاكتمال أو الإغلاق الجبري (إن وجد)":"Reason for non-completion or forced closure (if any)","سبتمبر":"September","سجل التدقيق — من عمل إيه وإمتى":"Audit Log — who did what, and when","سجل جديد،":"new record,","سجل متابعة الطلبات":"Request Tracking Log","سجل محدَّث (":"record updated (","سجل)":"record)","سجل_المحذوفات_":"Deleted_Items_","سجل_بلاغات_الخطورة_":"Hazard_Reports_Log_","سجل_طلبات_العمل_":"Work_Requests_Log_","سجّل دخولك أولاً لتنزيل الملف":"Please sign in first to download the file","سجّل دخولك أولاً لعرض الجزاءات":"Please sign in first to view penalties","سجّل دخولك أولاً لعرض سجل بلاغاتك":"Please sign in first to view your reports history","سجّل دخولك أولاً لعرض سجل طلباتك":"Please sign in first to view your requests history","سنة":"year","سنة_كاملة":"Full_Year","شنيور":"Wrench","شهر":"month","ص":"AM","صاحب الطلب":"Requester","صاروخ قطعية":"Spare Rocket Nozzle","صف بدون سبب)":"row without a reason)","صفة المسؤول الموقّع":"Signing Officer's Position","صنف":"Item","صنف جديد،":"new item,","صنف عبر":"item via","صنف فحص":"inspection item","صنف — سيتم حذف كل الأصناف وسجلات الفحص الخاصة به نهائيًا.":"item — all its items and inspection records will be permanently deleted.","طلب عمل أماكن مغلقة":"Confined Spaces Work Permit","طلب عمل حفر":"Excavation Work Permit","طلب عمل رفع":"Lifting Work Permit","طلب عمل ساخن":"Hot Work Permit","طلب عمل عام":"General Work Permit","طلب عمل على ارتفاع":"Working at Height Permit","طلب عمل فصل وعزل الطاقة (LOTO)":"Lockout/Tagout (LOTO) Work Permit","عالي":"High","عالي 🔴":"High 🔴","عام":"General","عامل":"Worker","عامل / فني":"Worker / Technician","عبارة الشكر الختامية (اختياري)":"Closing Thank-You Note (optional)","عدد التصاريح":"Number of Permits","عدد الساعات":"Number of Hours","عدد النتائج:":"Number of results:","عدد يدوية بسيطة":"Basic Hand Tools","عرض بيانات موظف واحد:":"View a single employee's data:","عرض كل الأقسام":"View All Sections","عرض كل التفاصيل (قائمة التحقق + المخاطر) ⌄":"View Full Details (Checklist + Risks) ⌄","عشان تعرف حالته أول ما المشرف يرد":"to track its status as soon as the supervisor responds","عملية":"action","غائب":"Absent","غير محدد":"Unspecified","غير مطابق":"Non-Compliant","فبراير":"February","فحص حبال التثبيت والتأكد من مطابقتها للمقاييس والمعايير":"Inspect anchor ropes and confirm they meet standards and specifications","فريق الصيانة:":"Maintenance Team:","فشل إضافة الجزاء":"Failed to add penalty","فشل إضافة الصنف":"Failed to add item","فشل إضافة القسم":"Failed to add section","فشل إنشاء ملف Excel":"Failed to create Excel file","فشل استرجاع النسخة الاحتياطية":"Failed to restore backup","فشل استعادة الطلب":"Failed to restore request","فشل استيراد الملف":"Failed to import file","فشل الإنشاء":"Failed to create","فشل الاستعادة":"Failed to restore","فشل الاستيراد":"Failed to import","فشل التحديث":"Failed to update","فشل التسجيل":"Failed to register","فشل التسجيل، حاول تاني":"Failed to register, please try again","فشل الحذف":"Failed to delete","فشل الحذف النهائي":"Failed to permanently delete","فشل الحفظ":"Failed to save","فشل تحديث حالة البلاغ":"Failed to update report status","فشل تحميل الموظفين:":"Failed to load employees:","فشل تصدير الملف":"Failed to export file","فشل تصدير الملف. حاول مرة أخرى.":"Failed to export file. Please try again.","فشل تغيير كلمة المرور":"Failed to change password","فشل حذف الجزاء":"Failed to delete penalty","فشل حذف الصنف":"Failed to delete item","فشل حذف القسم":"Failed to delete section","فشل حذف المستخدم":"Failed to delete user","فشل عملية الحذف":"Deletion failed","فشل في تصدير البيانات المجمعة":"Failed to export the combined data","فصل وعزل":"Lockout/Tagout","قائمة التحقق":"Checklist","قائمة التحقق (نعم / لا / لا ينطبق)":"Checklist (Yes / No / N/A)","قاعدة البيانات":"Database","قاعدة الموظفين":"Employees","قراءة فقط":"Read only","قسم":"Section","قسم فحص":"Inspection Section","قيد الإصلاح 🟡":"Being Repaired 🟡","قيد الانتظار":"Pending","قيد المعالجة والإصلاح 🟡":"Being Handled & Repaired 🟡","كشف_حضور_":"Attendance_Sheet_","كفاءة النظام مقارنة بالورقي":"System Efficiency vs. Paper","كل الأقسام/الأماكن":"All Sections/Locations","كل الحالات":"All Statuses","كلمة المرور الجديدة وتأكيدها غير متطابقين":"The new password and its confirmation do not match","كلمة المرور الجديدة يجب ألا تقل عن 8 أحرف":"The new password must be at least 8 characters","كلمة المرور يجب أن تكون 6 أحرف على الأقل":"Password must be at least 6 characters","كود الطلب":"Request Code","كود العامل":"Worker Code","كود:":"Code:","لا تملك صلاحية إضافة جزاء":"You don't have permission to add a penalty","لا تملك صلاحية حذف الجزاء":"You don't have permission to delete the penalty","لا توجد أي جزاءات مسجلة حالياً":"No penalties currently recorded","لا توجد بلاغات للتصدير":"No reports to export","لا توجد بلاغات مسجلة":"No reports recorded","لا توجد بلاغات مسجلة في هذه الفترة":"No reports recorded in this period","لا توجد بيانات في هذه الفترة":"No data in this period","لا توجد بيانات كافية لعرض القائمة":"Not enough data to display the list","لا توجد بيانات لتصديرها":"No data to export","لا توجد بيانات لتصديرها بعد":"No data to export yet","لا توجد بيانات محذوفة لتصديرها بعد":"No deleted data to export yet","لا توجد بيانات محمّلة للتصدير بعد":"No loaded data to export yet","لا توجد تجارب أداء جارية في الوقت الحالي.":"No drills currently in progress.","لا توجد تجارب طوارئ مسجلة في هذه الفترة":"No emergency drills recorded in this period","لا توجد تصاريح عمل مسجلة في هذه الفترة":"No work permits recorded in this period","لا توجد جزاءات للتصدير":"No penalties to export","لا توجد جزاءات مسجلة في هذه الفترة":"No penalties recorded in this period","لا توجد رسوم بيانية ظاهرة حاليًا على الشاشة للتصدير":"No charts currently visible on screen to export","لا توجد طلبات":"No requests","لا توجد طلبات مطابقة حاليًا":"No matching requests currently","لا توجد محاضرات جارية في الوقت الحالي.":"No sessions currently in progress.","لا توجد محاضرات مسجلة في هذه الفترة":"No sessions recorded in this period","لا توجد محاضرات مطابقة للفلاتر لتصديرها.":"No sessions matching the filters to export.","لا توجد مخاطر مسجلة":"No hazards recorded","لا يوجد أي جزاءات مسجلة عليك":"No penalties recorded against you","لا يوجد اتصال بالإنترنت — تحقق من اتصالك وحاول مجدداً":"No internet connection — check your connection and try again","لا يوجد اتصال بالسيرفر":"No connection to the server","لا يوجد اتصال — تحقق من الشبكة":"No connection — check your network","لا يوجد حضور حتى الآن.":"No attendance yet.","لا يوجد سجل حضور لهذه التجربة.":"No attendance record for this drill.","لتأكيد المسح النهائي، اكتب كلمة":"To confirm the final wipe, type the word","لم تبدأ بعد":"Not started yet","لم تتم المشاهدة بعد":"Not yet viewed","لم يتم الفحص":"Not Inspected","لم يتم تحديد سبب":"No reason specified","لم يكتمل":"Not completed","لم يكتمل العمل":"Work not completed","لم ينتهِ بعد":"Not finished yet","لمبة قطعية":"Spare Bulb","لهذا القسم":"for this section","لوحة التحكم":"Dashboard","لوحة التحكم والإحصائيات":"Dashboard & Statistics","لوحة_التحكم_":"Dashboard_","لوحة_التحكم_بالرسوم_":"Dashboard_with_Charts_","مؤشر السلامة العام للشركة (من 100) — متوسط أداء كل الأقسام":"Company-wide safety score (out of 100) — average across all departments","مؤكد":"Confirmed","مارس":"March","ماكينة لحام":"Welding Machine","مايو":"May","متأكد إنك عايز تكمل؟":"Are you sure you want to continue?","متبقّي":"remaining","متوسط":"Medium","متوسط زمن إغلاق البلاغ":"Avg. Hazard Closure Time","متوسط زمن اعتماد التصريح":"Avg. Permit Approval Time","متوسط نسبة الالتزام":"Average Compliance Rate","متوسط 🟡":"Medium 🟡","مثال: 1":"e.g. 1","مثال: الاستقبال بجوار السلم":"e.g. Reception, next to the stairs","مثال: المبنى الإداري":"e.g. Administration Building","مثال: سقوط زيت اثناء النقل":"e.g. Oil spill during transport","مثال: سقوط من ارتفاع":"e.g. Fall from height","مثال: طفايات الحريق":"e.g. Fire extinguishers","مثال: طفاية 6 كجم Dry Powder":"e.g. 6kg Dry Powder extinguisher","مجموعة بيانات بنجاح ✓ — يُنصح بتحديث الصفحة":"dataset(s) successfully ✓ — refreshing the page is recommended","محاضرات القسم":"Department Training Sessions","محاضرات الموظف التدريبية":"Employee's Training Sessions","محاضراتك التدريبية":"Your Training Sessions","محاضرة":"session","محاضرة بنجاح!":"session successfully!","محاضرة. استخدم فلاتر البحث بالأعلى لعرض الباقي.":"sessions. Use the search filters above to view the rest.","محاضرة:":"Session:","محدّث (الإجمالي:":"updated (Total:","محذوف 🗑️":"Deleted 🗑️","محلول":"Resolved","محلول:":"Resolved:","مدير المنطقه":"Area Manager","مدير النظام":"System Administrator","مدير النظام (Super Admin)":"System Administrator (Super Admin)","مدير النظام — قسم":"System Administrator — Section","مدير النظام — كل الأقسام":"System Administrator — All Sections","مرات":"times","مرة واحدة":"once","مرفوض":"Rejected","مرفوض (صيانة) ❌":"Rejected (Maintenance) ❌","مرفوض من الإدارة العليا":"Rejected by Top Management","مرفوض من الصيانة ❌":"Rejected by Maintenance ❌","مرفوض من رئيس القسم":"Rejected by Area Head","مرفوض ❌":"Rejected ❌","مرفوض 🚫":"Rejected 🚫","مسئول البيئة والسلامة":"Environment & Safety Officer","مسئول التنفيذ":"Person In Charge","مستوى الخطورة:":"Risk Level:","مسح الفلاتر":"Clear Filters","مشرف":"Supervisor","مشرف السلامة":"Safety Officer","مشرف السلامة — قسم":"Safety Officer — Section","مشرف السلامة — كل الأقسام":"Safety Officer — All Sections","مشرف السلامه":"Safety Officer","مشرف السيفتي":"Safety Officer","مشرف سلامة (HSE Admin)":"Safety Officer (HSE Admin)","مشرف صيانة (Maint Admin)":"Maintenance Officer (Maint Admin)","مشرف قسم":"Section Supervisor","مصدر الخطر":"Source of Hazard","مطابق":"Compliant","معتمد":"Approved","معتمد من مدير المنطقة":"Approved by Area Manager","مغلق":"Closed","مغلق / مكتمل":"Closed / Completed","مغلق:":"Closed:","مغلقة/منتهية":"Closed/Ended","مغلقة:":"Closed:","مفتوح":"Open","مفتوح حاليًا":"currently open","مفتوح 🔴":"Open 🔴","مفتوح:":"Open:","مقاول":"Contractor","مقاول / خارجي":"Contractor / External","مقدمة نتيجة التجربة (اختياري)":"Drill Outcome Summary (optional)","مكافحة الحرائق والإخلاء":"Fire Fighting & Evacuation","مكان العمل":"Work Location","مكواة لحام بلاستيك":"Plastic Welding Iron","ملاحظات التوجيه للصيانة:":"Maintenance Routing Notes:","ملاحظات على قائمة التحقق":"Checklist Notes","ملاحظة الرفض":"Rejection Note","ملاحظة:":"Note:","ملخص":"Summary","ملف النسخة الاحتياطية غير صالح":"Invalid backup file","من":"From","من تاريخ":"From Date","من فضلك أدخل الكود الوظيفي":"Please enter the employee code","من فضلك أدخل الكود الوظيفي أولاً":"Please enter the employee code first","من فضلك أدخل الكود الوظيفي للموظف المطلوب تسجيل حضوره:":"Please enter the employee code of the employee whose attendance you want to record:","من فضلك أدخل الكود الوظيفي وسبب الجزاء":"Please enter the employee code and the penalty reason","من فضلك أدخل سبب الحذف":"Please enter the deletion reason","من فضلك أملأ جميع الحقول المطلوبة":"Please fill in all required fields","من فضلك املأ جميع الحقول المطلوبة":"Please fill in all required fields","منخفض":"Low","منخفض 🟢":"Low 🟢","منذ":"ago","مهمات الوقاية الشخصية (PPE)":"Personal Protective Equipment (PPE)","موافق":"Approve","موافق عليه":"Approved","موافق:":"Approved:","موافقة رئيس منطقة:":"Area Head Approval:","موافقة مبدئية من:":"Initial approval from:","موجه للصيانة 📢":"Routed to Maintenance 📢","موظف تم تدريبه (آخر سنة)":"Employees Trained (last year)","موظف غير معروف":"Unknown employee","موظف مع الإحصائيات بنجاح 📊":"employee(s) with statistics successfully 📊","نتيجة الفحص *":"Inspection Result *","نتيجة فحص":"Inspection Result","نتيجة مطابقة.":"compliant result(s).","نسبة الالتزام بأهداف السلامة":"Safety Goals Compliance Rate","نسبة الالتزام بالأهداف —":"Goals Compliance Rate —","نسبة التزام القسم بالأهداف —":"Department Goals Compliance Rate —","نسبة المطابقة":"Compliance Rate","نسبة المطابقة الإجمالية":"Overall Compliance Rate","نسبة تحقيق البلاغات":"Reports Target Achievement Rate","نسبة تحقيق التدريب":"Training Target Achievement Rate","نشط":"Active","نشطة":"Active","نشطة:":"Active:","نطاق التقرير":"Report Scope","نظرة عامة على الحالة":"Status Overview","نقاط التميز":"Highlights","نقاط للتحسين (سطر لكل نقطة)":"Points for Improvement (one point per line)","نقاط نتيجة التجربة (سطر لكل نقطة)":"Drill Outcome Points (one point per line)","نهائيًا — للعمال والأدمن كلهم.\\n":"permanently — for both workers and admins.\\n","نهاية مفتوحة":"Open-ended","نوع العملية":"Action Type","نوفمبر":"November","هل أنت متأكد من إنهاء وإغلاق التجربة؟ (لن يتمكن العمال من تسجيل الحضور بعد ذلك)":"Are you sure you want to end and close the drill? (Employees will no longer be able to record attendance)","هل أنت متأكد من إنهاء وإغلاق المحاضرة؟ (لن يتمكن العمال من تسجيل الحضور بعد ذلك)":"Are you sure you want to end and close the session? (Employees will no longer be able to record attendance)","هل أنت متأكد من استعادة المحاضرة؟ سيعود رصيد الساعات للموظفين.":"Are you sure you want to restore the session? The hours will be credited back to employees.","هل أنت متأكد من استعادة هذا الطلب؟":"Are you sure you want to restore this request?","هل أنت متأكد من حذف التجربة نهائياً؟":"Are you sure you want to permanently delete this drill?","هل أنت متأكد من حذف المستخدم":"Are you sure you want to delete the user","هل أنت متأكد من حذف هذا البلاغ ونقله للمحذوفات؟":"Are you sure you want to delete this report and move it to deleted items?","هل أنت متأكد من حذف هذا الطلب نهائياً من سلة المحذوفات؟ لا يمكن التراجع عن هذا الإجراء":"Are you sure you want to permanently delete this request from deleted items? This action cannot be undone","هل أنت متأكد من نقل المحاضرة إلى سلة المحذوفات؟":"Are you sure you want to move the session to deleted items?","هل الأرضية تحت السقالة مستوية":"Is the ground under the scaffold level","هل الأقفال وأدوات العزل الموجودة كلها عليها الكود":"Are all the locks and isolation devices present tagged with a code","هل الإضاءة والتهوية كافية؟":"Is lighting and ventilation adequate?","هل التاكد من توصيل الكابل الارضى للسيارة قبل التفريغ":"Has the vehicle's grounding cable been connected before discharge","هل الحلقة الخلفية لحبل التثبيت (شكل حرف D) خالية من أى عيوب":"Is the rear D-ring of the anchor rope free of defects","هل العزل الجماعي لمصادر الطاقة مطبق":"Is group isolation of energy sources applied","هل العمالة مدربة ومؤهلة للعمل المطلوب":"Is the workforce trained and qualified for the required work","هل العمالة مدربة ومؤهلة وعلى علم بجميع مخاطر العمل المطلوب؟":"Is the workforce trained, qualified, and aware of all hazards of the required work?","هل الفرامل تعمل بكفاءة":"Are the brakes functioning efficiently","هل المشابك (الخطافات) خالية من أى عيوب":"Are the clamps (hooks) free of defects","هل المعدة مجهزة ليتم عمل العزل الآمن لها":"Is the equipment set up for safe isolation","هل تريد استعادة هذا البلاغ؟":"Do you want to restore this report?","هل تريد حذف الصنف":"Do you want to delete the item","هل تريد حذف الموظف":"Do you want to delete the employee","هل تريد حذف قسم":"Do you want to delete section","هل تريد حذف نتيجة الفحص لهذا الشهر؟ سيعود الصنف لحالة \"لم يتم الفحص\".":"Do you want to delete this month's inspection result? The item will revert to \"Not Inspected\".","هل تم إخلاء المنطقة من أي مواد قابلة أو مسببة للاشتعال؟":"Has the area been cleared of any flammable or combustion-causing materials?","هل تم اتخاذ الإجراءات للتعامل مع المخاطر الفيزيائية ومخاطر الاجتياح":"Have measures been taken to address physical hazards and engulfment risks","هل تم اخلاء المنطقة من اي مواد قابلة او مسببة للاشتعال":"Has the area been cleared of any flammable or combustion-causing materials","هل تم استبعاد أي مادة قابلة للاشتعال في مسافة لا تقل عن 11 متر":"Has any flammable material been excluded within a distance of at least 11 meters","هل تم التأكد من توصيل الكابل الأرضي لحلة الخلاط أثناء عملية تفريغ مادة (الفضي / الذهبي)؟":"Has the mixer bowl's grounding cable connection been confirmed during discharge of material (silver/gold)?","هل تم التأكد من توصيل الكابل الأرضي للسيارة قبل التفريغ؟":"Has the vehicle's grounding cable connection been confirmed before discharge?","هل تم التمييز ببطاقات فقط (بدون أقفال) للحالات غير المجهزة":"Has tag-only marking (without locks) been used for cases not equipped for locking","هل تم تجربة لسان الهوك للتأكد من أنه يفتح للداخل فقط":"Has the hook latch been tested to confirm it opens inward only","هل تم تحجير السيارة قبل عملية التفريغ":"Have wheel chocks been placed under the vehicle before discharge","هل تم تحجير السيارة قبل عملية التفريغ؟":"Have wheel chocks been placed under the vehicle before discharge?","هل تم تحديد الأفراد المصرح لهم بالعزل والعاملين على المعدة":"Have the individuals authorized to isolate and work on the equipment been identified","هل تم تسجيل المعدة في سجل حصر المعدات ومصادر الطاقة":"Has the equipment been logged in the equipment and energy source inventory","هل تم تعليق البطاقات التحذيرية مع كل أداة عزل مستخدمة":"Have warning tags been attached to every isolation device used","هل تم تعيين مراقب حريق":"Has a fire watch been assigned","هل تم تفريغ جميع أشكال الطاقة المختزنة الخطرة والمواد المتبقية":"Have all forms of hazardous stored energy and residual materials been released","هل تم توعية العاملين من مخاطر المادة وكيفية التعامل معها قبل بدء العمل؟":"Have workers been briefed on the material's hazards and how to handle it before starting work?","هل تم عزل واستبعاد الأوعية المضغوطة والأنابيب من مكان العمل":"Have pressurized vessels and pipes been isolated and excluded from the work area","هل تم فحص الأجهزة الكهربائية والعدد اليدوية":"Have electrical devices and hand tools been inspected","هل تم فحص الأوراق الخاصة بسائق المعدة":"Have the equipment operator's documents been checked","هل تم فحص السيارة ظاهريا قبل التفريغ ومراجعة المستندات اللازمة":"Has the vehicle been visually inspected before discharge and the required documents reviewed","هل تم فحص السيارة ظاهرياً قبل التفريغ ومراجعة المستندات اللازمة؟":"Has the vehicle been visually inspected before discharge and the required documents reviewed?","هل تم فحص جميع المعدات اللازمة للعمل قبل البدء":"Have all equipment needed for the work been inspected before starting","هل تم فحص معدات الحفر قبل العمل والتأكد من صلاحيتها":"Has the excavation equipment been inspected before work and confirmed fit for use","هل تم فحص منطقة التفريغ والتأكد من خلو المكان من أي تسريبات أو مخاطر بعد التفريغ؟":"Has the discharge area been inspected and confirmed free of leaks or hazards after discharge?","هل تم فحص منطقة التفريغ والتاكد من خلو المكان من اي تسريبات او مخاطر بعد التفريغ":"Has the discharge area been inspected and confirmed free of leaks or hazards after discharge","هل تم قياس نسبة الغازات":"Has the gas concentration been measured","هل تم وضع حواجز أو شرائط تحذيرية في مكان الحفر":"Have barriers or warning tape been placed at the excavation site","هل تم وضع خطة للتخلص من ناتج الحفر":"Has a plan been made for disposing of excavated material","هل تمت إزالة كل الأقفال والأدوات بعد انتهاء الصيانة":"Have all locks and tools been removed after maintenance is complete","هل تمت مراجعة قسم الكهرباء لوجود كابلات في منطقة الحفر":"Has the electrical department been consulted for cables in the excavation area","هل تمت مراجعة قسم الميكانيكا لوجود مواسير سباكة في منطقة الحفر":"Has the mechanical department been consulted for plumbing pipes in the excavation area","هل توجد إجراءات لفصل وعزل مصادر الطاقة":"Are there procedures to disconnect and isolate energy sources","هل توجد إجراءات للتعامل مع المواد الكيميائية والخطرة":"Are there procedures for handling chemical and hazardous materials","هل توجد إجراءات للتعامل مع حالات الطوارئ":"Are there procedures for handling emergencies","هل توجد إجراءات للحفاظ على النظافة والترتيب":"Are there procedures to maintain cleanliness and order","هل توجد ركائز جانبية لتدعيم السقالة":"Are there side supports reinforcing the scaffold","هل توجد نوافذ واسعة للتهوية":"Are there large windows for ventilation","هل توجد وسائل عزل منطقة العمل (ستائر / شريط / أقماع) / مستخدمة؟":"Are work area isolation means (curtains/tape/cones) in use?","هل جميع العاملين المشتركين ملتزمين بكاب السيفتي":"Are all workers involved wearing safety caps","هل سجل حصر وفحص أدوات العزل مستوفٍ لجميع البيانات":"Is the isolation devices inventory/inspection log complete with all data","هل شرائط الحزام خالية من أى عيوب":"Are the belt straps free of defects","هل كل بطاقات عزل مصادر الطاقة تم إغلاقها بالشكل الصحيح":"Have all energy source isolation tags been closed correctly","هل لدى السائق رخصة سارية لقيادة الروافع المستخدمة":"Does the operator hold a valid license for the cranes used","هل للمعدة تعليمات عزل محددة، خاصة تفريغ الطاقة الكامنة":"Does the equipment have specific isolation instructions, especially for releasing stored energy","هل ماص الصدمات خالٍ من أى عيوب أو تشوه":"Is the shock absorber free of defects or deformation","هل مزلاج الأمان (القفل) الخاص بالمخطاف خالى من أى عيوب":"Is the hook's safety latch free of defects","هل مصدر الطاقة مغلق كليًا بالشكل الصحيح بأقفال ومعدات العزل":"Is the energy source fully and correctly locked out with locks and isolation devices","هل مكان العمل نظيف ومرتب وتم التخلص الآمن من المخلفات":"Is the work area clean, tidy, and has waste been safely disposed of","هل مكان العمل نظيف ومرتب وتم التخلص الآمن من المخلفات؟":"Is the work area clean, tidy, and has waste been safely disposed of?","هل مهمات الوقاية المطلوبة الخاصة بالعملية متوفرة وفي حالة سليمة؟":"Are the required PPE for the process available and in good condition?","هل مهمات الوقاية المطلوبة متوفرة ومناسبة / مستخدمة":"Is the required PPE available, suitable, and in use","هل مهمات الوقاية المطلوبة متوفرة ومناسبة / مستخدمة؟":"Is the required PPE available, suitable, and in use?","هل مواسير السقالة لا توجد بها أتلاف أو اعوجاج":"Are the scaffold tubes free of damage or bending","هل يتم تزييت الوير ولا يوجد عليه شحوم":"Is the wire rope lubricated and free of grease buildup","هل يتم حساب زاوية الرفع والتأكد من قدرة الوير على الرفع":"Is the lifting angle calculated and the wire rope's lifting capacity confirmed","هل يتواجد ممثل الأمن الإداري ومشرف السلامة؟":"Are the security representative and safety officer present?","هل يتواجد ممثل الامن الادارى ومشرف السلامة":"Are the security representative and safety officer present","هل يوجد أجهزة إطفاء مناسبة (نوعاً وحجماً) وصالحة للخدمة":"Are suitable (type and size) and serviceable fire extinguishers available","هل يوجد بديل احتياطي للوير في حالة التلف":"Is there a backup wire rope in case of damage","هل يوجد حالة لرفع عزل جبري باستخدام نموذج رفع العزل الجبري":"Is there a case requiring forced-isolation removal using the forced-isolation removal form","هل يوجد حواجز منع السقوط من اعلى السقالة":"Are there fall-prevention barriers at the top of the scaffold","هل يوجد سلم آمن للصعود والنزول من السقالة":"Is there a safe ladder for climbing up and down the scaffold","هل يوجد شهادة معايرة للونش":"Is there a calibration certificate for the winch","هل يوجد عامل توجيه لسائق الرافعة":"Is there a signal person guiding the crane operator","هل يوجد قواعد جانبية لتثبيت معدة الونش عند رفع الأحمال":"Are there side bases to stabilize the winch equipment when lifting loads","هل يوجد مصدر مياه بالقرب من مكان العمل؟":"Is there a water source near the work area?","هل يوجد مكان لربط حزام الأمان للعاملين":"Is there an anchor point for workers' safety harnesses","هل يوجد وسائل عزل منطقة العمل (ستائر / شريط / اقماع) / مستخدمة":"Are work area isolation means (curtains/tape/cones) in use","هل يوجد وسائل عزل منطقة العمل / مستخدمة":"Are work area isolation means in use","هل يوجد وسيلة لتدعيم جوانب الحفر":"Is there a means to shore up the excavation sides","هيتاخد باك أب على السيرفر، لكن العملية دي مش هترجع من الواجهة.\\n\\n":"A backup will be taken on the server, but this action cannot be undone from the interface.\\n\\n","هيلتي":"Hilti Tool","ورقة تم توفيرها":"sheet(s) saved","ورقة واحدة لكل تصريح/بلاغ، وورقتان لكل محاضرة/تجربة طوارئ (كشف حضور)":"One sheet per permit/report, and two sheets per session/emergency drill (attendance sheet)","ورقة)":"sheet)","وصف الحادث/السيناريو (بين قوسين)":"Incident/Scenario Description (in parentheses)","وصف الخطورة":"Hazard Description","وصف الخطورة:":"Hazard Description:","وصف العمل":"Work Description","وصف العملية":"Process Description","وصف العملية:":"Process Description:","وقت الإرسال":"Submission Time","وقت الإرسال:":"Submission Time:","وقت الانتهاء":"End Time","وقت الانتهاء والإغلاق:":"End & Closure Time:","وقت البدء":"Start Time","وقت المراجعة":"Review Time","وقت المشاهدة من المشرف:":"Viewed by supervisor at:","وقت بدء المعالجة:":"Handling Started At:","يجب كتابة الإجراء التصحيحي قبل إغلاق البلاغ":"The corrective action must be written before closing the report","يحتوي":"contains","يرجى اختيار قسم الصيانة المستهدف":"Please select the target maintenance section","يرجى تعبئة كافة الحقول":"Please fill in all fields","يرجى كتابة الإجراء التصحيحي المتخذ لإغلاق هذا البلاغ:":"Please write the corrective action taken to close this report:","يرجى كتابة سبب الرفض":"Please write the rejection reason","يرجى ملء جميع الحقول المطلوبة":"Please fill in all required fields","يناير":"January","يوليو":"July","يوم":"day","يونيو":"June","— الأسباب والتواريخ":"— Reasons & Dates","— الأسماء والحالة":"— Names & Status","— الأسماء والمواعيد":"— Names & Dates","— الأنواع والحالة":"— Types & Status","— السبب:":"— Reason:","— بيانات القسم":"— Department Data","— عرض تنفيذي":"— Executive View","— هيوصل الطلب للمشرف على طول عشان يوافق عليه":"— the request will go straight to the supervisor for approval","→ رجوع":"→ Back","→ رجوع للأقسام":"→ Back to Sections","↳ إجمالي الحضور":"↳ Total Attendance","↳ إجمالي الساعات":"↳ Total Hours","↳ قيد الانتظار":"↳ Pending","↳ محلولة":"↳ Resolved","↳ مرفوضة":"↳ Rejected","↳ مفتوحة":"↳ Open","↳ موافق عليها":"↳ Approved","⏳ الطلب بانتظار اعتماد السلامة والصحة المهنية (HSE)":"⏳ Request awaiting HSE approval","⏳ الطلب بانتظار موافقة أدمن قسم":"⏳ Request awaiting department admin approval","⏳ انتظار":"⏳ Pending","⏳ انتظار:":"⏳ Pending:","⏳ بانتظار موافقة أدمن القسم":"⏳ Awaiting department admin approval","⏳ لم يتم الفحص":"⏳ Not Inspected","⚖️ جزاء":"⚖️ Penalty","⚠️ البلاغات":"⚠️ Reports","⚠️ تحذير: هتمسح كل بيانات":"⚠️ Warning: this will wipe all data for","⚠️ تعذّر تحميل الإحصائيات. تحقق من الاتصال وأعد المحاولة.":"⚠️ Failed to load statistics. Check your connection and try again.","⚠️ تنبيه: حضر الموظف هذه التجربة مسبقاً (":"⚠️ Note: this employee already attended this drill (","⚠️ تنبيه: حضر الموظف هذه المحاضرة مسبقاً (":"⚠️ Note: this employee already attended this session (","⚠️ هذه تجربة قديمة مستوردة من تقارير ورقية سابقة، ولا يوجد لها سجل حضور رقمي (بأكواد الموظفين) — الأسماء المذكورة أدناه (إن وجدت) مأخوذة من نص التقرير الأصلي فقط.":"⚠️ This is an old drill imported from previous paper reports, and it has no digital (employee-code) attendance record — the names below (if any) are taken directly from the original report text only.","⚠️ يجب كتابة الإجراء التصحيحي قبل إغلاق البلاغ":"⚠️ The corrective action must be written before closing the report","⛔ غير مطابق":"⛔ Non-Compliant","⛔ مرفوض":"⛔ Rejected","✅ اتمسح":"✅ Wiped","✅ تأكيد":"✅ Confirm","✅ تأكيد الإصلاح والإغلاق":"✅ Confirm Repair & Closure","✅ تسجيل حضوري":"✅ Record My Attendance","✅ تم إضافة الجزاء بنجاح":"✅ Penalty added successfully","✅ تم إضافة المستخدم":"✅ User added","✅ تم إنشاء المحاضرة بنجاح":"✅ Session created successfully","✅ تم الاستيراد:":"✅ Imported:","✅ تم الحفظ بنجاح":"✅ Saved successfully","✅ تم الحل والإغلاق":"✅ Resolved & Closed","✅ تم تحديث بيانات المستخدم بنجاح":"✅ User data updated successfully","✅ تم تسجيل حضورك":"✅ Your attendance has been recorded","✅ تم تسجيل حضورك بنجاح":"✅ Your attendance has been recorded successfully","✅ تم حذف الجزاء":"✅ Penalty deleted","✅ تم حذف الطلب ونقله للأرشيف":"✅ Request deleted and moved to archive","✅ تم حفظ الريبورت بنجاح":"✅ Report saved successfully","✅ تمت موافقة القسم (بانتظار اعتماد السلامة والصحة المهنية)":"✅ Department approved (awaiting HSE approval)","✅ مطابق":"✅ Compliant","✏️ تعديل":"✏️ Edit","✏️ تعديل بيانات الصنف":"✏️ Edit Item Details","✏️ تعديل:":"✏️ Edit:","✓ اعتماد السلامة والصحة المهنية (HSE)":"✓ HSE Approval","✓ كل بنود قائمة التحقق مستوفاة أو لا تنطبق":"✓ All checklist items are met or not applicable","✓ موافقة أدمن القسم":"✓ Department Admin Approval","✔ موافق":"✔ Approved","✔ موافق:":"✔ Approved:","✕ إلغاء فلتر القسم":"✕ Clear Section Filter","✖ إلغاء فلتر القسم":"✖ Clear Section Filter","✖ مرفوض:":"✖ Rejected:","✗ رفض":"✗ Reject","❌ إلغاء":"❌ Cancel","❌ الكود الوظيفي غير مسجل بقاعدة البيانات، يرجى مراجعة إدارة الموارد البشرية أو المشرف":"❌ Employee code not found in the database, please check with HR or your supervisor","❌ تم رفض الطلب":"❌ Request rejected","❌ حذف نهائي":"❌ Permanent Delete","❌ نهائي":"❌ Final","➕ إضافة المستخدم":"➕ Add User","➕ إضافة حضور يدوي":"➕ Add Manual Attendance","➕ إضافة موظف جديد":"➕ Add New Employee","⬅ رجوع للوحة التحكم العامة":"⬅ Back to Main Dashboard","⬆ استرجاع من نسخة احتياطية":"⬆ Restore from Backup","⬇ تصدير سجل الأصناف":"⬇ Export Items Log","⬇ تصدير فحص الشهر":"⬇ Export Monthly Inspection","⬇ تنزيل نسخة احتياطية كاملة":"⬇ Download Full Backup","⬇️ تحميل Word (بنفس التصميم)":"⬇️ Download Word (same layout)","🎉 وصلت لتارجت البلاغات!":"🎉 You've reached the reports target!","🎉 وصلت لتارجت التدريب!":"🎉 You've reached the training target!","🎓 المحاضرات":"🎓 Training Sessions","🎓 حضرت":"🎓 Attended","🎯 حضرت":"🎯 Attended","🏆 العامل المثالي":"🏆 Ideal Worker","🏢 اختر أو اكتب اسم القسم...":"🏢 Choose or type a section name...","🏢 كل الأقسام":"🏢 All Sections","👥 الحضور":"👥 Attendance","💾 النسخ الاحتياطي واسترجاع البيانات":"💾 Backup & Data Restore","💾 حفظ الريبورت":"💾 Save Report","💾 حفظ الكود":"💾 Save Code","📁 سجل طلباتي":"📁 My Requests Log","📊 تصدير Excel":"📊 Export Excel","📊 تصدير بالرسوم البيانية":"📊 Export with Charts","📋 الحضور (":"📋 Attendance (","📝 إنشاء / تعديل الريبورت":"📝 Create / Edit Report","📝 الريبورت":"📝 Report","📝 ريبورت التجربة:":"📝 Drill Report:","📡 محاضرة جارية الآن":"📡 Session in Progress Now","📢 إعادة التوجيه لقسم آخر":"📢 Reroute to Another Section","📢 توجيه للصيانة":"📢 Route to Maintenance","📥 تصدير Excel":"📥 Export Excel","📥 رفع سجل قديم (Excel)":"📥 Upload Old Log (Excel)","🔄 استرجاع":"🔄 Restore","🔄 استعادة":"🔄 Restore","🔍 فلتر بالكود الوظيفي...":"🔍 Filter by employee code...","🔍 فلترة وأدوات":"🔍 Filters & Tools","🔒 الطلب معتمد ومفتوح. يمكن للموظف إغلاقه من حسابه.":"🔒 The request is approved and open. The employee can close it from their account.","🔒 مغلق:":"🔒 Closed:","🔴 مفتوح":"🔴 Open","🖨️ طباعة PDF":"🖨️ Print PDF","🖼️ عرض الصورة":"🖼️ View Image","🗑 حذف":"🗑 Delete","🗑️ المحذوفات":"🗑️ Deleted Items","🗑️ حذف":"🗑️ Delete","🗑️ حذف الجزاء":"🗑️ Delete Penalty","🚨 تجارب الطوارئ":"🚨 Emergency Drills","🚨 تجربة أداء جارية الآن":"🚨 Drill in Progress Now","🚫 رفض البلاغ":"🚫 Reject Report","🚫 رفض البلاغ نهائياً":"🚫 Permanently Reject Report","🛑 إنهاء وإغلاق التجربة":"🛑 End & Close Drill","🛑 إنهاء وإغلاق المحاضرة":"🛑 End & Close Session","🛠️ الإجراء المتخذ من المشرف (":"🛠️ Action Taken by Supervisor (","🛠️ بدء الإصلاح":"🛠️ Start Repair","🟡 نشطة":"🟡 Active","🟢 تم الاعتماد النهائي للطلب — يمكنك الإغلاق بعد الانتهاء":"🟢 The request has received final approval — you can close it once finished","🟢 مغلق":"🟢 Closed","🟢 منتهية":"🟢 Ended","🦺 الفحص الشهري":"🦺 Monthly Inspection","القسم":"Department","س":"hr","لا توجد بيانات":"No data","لا توجد بيانات كافية بعد":"Not enough data yet","م":"PM","هل الاضاءة والتهوية كافية":"Is lighting and ventilation adequate","هل العمالة مدربة ومؤهلة وعلي علم بجميع مخاطر العمل المطلوب":"Is the workforce trained, qualified, and aware of all hazards of the required work","اسم المُبلِّغ / العامل":"Reporter / Worker Name"," — عرض تنفيذي":" — Executive View","برجاء استكمال الحقول المطلوبة التالية:\n• ":"Please complete the following required fields:\n• "," لهذا القسم":" for this section"," جزاء":" penalty(ies)"," — السبب: ":" — Reason: "," سنة":" year(s)"," شهر":" month(s)"," يوم":" day(s)","منذ ":"ago "," ساعة":" hour(s)"," دقيقة":" minute(s)","  ↳ موافق عليها":"  ↳ Approved","  ↳ قيد الانتظار":"  ↳ Pending","  ↳ مرفوضة":"  ↳ Rejected","  ↳ مفتوحة":"  ↳ Open","  ↳ محلولة":"  ↳ Resolved","  ↳ إجمالي الحضور":"  ↳ Total Attendance","  ↳ إجمالي الساعات":"  ↳ Total Hours","مرحباً بك":"Welcome","أو":"or","دخول المشرفين / الإدارة":"Admin / Management Login","الإشعارات":"Notifications","تحديد الكل كمقروء":"Mark all as read","غير المقروءة":"Unread","الطلبات":"Requests","⬇ تثبيت التطبيق":"⬇ Install App","📊 لوحة التحكم":"📊 Dashboard","📝 تصاريح العمل":"📝 Work Permits","⚠️ الإبلاغ عن خطورة":"⚠️ Report Hazard","📁 سجل تصاريح العمل":"📁 My Permits","📋 سجل بلاغاتي":"📋 My Reports","📋 تصاريح العمل":"📋 Work Permits","⚠️ بلاغات الخطورة":"⚠️ Hazard Reports","👥 المستخدمون":"👥 Users","🗂️ الموظفين":"🗂️ Employees","🎓 التدريب والتوعية":"🎓 Training","🎓 إدارة المحاضرات":"🎓 Manage Training","🚨 إدارة تجارب الطوارئ":"🚨 Manage Drills","⚖️ الجزاءات":"⚖️ Penalties","🛡️ سجل التدقيق":"🛡️ Audit Log","⚠️ نموذج الإبلاغ عن الخطورة":"⚠️ Hazard Report Form","الكود الوظيفي (اختياري — للتعبئة التلقائية)":"Employee Code (optional — for auto-fill)","الاسم (Reporter Name)":"Reporter Name","التاريخ (Date)":"Date","المنطقة (Area / Zone)":"Area / Zone","نوع ووصف الخطورة (وضع أو تصرف غير آمن)":"Hazard Type & Description (unsafe condition or act)","الإصابة المحتملة (Potential Injury)":"Potential Injury","الحل المقترح (Proposed Solution)":"Proposed Solution","مصفوفة تقييم الخطورة (Risk Matrix Calculator)":"Risk Matrix Calculator","الاحتمالية (Likelihood)":"Likelihood","1 - غير ممكن حدوثه":"1 - Almost impossible","2 - احتمالية ضئيلة للحدوث":"2 - Unlikely","3 - احتمالية متوسطة للحدوث":"3 - Possible","4 - احتمالية عالية للحدوث":"4 - Likely","5 - أكيدة الحدوث":"5 - Almost certain","شدة الإصابة (Severity)":"Severity","A - بسيط أو إسعاف أولي (1)":"A - Minor / First aid (1)","B - علاج طبي (2)":"B - Medical treatment (2)","E - وفاة (5)":"E - Fatality (5)","📷 التقاط / إرفاق صورة للمشكلة":"📷 Capture / attach a photo","✅ اعتماد الصورة":"✅ Confirm photo","🔄 إعادة التقاط / حذف":"🔄 Retake / delete","⬇ تصدير Excel":"⬇ Export Excel","📤 رفع تصاريح قديمة (Excel)":"📤 Upload legacy permits (Excel)","🗑️ مسح كل التصاريح":"🗑️ Clear all permits","بحث وتصفية تصاريح العمل":"Search & filter work permits","اسم العامل":"Worker Name","اسم المشرف":"Supervisor Name","⚠️ بلاغات الخطورة والشكاوى":"⚠️ Hazard Reports & Complaints","🔄 تحديث البيانات":"🔄 Refresh data","📊 تصدير سجل البلاغات Excel":"📊 Export reports log (Excel)","📤 رفع سجل Excel":"📤 Upload Excel log","بحث وتصفية البلاغات":"Search & filter reports","الفترة الزمنية":"Time period","اليوم":"Today","آخر يومين":"Last 2 days","خلال أسبوع":"Within a week","خلال شهر":"Within a month","اسم المُبَلِّغ / العامل":"Reporter / Worker name","👥 إدارة الحسابات والمستخدمين":"👥 Accounts & Users Management","إضافة مستخدم جديد":"Add new user","Super Admin — مدير النظام":"Super Admin — System Manager","HSE Admin — مشرف سلامة":"HSE Admin — Safety Officer","Dept Admin — أدمن قسم":"Dept Admin — Department Admin","Executive View — عرض تنفيذي (قراءة فقط)":"Executive View — read only","القسم (مطلوب لأدمن القسم)":"Department (required for Dept Admin)","✏️ تعديل بيانات المستخدم":"✏️ Edit user details","كلمة المرور الجديدة":"New password","(اختياري)":"(optional)","حفظ التعديلات":"Save changes","🗂️ دليل الموظفين":"🗂️ Employee Directory","➕ إضافة موظف":"➕ Add employee","📥 استيراد Excel":"📥 Import Excel","📤 تصدير Excel":"📤 Export Excel","🗑️ مسح كل الموظفين":"🗑️ Clear all employees","🎯 التارجت السنوي: 8س / 2ب":"🎯 Annual target: 8h / 2 reports","شهرين":"2 months","3 أشهر":"3 months","6 أشهر":"6 months","-- اختر القسم --":"-- Select department --","الصلاحية / الفئة":"Role / Category","أدمن قسم (Dept Admin)":"Dept Admin","💾 حفظ":"💾 Save","📊 نسبة حضوري":"📊 My attendance rate","جاري تحميل الإحصائيات...":"Loading statistics...","سجل حضوري السابق":"My attendance history","➕ إنشاء محاضرة جديدة":"➕ Create new session","موضوع المحاضرة":"Session topic","الفئة المستهدفة":"Target audience","اسم المحاضر":"Trainer name","كود المحاضر":"Trainer code","مكان الانعقاد":"Venue","إنشاء المحاضرة وبدء التسجيل":"Create session & start registration","📡 إدارة الجلسات الحية":"📡 Manage live sessions","بحث وتصدير سجل المحاضرات":"Search & export sessions log","الموضوع / المحاضرة":"Topic / Session","تصدير المحاضرات المفلترة (Excel)":"Export filtered sessions (Excel)","🚨 تجارب الطوارئ — إحصائياتي":"🚨 Emergency Drills — My Stats","➕ إنشاء تجربة طوارئ جديدة":"➕ Create new drill","عنوان التجربة":"Drill title","كود المشرف":"Supervisor code","مكان التجربة":"Drill location","إنشاء التجربة وبدء التسجيل":"Create drill & start registration","📡 إدارة تجارب الطوارئ":"📡 Manage emergency drills","⚖️ الجزاءات المسجلة عليك":"⚖️ Penalties on your record","⚖️ إدارة الجزاءات":"⚖️ Penalties Management","➕ إضافة جزاء":"➕ Add penalty","📥 استيراد الجزاءات القديمة":"📥 Import legacy penalties","📤 تصدير الجزاءات":"📤 Export penalties","🗑️ مسح كل الجزاءات":"🗑️ Clear all penalties","ℹ️ لديك صلاحية العرض فقط لجزاءات قسمك — لا يمكنك الإضافة أو الحذف.":"ℹ️ You have view-only access to your department penalties — you cannot add or delete.","➕ إضافة جزاء جديد":"➕ Add new penalty","الكود الوظيفي للموظف":"Employee code","تاريخ الجزاء":"Penalty date","اسم مشرف السيفتي":"Safety officer name","حفظ الجزاء":"Save penalty","لازم تكتب سبب حذف الجزاء ده.":"You must provide a reason for deleting this penalty.","حذف الجزاء":"Delete penalty","⬇️ تحميل":"⬇️ Download","✖ إغلاق":"✖ Close","🗑️ حذف الطلب":"🗑️ Delete request","تأكيد حذف الطلب ونقله للأرشيف.":"Confirm deleting the request and moving it to the archive.","حذف الطلب":"Delete request","توجيه البلاغ للصيانة":"Route report to maintenance","قسم الصيانة المستهدف":"Target maintenance department","-- اختر قسم الصيانة --":"-- Select maintenance department --","الصيانة الكهربائية (Electrical Maintenance)":"Electrical Maintenance","الصيانة الميكانيكية (Mechanical Maintenance)":"Mechanical Maintenance","الصيانة الوقائية (Preventive Maintenance)":"Preventive Maintenance","ملاحظات التوجيه (اختياري)":"Routing notes (optional)","توجيه الآن":"Route now","تأكيد إصلاح الخطورة":"Confirm hazard fix","الإجراء المتخذ (تفاصيل الصيانة)":"Action taken (maintenance details)","أسماء فريق الصيانة المنفذ":"Maintenance team names","تأكيد الإصلاح والإغلاق":"Confirm fix & close","رفض الإصلاح (عدم اختصاص)":"Reject fix (not our scope)","سبب الرفض والاعتذار":"Reason for rejection","رفض بلاغ الخطورة":"Reject hazard report","سبب الرفض":"Rejection reason","منصة إدارة وتتبع الطلبات والسلامة والصحة المهنية - السويدي للبوليمرات":"Requests, Safety & Occupational Health management platform - Elsewedy Polymers","Language / اللغة":"Language / اللغة","الوضع الليلي":"Dark mode","أدخل كودك الوظيفي":"Enter your employee code","تحديث البيانات":"Refresh data","أدخل كودك لتعبئة بياناتك تلقائياً":"Enter your code to auto-fill your details","يتم التحديد تلقائياً...":"Detected automatically...","مثال: خط إنتاج 1، المخزن الرئيسي":"e.g. Production line 1, Main warehouse","اشرح بالتفصيل وضع الخطورة أو التصرف غير الآمن...":"Describe the unsafe condition or act in detail...","ما هي الإصابة التي قد تنتج عن هذه الخطورة؟":"What injury could result from this hazard?","كيف يمكننا معالجة هذه الخطورة؟":"How can we address this hazard?","ابحث باسم العامل...":"Search by worker name...","مشرف السلامة / مدير المنطقة...":"Safety officer / Area manager...","ابحث باسم المشرف...":"Search by supervisor name...","مثال: أحمد محمد":"e.g. Ahmed Mohamed","مثال: ahmed123":"e.g. ahmed123","اتركها فارغة للحفاظ على الحالية":"Leave empty to keep the current one","استيراد من Excel":"Import from Excel","🔍 بحث بالاسم أو الكود أو القسم…":"🔍 Search by name, code or department…","الاسم الرباعي":"Full name","مثال: مهندس صيانة":"e.g. Maintenance engineer","اختر من القائمة أو اكتب موضوعاً مخصصاً":"Pick from the list or type a custom topic","مثال: عمال الانتاج, الجميع...":"e.g. Production workers, Everyone...","مثال: قاعة التدريب الرئيسية":"e.g. Main training hall","ابحث باسم المحاضرة...":"Search by session name...","ابحث باسم المدرب...":"Search by trainer name...","مثال: إخلاء طوارئ، إطفاء حريق...":"e.g. Emergency evacuation, Fire fighting...","مثال: عمال الإنتاج، الجميع...":"e.g. Production workers, Everyone...","مثال: ساحة المصنع الرئيسية":"e.g. Main factory yard","مثال: 271":"e.g. 271","اكتب سبب الجزاء بالتفصيل...":"Describe the reason for the penalty in detail...","اسم مشرف السلامة الذي أصدر الجزاء":"Name of the safety officer who issued the penalty","مثال: تم إدخاله بالخطأ...":"e.g. Entered by mistake...","مثال: طلب مكرر، طلب خاطئ...":"e.g. Duplicate request, wrong request...","اكتب أي ملاحظات أو توجيهات لفريق الصيانة...":"Write any notes or instructions for the maintenance team...","اكتب تفاصيل ما تم عمله...":"Describe what was done...","مثال: م. أحمد، فني محمود":"e.g. Eng. Ahmed, Tech. Mahmoud","مثال: العطل ميكانيكي وليس كهربائياً...":"e.g. The fault is mechanical, not electrical...","اكتب سبب رفض البلاغ...":"Write the reason for rejecting the report...","🗑️ مسح كل البلاغات":"🗑️ Clear all reports","🗑️ مسح كل التدريبات":"🗑️ Clear all trainings","🗑️ مسح كل تجارب الطوارئ":"🗑️ Clear all drills","تجاوزت عدد محاولات تسجيل الدخول. حاول مجدداً بعد 15 دقيقة.":"Too many login attempts. Try again in 15 minutes.","تجاوزت الحد المسموح لتقديم الطلبات. حاول مجدداً بعد 15 دقيقة.":"Too many requests submitted. Try again in 15 minutes.","تجاوزت عدد محاولات التسجيل. حاول مجدداً بعد 15 دقيقة.":"Too many registration attempts. Try again in 15 minutes.","تجاوزت عدد محاولات تسجيل الحضور. حاول مجدداً بعد 15 دقيقة.":"Too many attendance attempts. Try again in 15 minutes.","غير مصرح: يجب تسجيل الدخول أولاً":"Unauthorized: you must sign in first","انتهت صلاحية الجلسة، يرجى تسجيل الدخول مجدداً":"Your session has expired, please sign in again","Token غير صالح":"Invalid token","غير مصرح: لم يتم التحقق من الهوية":"Unauthorized: identity not verified","كتابة هذا المفتاح غير مسموح به":"Writing this key is not allowed","القيمة (value) مطلوبة في جسم الطلب":"A value is required in the request body","طلب جديد 📋":"New request 📋","استلام طلب طلب ✅":"Request received ✅","تم استلام طلب طلبك بنجاح وهو قيد المراجعة":"Your request was received successfully and is under review","هذا الإجراء مخصص لرئيس القسم فقط":"This action is restricted to the department head","هذا الإجراء مخصص لمشرف السلامة فقط":"This action is restricted to the safety officer","الطلب غير موجود":"Request not found","لا يمكن موافقة رئيس القسم إلا على طلبات قيد انتظار القسم":"The department head can only approve requests awaiting the department","رئيس القسم لا يملك صلاحية الموافقة على طلبات قسم آخر":"A department head cannot approve requests from another department","الموافقة النهائية تتطلب حالة pending_hse":"Final approval requires the pending_hse status","لا يمكن الرفض إلا على الطلبات قيد الانتظار":"Only pending requests can be rejected","لا يمكن إغلاق إلا الطلبات الموافق عليها":"Only approved requests can be closed","تم اعتماد الطلب النهائي 🎉":"Request finally approved 🎉","طلب بانتظار مراجعة السلامة 🛡️":"Request awaiting safety review 🛡️","رفض الطلب ❌":"Request rejected ❌","إغلاق الطلب 🔒":"Request closed 🔒","فشل حفظ التغييرات":"Failed to save changes","حدث خطأ غير متوقع أثناء المعالجة، حاول مرة أخرى":"An unexpected error occurred while processing, please try again","لم يتم العثور على تصاريح صالحة في الملف — تأكد من وجود أعمدة رقم التصريح والتاريخ":"No valid permits found in the file — make sure the permit number and date columns exist","البيانات غير مكتملة":"Incomplete data","بلاغ خطورة جديد 🚨":"New hazard report 🚨","استلام البلاغ 📥":"Report received 📥","تم تسجيل بلاغك بنجاح وجارٍ مراجعته من قِبل السلامة":"Your report was submitted successfully and is being reviewed by safety","فشل حفظ البلاغ":"Failed to save the report","الاسم أو الكود الوظيفي مطلوب":"Name or employee code is required","البلاغ غير موجود":"Report not found","فقط مشرف السلامة يمكنه التوجيه للصيانة":"Only the safety officer can route to maintenance","قسم الصيانة المستهدف مطلوب":"The target maintenance department is required","بلاغ خطورة جديد":"New hazard report","غير مصرح ببدء الإصلاح":"Not authorized to start the repair","هذا البلاغ غير موجه لقسمكم":"This report is not routed to your department","فقط فريق الصيانة يمكنه رفض الإصلاح":"Only the maintenance team can reject the repair","سبب الرفض مطلوب":"A rejection reason is required","رفض بلاغ من الصيانة":"Report rejected by maintenance","غير مصرح":"Unauthorized","تم رفض بلاغ الخطورة":"The hazard report was rejected","غير مصرح بإغلاق البلاغ":"Not authorized to close the report","تم إصلاح الخطورة":"The hazard has been fixed","إصلاح خطورة من الصيانة":"Hazard fixed by maintenance","إصلاح خطورة في قسمك":"Hazard fixed in your department","ليس لديك صلاحية لتعديل هذا البلاغ":"You do not have permission to edit this report","إجراء غير معروف":"Unknown action","فشل قراءة سجل التدقيق":"Failed to read the audit log","لا تملك صلاحية حذف هذا البلاغ":"You do not have permission to delete this report","لا تملك صلاحية حذف بلاغ غير موجه لقسمك":"You cannot delete a report that is not routed to your department","لا تملك صلاحية استعادة هذا البلاغ":"You do not have permission to restore this report","لا تملك صلاحية حذف هذا البلاغ نهائياً":"You do not have permission to permanently delete this report","البلاغ ليس في سلة المحذوفات الخاصة بك":"This report is not in your trash","لا توجد بيانات بلاغات حالياً للتصدير":"There are no reports to export right now","فشل تصدير البيانات":"Failed to export the data","سبب الحذف مطلوب":"A deletion reason is required","الكود الوظيفي مطلوب":"Employee code is required","غير مصرح لك بتعديل تصاريح قسم آخر":"You are not allowed to edit another department's permits","فشل حفظ الكود الوظيفي":"Failed to save the employee code","الطلب ليس في سلة المحذوفات الخاصة بك":"This request is not in your trash","الكود الوظيفي مطلوب للإغلاق":"Employee code is required to close","نوع الإغلاق غير صالح. المتاح: safe | incomplete | forced":"Invalid closure type. Allowed: safe | incomplete | forced","غير مصرح لك بإغلاق هذا الطلب":"You are not allowed to close this request","يمكن إغلاق الطلبات الموافق عليها فقط":"Only approved requests can be closed","إغلاق طلب من العامل 🔒":"Request closed by worker 🔒","تأكيد إغلاق الطلب ✅":"Request closure confirmed ✅","تم إغلاق الطلب بسلامة":"The request was closed safely","فشل حفظ الإغلاق":"Failed to save the closure","يجب إدخال اسم المستخدم وكلمة المرور":"Username and password are required","كلمة المرور غير صحيحة":"Incorrect password","كلمة المرور الحالية والجديدة مطلوبتان":"Both the current and new password are required","كلمة المرور الجديدة يجب أن تختلف عن الحالية":"The new password must differ from the current one","المستخدم غير موجود":"User not found","كلمة المرور الحالية غير صحيحة":"The current password is incorrect","تم تغيير كلمة المرور بنجاح":"Password changed successfully","يجب تحديد القسم لرئيس القسم":"A department must be set for a department head","اسم المستخدم موجود بالفعل":"That username already exists","فشل حفظ المستخدم":"Failed to save the user","لا يمكن حذف حساب المدير العام":"The super admin account cannot be deleted","الاسم واسم المستخدم والدور مطلوبة":"Name, username and role are required","اسم المستخدم مسجل مسبقاً":"That username is already registered","فشل تصدير بيانات الموظفين":"Failed to export employee data","fileData (base64) مطلوب":"fileData (base64) is required","الملف لا يحتوي على بيانات صالحة أو الأعمدة غير متوافقة":"The file has no valid data, or the columns do not match","الكود الوظيفي والاسم مطلوبان":"Employee code and name are required","فشل حفظ بيانات الموظف":"Failed to save the employee data","الموظف غير موجود":"Employee not found","فشل تحديث بيانات الموظف":"Failed to update the employee data","فشل حذف الموظف":"Failed to delete the employee","تم الاستيراد من ملف Excel":"Imported from an Excel file","البيانات الأساسية مطلوبة":"The required fields are missing","محاضرة تدريبية جديدة 🎓":"New training session 🎓","فشل حفظ المحاضرة":"Failed to save the session","المحاضرة غير موجودة":"Session not found","إغلاق محاضرة 🔒":"Session closed 🔒","فشل إغلاق المحاضرة":"Failed to close the session","فشل عملية الحذف المؤقت":"Failed to move to trash","فشل عملية الاستعادة":"Failed to restore","فشل عملية الحذف النهائي":"Failed to permanently delete","الكود ورمز الجلسة مطلوبان":"The employee code and session PIN are required","المحاضرة مغلقة حالياً":"This session is currently closed","لقد انتهى الوقت المسموح للتسجيل (30 دقيقة من بدء المحاضرة)":"The registration window has closed (30 minutes from the session start)","رمز الجلسة غير صحيح":"Incorrect session PIN","تم تسجيل حضورك بالفعل في هذه المحاضرة":"Your attendance for this session is already recorded","الكود الوظيفي غير مسجل في النظام":"This employee code is not registered in the system","تسجيل حضور تدريب 👤":"Training attendance recorded 👤","تأكيد الحضور ✅":"Attendance confirmed ✅","تم تسجيل الحضور بنجاح":"Attendance recorded successfully","حدث خطأ أثناء التسجيل":"An error occurred while registering","لا يمكن إضافة حضور لمحاضرة مغلقة":"Attendance cannot be added to a closed session","الموظف مسجل حضوره بالفعل في هذه المحاضرة":"This employee's attendance is already recorded for this session","فشل تحديث الحضور":"Failed to update attendance","فشل تصدير الكشف":"Failed to export the sheet","تجربة تدريبية جديدة 🚨":"New emergency drill 🚨","فشل حفظ التجربة":"Failed to save the drill","التجربة غير موجودة":"Drill not found","إغلاق تجربة 🔒":"Drill closed 🔒","فشل إغلاق التجربة":"Failed to close the drill","التجربة مغلقة حالياً":"This drill is currently closed","تم تسجيل حضورك بالفعل في هذه التجربة":"Your attendance for this drill is already recorded","لا يمكن إضافة حضور لتجربة مغلقة":"Attendance cannot be added to a closed drill","الموظف مسجل حضوره بالفعل في هذه التجربة":"This employee's attendance is already recorded for this drill","هذا ونتقدم بخالص الشكر والامتنان للسادة الزملاء لحسن تعاونهم وسرعة الاستجابة للحالات الطارئة.":"We extend our sincere thanks and appreciation to our colleagues for their cooperation and rapid response to emergencies.","تقرير تجربة طوارئ":"Emergency Drill Report","فشل حفظ الريبورت":"Failed to save the report","حدث خطأ غير متوقع":"An unexpected error occurred","الكود الوظيفي وسبب الجزاء مطلوبان":"The employee code and penalty reason are required","جزاء جديد":"New penalty","سبب حذف الجزاء مطلوب":"A reason for deleting the penalty is required","الجزاء غير موجود":"Penalty not found","لازم تبعت تأكيد صريح لتنفيذ عملية المسح":"An explicit confirmation is required to run the wipe","موديول غير معروف":"Unknown module","فشل تحميل المؤشرات التنفيذية":"Failed to load the executive indicators","فشل إنشاء النسخة الاحتياطية":"Failed to create the backup","لازم تبعت تأكيد صريح لاسترجاع نسخة احتياطية — هذه العملية تستبدل البيانات الحالية":"An explicit confirmation is required to restore a backup — this replaces the current data","لا توجد بيانات ملف":"No file data","⏰ تذكير: بدء محاضرة التدريب":"⏰ Reminder: the training session is starting","فشل تحميل قائمة الأقسام":"Failed to load the department list","يجب تحديد category=P1 أو category=P2":"You must specify category=P1 or category=P2","فشل تحميل الأقسام":"Failed to load the sections","فشل حفظ القسم":"Failed to save the section","القسم غير موجود":"Section not found","فشل تحميل الأصناف":"Failed to load the items","فشل حفظ الصنف":"Failed to save the item","الصنف غير موجود":"Item not found","فشل حفظ التعديل":"Failed to save the change","سنة/شهر غير صالحين":"Invalid year/month","نتيجة الفحص يجب أن تكون 'مطابق' أو 'غير مطابق'":"The inspection result must be Conforming or Non-conforming","فشل حفظ نتيجة الفحص":"Failed to save the inspection result","السجل غير موجود":"Record not found","لا يوجد ملف":"No file provided","تعذّر قراءة ملف الإكسيل — تأكد إنه بصيغة xlsx صحيحة":"Could not read the Excel file — make sure it is a valid .xlsx","لم يتم التعرف على تنسيق الملف — يجب أن يحتوي عمود \"مطابق\" في أول 6 صفوف من كل ورقة":"File format not recognised — each sheet must have a Conforming column within its first 6 rows","فشل حفظ البيانات المستوردة":"Failed to save the imported data","معتمد — APPROVED":"APPROVED","مرفوض — REJECTED":"REJECTED","مغلق — CLOSED":"CLOSED","مفتوح — OPEN":"OPEN","قيد المراجعة — PENDING":"PENDING","التصريح غير موجود":"Permit not found","فشل إنشاء ملف PDF":"Failed to generate the PDF","تصريح غير موجود":"Permit not found","غير صالح":"Invalid","بلاغ غير موجود":"Report not found","لا توجد رسوم بيانية لتضمينها":"There are no charts to embed","✅ مؤكد":"✅ Confirmed","⏳ قيد المراجعة":"⏳ Under review","غير مؤكد":"Not confirmed","❌ غائب":"❌ Absent"};
+
+/** ترجمة نص عربي إلى لغة الواجهة الحالية (يرجع النص كما هو في الوضع العربي). */
+function T(s) {
+  if (window._currentLang !== 'en') return s;
+  if (typeof s !== 'string' || !s) return s;
+  const hit = I18N_STRINGS[s];
+  if (hit !== undefined) return hit;
+  // نفس النص لكن حوله مسافات — ترجمه مع الحفاظ على المسافات.
+  const trimmed = s.trim();
+  if (trimmed && trimmed !== s) {
+    const hit2 = I18N_STRINGS[trimmed];
+    if (hit2 !== undefined) return s.replace(trimmed, hit2);
+  }
+  return s;
+}
+window.T = T;
+
+/** لغة تنسيق التواريخ والأرقام: عربية بأرقام عربية، إنجليزية بأرقام لاتينية. */
+function LOC() { return window._currentLang === 'en' ? 'en-US' : 'ar-EG'; }
+/** مثل LOC() لكن بأرقام لاتينية داخل النص العربي (تواريخ لوحة التحكم). */
+function LOC_LATN() { return window._currentLang === 'en' ? 'en-US' : 'ar-EG-u-nu-latn'; }
+window.LOC = LOC;
+window.LOC_LATN = LOC_LATN;
+
+// مفاتيح data-i18n المستخدمة في index.html (تبقى للتوافق مع الترميز الحالي).
 const I18N_DICT = {
   tabDashboard:       { ar: '📊 لوحة التحكم', en: '📊 Dashboard' },
   tabWorker:          { ar: '📝 تصاريح العمل', en: '📝 Work Permits' },
@@ -68,29 +105,108 @@ const I18N_DICT = {
   wlCodeLabel:        { ar: 'الكود الوظيفي', en: 'Employee Code' },
   wlCodePlaceholder:  { ar: 'أدخل كودك الوظيفي', en: 'Enter your employee code' },
   wlSubmit:           { ar: 'تسجيل الدخول ←', en: 'Login ←' },
-  wlOr:                { ar: 'أو', en: 'or' },
+  wlOr:               { ar: 'أو', en: 'or' },
   wlAdminLogin:       { ar: 'دخول المشرفين / الإدارة', en: 'Admin / Management Login' },
   logout:             { ar: 'تسجيل الخروج', en: 'Logout' },
 };
 
+// ---- الطبقة الثانية: النصوص الثابتة داخل index.html ----------------------
+// تُلتقط مرة واحدة قبل أن يرسم JS أي شاشة، فتبقى النسخة العربية الأصلية
+// مرجعًا دائمًا ويمكن التبديل ذهابًا وإيابًا بلا فقدان.
+const ARABIC_TEXT_RE = /[؀-ۿݐ-ݿ]/;
+const I18N_STATIC = { nodes: [], attrs: [], title: '', captured: false };
+const I18N_ATTRS = ['placeholder', 'title', 'aria-label', 'alt'];
+
+function i18nCaptureStatic() {
+  if (I18N_STATIC.captured || !document.body) return;
+  I18N_STATIC.captured = true;
+  I18N_STATIC.title = document.title;
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+  let n;
+  while ((n = walker.nextNode())) {
+    const raw = n.nodeValue;
+    if (!raw || !ARABIC_TEXT_RE.test(raw)) continue;
+    const parent = n.parentElement;
+    if (!parent) continue;
+    const tag = parent.tagName;
+    if (tag === 'SCRIPT' || tag === 'STYLE') continue;
+    if (parent.hasAttribute('data-i18n')) continue; // يتكفل بها I18N_DICT
+    I18N_STATIC.nodes.push({ node: n, ar: raw });
+  }
+  I18N_ATTRS.forEach(attr => {
+    document.querySelectorAll('[' + attr + ']').forEach(el => {
+      if (attr === 'placeholder' && el.hasAttribute('data-i18n-placeholder')) return;
+      const v = el.getAttribute(attr);
+      if (v && ARABIC_TEXT_RE.test(v)) I18N_STATIC.attrs.push({ el, attr, ar: v });
+    });
+  });
+}
+
+/** يترجم نصًا مع الحفاظ على المسافات البادئة/اللاحقة كما كانت في HTML. */
+function i18nTranslateRun(raw) {
+  const lead = raw.match(/^\s*/)[0];
+  const trail = raw.match(/\s*$/)[0];
+  const core = raw.slice(lead.length, raw.length - trail.length);
+  if (!core) return raw;
+  const hit = I18N_STRINGS[core];
+  return hit === undefined ? raw : lead + hit + trail;
+}
+
+function i18nApplyStatic(lang) {
+  const toEn = lang === 'en';
+  for (const e of I18N_STATIC.nodes) {
+    e.node.nodeValue = toEn ? i18nTranslateRun(e.ar) : e.ar;
+  }
+  for (const e of I18N_STATIC.attrs) {
+    e.el.setAttribute(e.attr, toEn ? i18nTranslateRun(e.ar) : e.ar);
+  }
+  if (I18N_STATIC.title) {
+    document.title = toEn ? i18nTranslateRun(I18N_STATIC.title) : I18N_STATIC.title;
+  }
+}
+
+// ---- إعادة رسم الشاشة المفتوحة حاليًا ------------------------------------
+// شاشات JS تُبنى نصوصها وقت الرسم، فتغيير اللغة وحده لا يكفي — لازم يُعاد
+// رسم التبويب المفتوح ليظهر باللغة الجديدة فورًا.
+let i18nBooted = false;
+
+function i18nRerenderActiveView() {
+  try {
+    if (typeof sessionRole !== 'undefined' && sessionRole === 'ceo' &&
+        typeof renderExecutiveView === 'function') {
+      renderExecutiveView();
+      return;
+    }
+  } catch (e) { /* sessionRole لسه ما اتعرّفش — الإقلاع لسه شغال */ }
+  try {
+    const tab = window.currentActiveTab;
+    if (tab && typeof switchTab === 'function') switchTab(tab);
+    if ((!tab || tab === 'worker') && typeof renderForm === 'function') renderForm();
+    if (typeof showUserBadge === 'function') showUserBadge();
+    if (typeof showEmpBadge === 'function') showEmpBadge();
+  } catch (e) { console.error('i18n re-render failed:', e); }
+}
+
 function applyLanguage(lang) {
+  const next = lang === 'en' ? 'en' : 'ar';
+  window._currentLang = next; // لازم يتظبط الأول — T() بيقرأه
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const entry = I18N_DICT[el.getAttribute('data-i18n')];
-    if (entry) el.textContent = entry[lang] || entry.ar;
+    if (entry) el.textContent = entry[next] || entry.ar;
   });
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
     const entry = I18N_DICT[el.getAttribute('data-i18n-placeholder')];
-    if (entry) el.placeholder = entry[lang] || entry.ar;
+    if (entry) el.placeholder = entry[next] || entry.ar;
   });
-  document.documentElement.lang = lang === 'en' ? 'en' : 'ar';
+  i18nCaptureStatic();
+  i18nApplyStatic(next);
+  document.documentElement.lang = next;
+  document.body.setAttribute('data-lang', next);
   ['langToggleLabel', 'langToggleLabelPre'].forEach(id => {
     const labelEl = document.getElementById(id);
-    if (labelEl) labelEl.textContent = lang === 'en' ? 'ع' : 'EN';
+    if (labelEl) labelEl.textContent = next === 'en' ? 'ع' : 'EN';
   });
-  window._currentLang = lang;
-  // شاشات مبنية بالكامل عبر JS (لا تستخدم data-i18n) تحتاج إعادة رسم
-  // نفسها لتتغير لغتها فورًا لو كانت ظاهرة حاليًا.
-  if (sessionRole === 'ceo' && typeof renderExecutiveView === 'function') renderExecutiveView();
+  if (i18nBooted) i18nRerenderActiveView();
 }
 
 function toggleLanguage() {
@@ -105,6 +221,10 @@ function toggleLanguage() {
     applyLanguage(saved === 'en' ? 'en' : 'ar');
   } catch (e) { /* ignore */ }
 })();
+
+// من هنا فصاعدًا أي تبديل للغة يعيد رسم الشاشة المفتوحة.
+window.addEventListener('DOMContentLoaded', () => { i18nBooted = true; });
+setTimeout(() => { i18nBooted = true; }, 0);
 
 // ============================================================
 // ⚠️ GLOBAL ERROR BOUNDARY & FALLBACKS
@@ -175,7 +295,7 @@ function clearToken() {
  */
 function navigateWithAuth(url) {
   const token = getToken();
-  if (!token) { showToast('سجّل دخولك أولاً لتنزيل الملف', 'error'); return; }
+  if (!token) { showToast(T('سجّل دخولك أولاً لتنزيل الملف'), 'error'); return; }
   const sep = url.includes('?') ? '&' : '?';
   window.location.href = `${url}${sep}dt=${encodeURIComponent(token)}`;
 }
@@ -199,7 +319,7 @@ async function authFetch(url, options = {}) {
     if (res.status === 401) {
       const data = await res.clone().json().catch(() => ({}));
       if (data.expired) {
-        showToast('انتهت صلاحية جلستك. يرجى تسجيل الدخول مجدداً.', 'error');
+        showToast(T('انتهت صلاحية جلستك. يرجى تسجيل الدخول مجدداً.'), 'error');
         logout();
       }
     }
@@ -250,7 +370,9 @@ function showToast(msg, type = 'error') {
     const c = colors[type] || colors.info;
     toast.style.background = c.bg;
     toast.style.color = c.color;
-    toast.textContent = msg;
+    // نقطة عرض واحدة لكل الرسائل — رسائل الخادم تصل عربية دائمًا، فالترجمة
+    // هنا تغطيها كلها بدل تكرار T() في كل نداء.
+    toast.textContent = T(msg);
     toast.style.opacity = '1';
     toast.style.display = 'block';
     if (_toastTimer) clearTimeout(_toastTimer);
@@ -273,7 +395,7 @@ async function apiGet(key){
     if(!res.ok) return null;
     return await res.json();
   }catch(e){
-    if (!navigator.onLine) showToast('لا يوجد اتصال بالإنترنت — تحقق من اتصالك وحاول مجدداً', 'error');
+    if (!navigator.onLine) showToast(T('لا يوجد اتصال بالإنترنت — تحقق من اتصالك وحاول مجدداً'), 'error');
     console.error('apiGet error', e);
     return null;
   }
@@ -288,7 +410,7 @@ async function apiSet(key, value){
     });
     return res.ok;
   }catch(e){
-    if (!navigator.onLine) showToast('لا يوجد اتصال — تحقق من الشبكة', 'error');
+    if (!navigator.onLine) showToast(T('لا يوجد اتصال — تحقق من الشبكة'), 'error');
     console.error('apiSet error', e);
     return false;
   }
@@ -791,6 +913,11 @@ function switchTab(which){
     window.auditPollTimer = null;
   }
 
+  if(which==='worker'){
+    // النموذج مرسوم مرة واحدة ويحتفظ بإدخال المستخدم — أعِد رسمه فقط لو
+    // اللغة اتغيرت وهو مخفي، وإلا هيفضل ظاهر باللغة القديمة.
+    if(window._formLang && window._formLang !== window._currentLang && typeof renderForm === 'function') renderForm();
+  }
   if(which==='sup'){
     if(isLoggedIn){ showDashboard(); } else { renderLoginGate(); }
   }
@@ -897,22 +1024,22 @@ function renderLoginGate(){
     <div class="login-wrap">
       <div class="login-card">
         <img class="logo-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALwAAACiCAYAAAD7ladAAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAAEnQAABJ0Ad5mH3gAAEgOSURBVHhe7b15cFzXeeb9u7d3dKOx7wBBgCRAcKe4a6UkSrRELZYtS3IiK86Mk8mkLGeScuJ4RlP2Z6emKqnUlF2eypRnkplJYsuKFyWmJVEytVOkJO7iDhAbQew7et/uPd8ffc/V7YsGSMlyHAn9VB0S3X3vWd7znPe85z2b8sKBl8Ttu2+lgAI+iXjt9Tf58pN/bH5W4vG4yHmigAI+YfjxT37G//et/waAav+xgAI+aXjkc5/lcw8/BAUNX8BSQSQSYd/9nykQvoClgx//5GcFwhewtFCw4QtYUigQvoAlhQLhC1hSKBC+gCWFAuELWFIoEL6AJYUC4QtYUigQvoAlhQLhC1hSKBC+gCWFAuELWFIoEL6AJYUC4QtYUigQvoAlhQLhC1hSKBC+gCWFAuELWFIoEL6AJYUC4QtYUigQvoAlhQLhC1hSKBC+gCWFAuELWFIoEL6AJYUC4QtYUigQvoAlhQLhC1hSKBC+gCWFAuELWFIoEL6AJYUC4QtYUigQvoAlhQLhC1hSKBC+gCWFAuELWFIoEL6AJYUC4QtYUigQvoAlhQLhC1hSKBC+gCWFAuELWFIoEL6AJYUC4QtYUliShBdC2L/6SJAvXvmd/Tf7548C9jiFEHm/+1XxUcSRD/ny+0Fgf9f+GUCJx+PzvzVgfUFRlJzf8sH6vPxbUZS87woh8n5vhz3Tuq4DoKrqdb1vh6ZpYORLVee3d5meTGeh5+ywPi//lp/l+9ay6Lo+L15d13E4HDnfWWFNAwtBZBrybyFETh7kOzJvH1Z29rq43jhkfmR57e/puk4mk0EIgdPpNGVgT48872K8L5+VZZOyEULklHdBwstIpKCEEKRSKZMwdsgEvV4vDocjJ7OJRML8rCgKLpcLp9OZN/NW2AtsFZyiKKTTadLpdM4zi0Gmrapq3kq3E0USJJPJLFhuCUVRcioLyJs/t9uN2+02ZWuVi67rJJPJnHIrioLH4zEJLSsQC+E1TTPT0TQNVVVxu904nU4zHhmXNd10Ok0mk8l5Bku8Mh47AZPJJLquz5OfFbqum/VsJbpM3/qurutomoamaWZ5MNJTVRWXy4XD4chbZ7K+MpkM8XjcjFtRFBwOh/mufG9RwstIZmZmGBwcZGZmhmQyaX/ULEQgEGD79u0Eg0FTSMlkknfeeYfp6WlSqRQlJSWsWbOGhoaGeRVih50Uwmh04XCYyclJRkdHmZmZmafN7BCG5igvL2fjxo0EAoEcIUhYNUU6nWZqaoqxsTEmJiYIh8M5z0rouk5RURHNzc00Nzfj9/vNCh4aGqKzs5PR0VGcTie6rrNu3TrWr1+fUyZZsalUirfffpvp6Wk0TUNRFNxuNxs3bqSmpga32w024sRiMQYHB7lw4QK6rhOPx2lpaWHt2rWUlJTkyE/TNBKJBJOTk4yNjTE1NUUsFrOUJgthNPzy8nLWrFlDZWWlWVeapvHWW28xPj6+aP3puo7X66W4uJiKigoqKiooKyszG5BV9lIGmUyGUCjEuXPnmJqaIpVK4fF4qK6uZu3atRQXF+ekKd+Lx+MMDAxw8uRJnE4nmqZRWlrK8uXLWblyJS6X69qEz2QyTE9P09XVxaFDh3juuecYGhoikUjYH0XTNNxuN+vWreOv/uqvWLVqFT6fD0VRmJyc5A//8A959913mZ6eZt26dXz961/nrrvuwufz2aPKgawoqU1SqRSjo6McPXqUw4cPc+LECQYGBkilUvZXc6BpGsXFxdx44438l//yX2hubsbr9ZrElJACTCQS9Pb2cujQIY4cOcK5c+cYGRnJeVYimUyyatUqHn/8cR599FFqampMMr722mv87//9v/n5z39OcXEx6XSar371q3zta1/LW+EzMzP8wR/8AUePHiUej+NwOCgtLeXrX/86e/fupaamJud5VVXp7+/nX/7lX/jOd75DKpUilUrxxBNP8OSTT9LS0mKmoWkac3NzXL58mddee40333yT7u7uvA1Zynv79u08+eST7Nq1i+LiYoQQxGIxfvu3f5s33ngDj8djfzUHbreburo61qxZw/bt29m5cyctLS0UFxfn9ISycWcyGQYHB/nOd77DCy+8wNjYGKWlpWzYsIGnnnqKdevWUVxcbL4n5dDd3c0zzzzDX/7lX1JcXEwymWTHjh088cQTfPrTn86p65walxEADA4O8k//9E/81//6X/nud7/LuXPnmJycJBwOzwvRaNTsvq1dpOwl5ubmiMfjZDKZvN32YlCMrgmgt7eX733ve/zn//yfefrp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/PLL7N+/n+eeey4nvPLKK5w/f55MJkNFRQU7d+7kvvvuY9euXSYhpewdxqFU9913H/fffz9btmyhpaWF5uZm87BapzHn4TEOwJUmk3SJP/300xw4cID+/v559XFNwicSCYaGhujr6zOnpGXo7+8nmUziMa6jb25u5oknnuDmm2+mqqoKLBpPklM1ppllRlKpFNFolFgslkN6WYmyS0qlUmbXnDEuLxMWe9lesF8V1jzLo/TkFZaaplFXV8d9991He3s7Pp/PbJwfNB9Op5Oamhra2tpobm7G6XRy7tw583jxgYEB3nzzTaampqiqqmL16tWsXLkyp7dVjUnCfGm7jat9ZI/odru54YYb2L17N3feeSe7d+/OG2699Vba2tooLi7OG68dPp/PXLNUWlpKWVkZJSUlFBcX4/V6cRj3S61du5bPf/7zPProo5SVleUoLQlFUdi4cSN/+Id/yLe+9S3+3b/7dzz66KN8+tOf5oEHHpgXbr75ZlPBulwuIpEIx48f5/Dhw/PivqZJU1xcTFtbG7XGJbmZPG6w6upqVq1axdq1a9mxYwdlZWUmIe2aJ2jcaCe7qkQiwezsLHNzc+YaHAnZQBRFIRQKMT4+bhYqk8mY3RgfcqLpWpCkl3+XGBcExONxPMblwXKA9GGRSqXw+XzU19dTVVVFd3c3nZ2ddHd3m4Py2dlZMpkMJSUl1NXV4fV6r1lWxbCtZZ4lfD4fv/Vbv8W6deuu6eJzWK7MkQ16Idx1111s27aN8vJyUqkUXq+XSCRCX18fx44d4+jRowghOH/+PAcOHKCoqIg777wTl8tlmojW+IUxhti1axdbt25FN65MtRMYww2+f/9+vv3tb5vfyXP05+bmKCkpMeO+poavr6/n85//PE8++SR/+qd/yte+9rV54ctf/jKPPPIIN910ExXGjRsSsgXLUFVVxe7du03bbWZmhp6eHgYHB/M2JpnR0dHReRfzlpaWUltbm/O87OqspEilUsRisZznPigUm/YWlrM1ZeP+MJBxVFRUcMMNN+ByuUin02YXff78eXMVZktLi+mavR44jBtASktLcwa409PT5hEWi4WGhoa8Z13mw8qVK7nlllu45557uP/++9m7dy8PPvggX/jCF/jd3/1d89TimZkZXn/9dZ5++mmOHj2KZrnnywrZwDzG1aOBQMDsOcrLy81QVlZG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" alt="Elsewedy Polymers">
-        <h2>دخول المشرف</h2>
-        <p>سجّل الدخول للاطلاع على الطلبات والموافقة عليها</p>
+        <h2>${T("دخول المشرف")}</h2>
+        <p>${T("سجّل الدخول للاطلاع على الطلبات والموافقة عليها")}</p>
         <div class="field">
-          <label>اسم المستخدم</label>
-          <input id="loginUser" type="text" placeholder="اسم المستخدم" autocomplete="username">
+          <label>${T("اسم المستخدم")}</label>
+          <input id="loginUser" type="text" placeholder="${T("اسم المستخدم")}" autocomplete="username">
         </div>
         <div class="field">
-          <label>الكود الوظيفي (empCode)</label>
-          <input id="loginEmpCode" type="text" placeholder="أدخل الكود الوظيفي (مثال: EMP001)" autocomplete="off" oninput="this.value=this.value.toUpperCase()">
+          <label>${T("الكود الوظيفي (empCode)")}</label>
+          <input id="loginEmpCode" type="text" placeholder="${T("أدخل الكود الوظيفي (مثال: EMP001)")}" autocomplete="off" oninput="this.value=this.value.toUpperCase()">
         </div>
         <div class="field">
-          <label>كلمة المرور</label>
-          <input id="loginPass" type="password" placeholder="كلمة المرور" autocomplete="current-password">
+          <label>${T("كلمة المرور")}</label>
+          <input id="loginPass" type="password" placeholder="${T("كلمة المرور")}" autocomplete="current-password">
         </div>
-        <button class="submit-btn" onclick="attemptLogin()">دخول</button>
-        <div class="login-error" id="loginErr">اسم المستخدم أو كلمة المرور غير صحيحة</div>
+        <button class="submit-btn" onclick="attemptLogin()">${T("دخول")}</button>
+        <div class="login-error" id="loginErr">${T("اسم المستخدم أو كلمة المرور غير صحيحة")}</div>
       </div>
     </div>
   `;
@@ -960,19 +1087,19 @@ async function attemptLogin(){
     }
 
     const ADMIN_ROLE_LABELS = {
-      super_admin: 'مدير النظام',
-      hse_admin:   'مشرف السلامة',
-      dept_admin:  'أدمن قسم',
-      maint_admin: 'أدمن صيانة',
+      super_admin: T('مدير النظام'),
+      hse_admin:   T('مشرف السلامة'),
+      dept_admin:  T('أدمن قسم'),
+      maint_admin: T('أدمن صيانة'),
       ceo:         'Executive View'
     };
-    const roleLabel = ADMIN_ROLE_LABELS[currentUserRole] || 'مشرف';
+    const roleLabel = ADMIN_ROLE_LABELS[currentUserRole] || T('مشرف');
     const isCeo = currentUserRole === 'ceo';
 
     // ✦ شاشة الترحيب المتحركة أولاً، ثم دخول لوحة التحكم بعد انتهائها
     showAnimatedWelcome({
       name: currentUserName,
-      subtitle: isCeo ? 'Executive View — عرض تنفيذي للمؤشرات' : (currentUserDept ? `${roleLabel} · ${currentUserDept}` : roleLabel),
+      subtitle: isCeo ? T('Executive View — عرض تنفيذي للمؤشرات') : (currentUserDept ? `${roleLabel} · ${currentUserDept}` : roleLabel),
       onDone: () => {
         // ── Set RBAC session role and rebuild UI ──────────────────
         sessionRole = isCeo ? 'ceo' : 'supervisor';
@@ -1016,13 +1143,13 @@ function showForcePasswordChangeModal() {
   overlay.className = 'force-pw-overlay';
   overlay.innerHTML = `
     <div class="force-pw-card">
-      <h3>🔒 يجب تغيير كلمة المرور</h3>
-      <p>حسابك ما زال يستخدم كلمة مرور افتراضية معروفة. لأسباب أمنية، يجب تعيين كلمة مرور خاصة بك قبل المتابعة.</p>
-      <input type="password" id="forcePwCurrent" placeholder="كلمة المرور الحالية" autocomplete="current-password" />
-      <input type="password" id="forcePwNew" placeholder="كلمة المرور الجديدة (8 أحرف على الأقل)" autocomplete="new-password" />
-      <input type="password" id="forcePwConfirm" placeholder="تأكيد كلمة المرور الجديدة" autocomplete="new-password" />
+      <h3>${T("🔒 يجب تغيير كلمة المرور")}</h3>
+      <p>${T("حسابك ما زال يستخدم كلمة مرور افتراضية معروفة. لأسباب أمنية، يجب تعيين كلمة مرور خاصة بك قبل المتابعة.")}</p>
+      <input type="password" id="forcePwCurrent" placeholder="${T("كلمة المرور الحالية")}" autocomplete="current-password" />
+      <input type="password" id="forcePwNew" placeholder="${T("كلمة المرور الجديدة (8 أحرف على الأقل)")}" autocomplete="new-password" />
+      <input type="password" id="forcePwConfirm" placeholder="${T("تأكيد كلمة المرور الجديدة")}" autocomplete="new-password" />
       <div class="force-pw-error" id="forcePwError"></div>
-      <button class="btn btn-primary btn-block" id="forcePwSubmit" type="button">تغيير كلمة المرور والمتابعة</button>
+      <button class="btn btn-primary btn-block" id="forcePwSubmit" type="button">${T("تغيير كلمة المرور والمتابعة")}</button>
     </div>
   `;
   document.body.appendChild(overlay);
@@ -1036,13 +1163,13 @@ function showForcePasswordChangeModal() {
     const confirmPassword = document.getElementById('forcePwConfirm').value;
 
     if (!currentPassword || !newPassword || !confirmPassword) {
-      errEl.textContent = 'جميع الحقول مطلوبة'; errEl.style.display = 'block'; return;
+      errEl.textContent = T('جميع الحقول مطلوبة'); errEl.style.display = 'block'; return;
     }
     if (newPassword.length < 8) {
-      errEl.textContent = 'كلمة المرور الجديدة يجب ألا تقل عن 8 أحرف'; errEl.style.display = 'block'; return;
+      errEl.textContent = T('كلمة المرور الجديدة يجب ألا تقل عن 8 أحرف'); errEl.style.display = 'block'; return;
     }
     if (newPassword !== confirmPassword) {
-      errEl.textContent = 'كلمة المرور الجديدة وتأكيدها غير متطابقين'; errEl.style.display = 'block'; return;
+      errEl.textContent = T('كلمة المرور الجديدة وتأكيدها غير متطابقين'); errEl.style.display = 'block'; return;
     }
 
     const originalText = btn.textContent;
@@ -1056,14 +1183,14 @@ function showForcePasswordChangeModal() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        showToast('تم تغيير كلمة المرور بنجاح ✓', 'success');
+        showToast(T('تم تغيير كلمة المرور بنجاح ✓'), 'success');
         overlay.remove();
       } else {
-        errEl.textContent = data.error || 'فشل تغيير كلمة المرور'; errEl.style.display = 'block';
+        errEl.textContent = data.error || T('فشل تغيير كلمة المرور'); errEl.style.display = 'block';
         btn.disabled = false; btn.textContent = originalText;
       }
     } catch (e) {
-      errEl.textContent = 'خطأ في الاتصال بالسيرفر'; errEl.style.display = 'block';
+      errEl.textContent = T('خطأ في الاتصال بالسيرفر'); errEl.style.display = 'block';
       btn.disabled = false; btn.textContent = originalText;
     }
   });
@@ -1077,17 +1204,17 @@ function showUserBadge(){
   const globalArea = document.getElementById('globalUserProfileChip');
   
   const roleLabels = { 
-    super_admin: 'مدير النظام (Super Admin)', 
-    hse_admin: 'مشرف سلامة (HSE Admin)', 
-    dept_admin: 'أدمن قسم / منطقة (Dept Admin)',
-    maint_admin: 'مشرف صيانة (Maint Admin)'
+    super_admin: T('مدير النظام (Super Admin)'), 
+    hse_admin: T('مشرف سلامة (HSE Admin)'), 
+    dept_admin: T('أدمن قسم / منطقة (Dept Admin)'),
+    maint_admin: T('مشرف صيانة (Maint Admin)')
   };
   
   const initial = currentUserName ? currentUserName.charAt(0).toUpperCase() : 'U';
   
   let deptHtml = '';
   if ((currentUserRole === 'dept_admin' || currentUserRole === 'maint_admin') && currentUserDept) {
-    deptHtml = `<span class="profile-dept-pill">القسم: ${escapeHtml(currentUserDept)}</span>`;
+    deptHtml = `<span class="profile-dept-pill">${T("القسم:")} ${escapeHtml(currentUserDept)}</span>`;
   }
   
   const chipHtml = `
@@ -1192,7 +1319,7 @@ function resetWorkerLogin(){
   const msgEl = document.getElementById('wl_checkMsg');
   if (msgEl) { msgEl.textContent = ''; msgEl.className = 'wl-msg'; }
   const btn = document.getElementById('wl_checkBtn');
-  if (btn) { btn.disabled = false; btn.textContent = 'تسجيل الدخول ←'; }
+  if (btn) { btn.disabled = false; btn.textContent = T('تسجيل الدخول ←'); }
 }
 
 
@@ -1246,7 +1373,7 @@ function showEmpBadge(){
     <span class="emp-dot">👤</span>
     <span class="emp-name">${escapeHtml(currentEmployee.name)}</span>
     <span class="emp-code-label">${escapeHtml(currentEmployee.empCode)}</span>
-    <button class="emp-logout-btn" onclick="workerLogout()">خروج</button>
+    <button class="emp-logout-btn" onclick="workerLogout()">${T("خروج")}</button>
   `;
   area.style.display = 'block';
 }
@@ -1303,13 +1430,13 @@ async function checkEmpCode(){
   const rawInput = document.getElementById('wl_empCode').value;
   const cleanCode = String(rawInput || '').trim().replace(/^0+/, '') || '0';
   if(!cleanCode || (cleanCode === '0' && rawInput.trim() === '')){
-    showWlMsg('wl_checkMsg', 'من فضلك أدخل الكود الوظيفي', 'error');
+    showWlMsg('wl_checkMsg', T('من فضلك أدخل الكود الوظيفي'), 'error');
     return;
   }
   const codeRaw = cleanCode;
   const btn = document.getElementById('wl_checkBtn');
   btn.disabled = true;
-  btn.textContent = 'جارِ التحقق…';
+  btn.textContent = T('جارِ التحقق…');
 
   try{
     const res = await fetch(`/api/employees/lookup/${encodeURIComponent(codeRaw)}`);
@@ -1332,20 +1459,20 @@ async function checkEmpCode(){
       } else {
         // Code not in directory → hard error, no registration form
         showWlMsg('wl_checkMsg',
-          '❌ الكود الوظيفي غير مسجل بقاعدة البيانات، يرجى مراجعة إدارة الموارد البشرية أو المشرف',
+          T('❌ الكود الوظيفي غير مسجل بقاعدة البيانات، يرجى مراجعة إدارة الموارد البشرية أو المشرف'),
           'error');
         btn.disabled = false;
-        btn.textContent = 'تسجيل الدخول ←';
+        btn.textContent = T('تسجيل الدخول ←');
       }
     } else {
-      showWlMsg('wl_checkMsg', 'حصل خطأ في التحقق، حاول تاني', 'error');
+      showWlMsg('wl_checkMsg', T('حصل خطأ في التحقق، حاول تاني'), 'error');
       btn.disabled = false;
-      btn.textContent = 'تسجيل الدخول ←';
+      btn.textContent = T('تسجيل الدخول ←');
     }
   } catch(e){
-    showWlMsg('wl_checkMsg', 'لا يوجد اتصال بالسيرفر', 'error');
+    showWlMsg('wl_checkMsg', T('لا يوجد اتصال بالسيرفر'), 'error');
     btn.disabled = false;
-    btn.textContent = 'تسجيل الدخول ←';
+    btn.textContent = T('تسجيل الدخول ←');
   }
 }
 
@@ -1359,12 +1486,12 @@ async function registerEmployee(){
   const phone = document.getElementById('wl_phone').value.trim();
   const dept = document.getElementById('wl_dept').value.trim();
   if(!codeRaw || !name || !phone || !dept){
-    showWlMsg('wl_registerMsg', 'من فضلك املأ جميع الحقول المطلوبة', 'error');
+    showWlMsg('wl_registerMsg', T('من فضلك املأ جميع الحقول المطلوبة'), 'error');
     return;
   }
   const btn = document.getElementById('wl_registerBtn');
   btn.disabled = true;
-  btn.textContent = 'جارِ الحفظ…';
+  btn.textContent = T('جارِ الحفظ…');
   try{
     const res = await fetch('/api/employees', {
       method: 'POST',
@@ -1375,13 +1502,13 @@ async function registerEmployee(){
     if(res.ok){
       finishEmployeeLogin(data.employee);
     } else {
-      showWlMsg('wl_registerMsg', data.error || 'فشل التسجيل، حاول تاني', 'error');
+      showWlMsg('wl_registerMsg', data.error || T('فشل التسجيل، حاول تاني'), 'error');
     }
   } catch(e){
-    showWlMsg('wl_registerMsg', 'لا يوجد اتصال بالسيرفر', 'error');
+    showWlMsg('wl_registerMsg', T('لا يوجد اتصال بالسيرفر'), 'error');
   }
   btn.disabled = false;
-  btn.textContent = 'حفظ وتسجيل الدخول ✓';
+  btn.textContent = T('حفظ وتسجيل الدخول ✓');
 }
 
 // ============================================================
@@ -1423,7 +1550,7 @@ function showAnimatedWelcome({ name, greeting, subtitle, onDone }){
   const subEl   = document.getElementById('welcomeAnimSub');
   if (!overlay || !textEl) { if (typeof onDone === 'function') onDone(); return; }
 
-  const fullText = `${greeting || 'أهلاً بك'}، ${name || ''}`;
+  const fullText = `${greeting || T('أهلاً بك')}${T("،")} ${name || ''}`;
   textEl.innerHTML = '<span id="welcomeAnimCursor" class="welcome-anim-cursor">|</span>';
   if (subEl) { subEl.textContent = subtitle || ''; subEl.classList.remove('show'); }
   overlay.style.display = 'flex';
@@ -1462,29 +1589,29 @@ async function renderExecutiveView(){
   const container = document.getElementById('executiveContent');
   if (!container) return;
   const L = (window._currentLang === 'en');
-  container.innerHTML = `<div class="loading">${L ? 'Loading metrics…' : 'جارِ تحميل المؤشرات…'}</div>`;
+  container.innerHTML = `<div class="loading">${L ? 'Loading metrics…' : T('جارِ تحميل المؤشرات…')}</div>`;
 
   try{
     const res = await authFetch('/api/executive/overview');
     if (!res.ok) {
-      container.innerHTML = `<div class="empty"><div class="icon">✦</div>${L ? 'Failed to load metrics, please refresh' : 'تعذّر تحميل المؤشرات، حاول تحديث الصفحة'}</div>`;
+      container.innerHTML = `<div class="empty"><div class="icon">✦</div>${L ? 'Failed to load metrics, please refresh' : T('تعذّر تحميل المؤشرات، حاول تحديث الصفحة')}</div>`;
       return;
     }
     const d = await res.json();
     const t = d.totals || {};
     const permitsApproved = (d.permits && d.permits.byStatus && d.permits.byStatus.approved) || 0;
     const scoreLabel = d.companySafetyScore == null ? '—' : d.companySafetyScore;
-    const dayWord = L ? 'days' : 'يوم';
+    const dayWord = L ? 'days' : T('يوم');
 
     const kpis = [
-      { value: t.employees ?? '—', label: L ? 'Total Employees' : 'إجمالي الموظفين' },
-      { value: t.permits ?? '—', label: L ? 'Work Permits' : 'تصاريح العمل', sub: `${permitsApproved} ${L ? 'approved' : 'معتمد'}` },
-      { value: t.hazards ?? '—', label: L ? 'Hazard Reports' : 'بلاغات الخطورة', sub: `${t.openHazards ?? 0} ${L ? 'currently open' : 'مفتوح حاليًا'}` },
-      { value: d.permits && d.permits.avgApprovalDays != null ? `${d.permits.avgApprovalDays} ${dayWord}` : '—', label: L ? 'Avg. Permit Approval Time' : 'متوسط زمن اعتماد التصريح' },
-      { value: d.hazards && d.hazards.avgClosureDays != null ? `${d.hazards.avgClosureDays} ${dayWord}` : '—', label: L ? 'Avg. Hazard Closure Time' : 'متوسط زمن إغلاق البلاغ' },
-      { value: t.activePenalties ?? '—', label: L ? 'Active Penalties' : 'الجزاءات النشطة' },
-      { value: (d.training && d.training.uniqueEmployeesTrainedLast12Months) ?? '—', label: L ? 'Employees Trained (last year)' : 'موظف تم تدريبه (آخر سنة)' },
-      { value: (d.drills && d.drills.sessionsLast12Months) ?? '—', label: L ? 'Emergency Drills (last year)' : 'تجارب طوارئ (آخر سنة)' },
+      { value: t.employees ?? '—', label: L ? 'Total Employees' : T('إجمالي الموظفين') },
+      { value: t.permits ?? '—', label: L ? 'Work Permits' : T('تصاريح العمل'), sub: `${permitsApproved} ${L ? 'approved' : T('معتمد')}` },
+      { value: t.hazards ?? '—', label: L ? 'Hazard Reports' : T('بلاغات الخطورة'), sub: `${t.openHazards ?? 0} ${L ? 'currently open' : T('مفتوح حاليًا')}` },
+      { value: d.permits && d.permits.avgApprovalDays != null ? `${d.permits.avgApprovalDays} ${dayWord}` : '—', label: L ? 'Avg. Permit Approval Time' : T('متوسط زمن اعتماد التصريح') },
+      { value: d.hazards && d.hazards.avgClosureDays != null ? `${d.hazards.avgClosureDays} ${dayWord}` : '—', label: L ? 'Avg. Hazard Closure Time' : T('متوسط زمن إغلاق البلاغ') },
+      { value: t.activePenalties ?? '—', label: L ? 'Active Penalties' : T('الجزاءات النشطة') },
+      { value: (d.training && d.training.uniqueEmployeesTrainedLast12Months) ?? '—', label: L ? 'Employees Trained (last year)' : T('موظف تم تدريبه (آخر سنة)') },
+      { value: (d.drills && d.drills.sessionsLast12Months) ?? '—', label: L ? 'Emergency Drills (last year)' : T('تجارب طوارئ (آخر سنة)') },
     ];
 
     const board = (d.departmentLeaderboard || []).slice(0, 12);
@@ -1492,12 +1619,12 @@ async function renderExecutiveView(){
 
     container.innerHTML = `
       <div class="exec-hero">
-        <div class="exec-hero-eyebrow">Executive View${L ? '' : ' — عرض تنفيذي'}</div>
+        <div class="exec-hero-eyebrow">Executive View${L ? '' : T(' — عرض تنفيذي')}</div>
         <div class="exec-hero-name">${escapeHtml(currentEmployee && currentEmployee.name || '')}</div>
-        <div class="exec-hero-role">${escapeHtml(currentEmployee && currentEmployee.jobTitle || (L ? 'Managing Director' : 'المدير التنفيذي'))} · ${L ? 'Read only' : 'قراءة فقط'}</div>
+        <div class="exec-hero-role">${escapeHtml(currentEmployee && currentEmployee.jobTitle || (L ? 'Managing Director' : T('المدير التنفيذي')))} · ${L ? 'Read only' : T('قراءة فقط')}</div>
         <div class="exec-hero-score">
           <div class="num">${scoreLabel}</div>
-          <div class="label">${L ? 'Company-wide safety score (out of 100) — average across all departments' : 'مؤشر السلامة العام للشركة (من 100) — متوسط أداء كل الأقسام'}</div>
+          <div class="label">${L ? 'Company-wide safety score (out of 100) — average across all departments' : T('مؤشر السلامة العام للشركة (من 100) — متوسط أداء كل الأقسام')}</div>
         </div>
       </div>
 
@@ -1511,7 +1638,7 @@ async function renderExecutiveView(){
         `).join('')}
       </div>
 
-      <div class="exec-section-title">${L ? 'Department ranking by safety compliance' : 'ترتيب الأقسام حسب الالتزام بالسلامة'}</div>
+      <div class="exec-section-title">${L ? 'Department ranking by safety compliance' : T('ترتيب الأقسام حسب الالتزام بالسلامة')}</div>
       <div class="exec-leaderboard">
         ${board.length ? board.map((b, idx) => `
           <div class="exec-leaderboard-row">
@@ -1524,19 +1651,19 @@ async function renderExecutiveView(){
             </div>
             <div class="exec-leaderboard-score">${b.score}</div>
           </div>
-        `).join('') : `<div class="empty" style="padding:24px"><div class="icon">✦</div>${L ? 'Not enough data yet' : 'لا توجد بيانات كافية بعد'}</div>`}
+        `).join('') : `<div class="empty" style="padding:24px"><div class="icon">✦</div>${L ? 'Not enough data yet' : T('لا توجد بيانات كافية بعد')}</div>`}
       </div>
 
       <div style="text-align:center; margin-top:26px">
-        <button class="logout-btn" onclick="logout()">${L ? 'Logout' : 'تسجيل الخروج'}</button>
+        <button class="logout-btn" onclick="logout()">${L ? 'Logout' : T('تسجيل الخروج')}</button>
       </div>
       <div class="exec-footer-note">
-        ${L ? 'Live data — last updated' : 'بيانات لحظية — آخر تحديث'} ${new Date(d.generatedAt).toLocaleString(L ? 'en-US' : 'ar-EG')}
+        ${L ? 'Live data — last updated' : T('بيانات لحظية — آخر تحديث')} ${new Date(d.generatedAt).toLocaleString(L ? 'en-US' : 'ar-EG')}
       </div>
     `;
   } catch(e){
     console.error('renderExecutiveView error', e);
-    container.innerHTML = `<div class="empty"><div class="icon">✦</div>${L ? 'No connection to server' : 'لا يوجد اتصال بالسيرفر'}</div>`;
+    container.innerHTML = `<div class="empty"><div class="icon">✦</div>${L ? 'No connection to server' : T('لا يوجد اتصال بالسيرفر')}</div>`;
   }
 }
 
@@ -1622,11 +1749,11 @@ async function lookupPermitEmpCode() {
       if (deptEl) deptEl.value = emp.department || '';
       if (msgEl) { msgEl.textContent = `✅ ${emp.name} — ${emp.department||''}${emp.jobTitle?' | '+emp.jobTitle:''}`; msgEl.style.color='var(--success)'; }
     } else {
-      if (msgEl) { msgEl.textContent = 'الكود غير مسجل، يرجى كتابة البيانات يدوياً'; msgEl.style.color='var(--muted)'; }
+      if (msgEl) { msgEl.textContent = T('الكود غير مسجل، يرجى كتابة البيانات يدوياً'); msgEl.style.color='var(--muted)'; }
       ['f_name','f_jobTitle'].forEach(id => { const el=safeEl(id); if(el) el.removeAttribute('readonly'); });
     }
   } catch(e) {
-    if (msgEl) { msgEl.textContent = 'خطأ في البحث'; msgEl.style.color='var(--danger)'; }
+    if (msgEl) { msgEl.textContent = T('خطأ في البحث'); msgEl.style.color='var(--danger)'; }
   }
 }
 
@@ -1657,7 +1784,7 @@ function showDashboard(){
 function typeChips(){
   return Object.keys(PERMIT_TYPES).map(key => {
     const t = PERMIT_TYPES[key];
-    return `<div class="chip ${key===selectedType?'active':''}" onclick="selectType('${key}')">${t.label}</div>`;
+    return `<div class="chip ${key===selectedType?'active':''}" onclick="selectType('${key}')">${T(t.label)}</div>`;
   }).join('');
 }
 
@@ -1667,6 +1794,9 @@ function selectType(key){
 }
 
 function renderForm(){
+  // اللغة التي رُسم بها النموذج — switchTab يستخدمها ليعيد الرسم فقط لو
+  // اللغة اتغيرت والمستخدم كان في تبويب تاني، بدل ما يمسح إدخاله كل مرة.
+  window._formLang = window._currentLang;
   const type = PERMIT_TYPES[selectedType];
   // بناء قائمة التحقق الثلاثية المقسّمة
   let chkGlobalIndex = 0;
@@ -1674,28 +1804,28 @@ function renderForm(){
     let toggleHtml = '';
     let sectionId = '';
     let toggleId = '';
-    if(section.sectionTitle.includes('ب)')) {
+    if(section === HSE_CHECKLIST.oilDischarge) {
       sectionId = 'sec_oil'; toggleId = 'sec_oil_toggle';
-    } else if(section.sectionTitle.includes('ج)')) {
+    } else if(section === HSE_CHECKLIST.specialMaterial) {
       sectionId = 'sec_special'; toggleId = 'sec_special_toggle';
     }
     if (toggleId) {
-      toggleHtml = `<label style="font-size:13px; font-weight:normal; margin-inline-start:auto; display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="${toggleId}" onchange="document.getElementById('${sectionId}_content').style.display = this.checked ? 'none' : 'block'"> لا يوجد</label>`;
+      toggleHtml = `<label style="font-size:13px; font-weight:normal; margin-inline-start:auto; display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" id="${toggleId}" onchange="document.getElementById('${sectionId}_content').style.display = this.checked ? 'none' : 'block'"> ${T("لا يوجد")}</label>`;
     }
 
     const rows = section.items.map((q) => {
       const i = chkGlobalIndex++;
       return `
       <div class="check-row">
-        <div class="check-q">${q}</div>
+        <div class="check-q">${T(q)}</div>
         <div class="check-opts">
-          <label><input type="radio" name="chk_${i}" value="نعم" checked> نعم</label>
-          <label><input type="radio" name="chk_${i}" value="لا"> لا</label>
-          <label><input type="radio" name="chk_${i}" value="لا ينطبق"> لا ينطبق</label>
+          <label><input type="radio" name="chk_${i}" value="نعم" checked> ${T('نعم')}</label>
+          <label><input type="radio" name="chk_${i}" value="لا"> ${T('لا')}</label>
+          <label><input type="radio" name="chk_${i}" value="لا ينطبق"> ${T('لا ينطبق')}</label>
         </div>
       </div>`;
     }).join('');
-    return `<div id="${sectionId}_wrap"><div class="chk-section-label" style="display:flex; align-items:center;"><span>${section.sectionTitle}</span>${toggleHtml}</div><div id="${sectionId}_content">${rows}</div></div>`;
+    return `<div id="${sectionId}_wrap"><div class="chk-section-label" style="display:flex; align-items:center;"><span>${T(section.sectionTitle)}</span>${toggleHtml}</div><div id="${sectionId}_content">${rows}</div></div>`;
   }
   const checklistHtml =
     buildSectionHtml(HSE_CHECKLIST.general) +
@@ -1708,60 +1838,60 @@ function renderForm(){
 
   formArea.innerHTML = `
     <div class="type-picker">
-      <div class="type-picker-label">نوع الطلب <span class="req-star">*</span></div>
+      <div class="type-picker-label">${T("نوع الطلب")} <span class="req-star">*</span></div>
       <div class="filters">${typeChips()}</div>
     </div>
 
     <div class="ticket">
       <div class="ticket-head">
-        <span class="ttype">${type.fullLabel}</span>
+        <span class="ttype">${T(type.fullLabel)}</span>
         <span class="tnum">NEW REQUEST</span>
       </div>
       <div class="perf"></div>
       <div class="ticket-body">
 
-        <div class="section-title">بيانات الطلب</div>
+        <div class="section-title">${T("بيانات الطلب")}</div>
         <div class="row2">
           <div class="field">
-            <label>الإدارة الطالبة / القسم <span class="req-star">*</span></label>
-            <input id="f_dept" type="text" readonly style="background-color: #f5f5f5;" placeholder="سيتم تعبئته تلقائياً">
+            <label>${T("الإدارة الطالبة / القسم")} <span class="req-star">*</span></label>
+            <input id="f_dept" type="text" readonly style="background-color: #f5f5f5;" placeholder="${T("سيتم تعبئته تلقائياً")}">
           </div>
           <div class="field">
-            <label>الوردية <span class="req-star">*</span></label>
-            <select id="f_shift">${SHIFTS.map(s=>`<option>${s}</option>`).join('')}</select>
+            <label>${T("الوردية")} <span class="req-star">*</span></label>
+            <select id="f_shift">${SHIFTS.map(s=>`<option value="${s}">${T(s)}</option>`).join('')}</select>
           </div>
         </div>
         <div class="row2">
           <div class="field">
-            <label>تاريخ التنفيذ <span class="req-star">*</span></label>
+            <label>${T("تاريخ التنفيذ")} <span class="req-star">*</span></label>
             <input id="f_date" type="date">
           </div>
           <div class="field">
-            <label>رقم طلب سابق لنفس العمل (إن وجد)</label>
-            <input id="f_prev" type="text" placeholder="اختياري">
+            <label>${T("رقم طلب سابق لنفس العمل (إن وجد)")}</label>
+            <input id="f_prev" type="text" placeholder="${T("اختياري")}">
           </div>
         </div>
         <div class="row2">
           <div class="field">
-            <label>من الساعة <span class="req-star">*</span></label>
+            <label>${T("من الساعة")} <span class="req-star">*</span></label>
             <input id="f_from" type="time" required>
           </div>
           <div class="field">
-            <label>إلى الساعة <span class="req-star">*</span></label>
+            <label>${T("إلى الساعة")} <span class="req-star">*</span></label>
             <input id="f_to" type="time" required>
             <label class="custom-pill-check" style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; margin-top: 6px; user-select: none;">
-              <span style="font-size: 0.85rem; color: #475569; font-weight: 500;">نهاية مفتوحة / حتى انتهاء العمل</span>
+              <span style="font-size: 0.85rem; color: #475569; font-weight: 500;">${T("نهاية مفتوحة / حتى انتهاء العمل")}</span>
               <input type="checkbox" id="f_open_end" class="pill-checkbox-input" onchange="window.toggleOpenEnd(this)">
               <span class="pill-checkbox-box"></span>
             </label>
           </div>
         </div>
 
-        <div class="section-title">بيانات مقدّم الطلب (مسئول التنفيذ)</div>
+        <div class="section-title">${T("بيانات مقدّم الطلب (مسئول التنفيذ)")}</div>
         <div class="field">
-          <label>الكود الوظيفي <small style="font-weight:400;color:var(--muted);">(اكتب كودك لتعبئة بياناتك تلقائياً)</small></label>
+          <label>${T("الكود الوظيفي")} <small style="font-weight:400;color:var(--muted);">${T("(اكتب كودك لتعبئة بياناتك تلقائياً)")}</small></label>
           <div style="display:flex;gap:8px;align-items:center;">
-            <input id="f_emp" type="text" placeholder="مثال: EMP001"
+            <input id="f_emp" type="text" placeholder="${T("مثال: EMP001")}"
                    style="font-family:'Oswald',sans-serif;letter-spacing:1.5px;"
                    oninput="this.value=this.value.toUpperCase()" onblur="lookupPermitEmpCode()">
           </div>
@@ -1769,71 +1899,71 @@ function renderForm(){
         </div>
         <div class="row2">
           <div class="field">
-            <label>الاسم <span class="req-star">*</span></label>
-            <input id="f_name" type="text" placeholder="الاسم بالكامل">
+            <label>${T("الاسم")} <span class="req-star">*</span></label>
+            <input id="f_name" type="text" placeholder="${T("الاسم بالكامل")}">
           </div>
           <div class="field">
-            <label>الصفة</label>
-            <select id="f_kind"><option>موظف</option><option>مقاول</option></select>
+            <label>${T("الصفة")}</label>
+            <select id="f_kind"><option value="موظف">${T("موظف")}</option><option value="مقاول">${T("مقاول")}</option></select>
           </div>
         </div>
         <div class="row2">
           <div class="field">
-            <label>رقم التليفون</label>
+            <label>${T("رقم التليفون")}</label>
             <input id="f_phone" type="tel" placeholder="01xxxxxxxxx">
           </div>
           <div class="field">
-            <label>المسمى الوظيفي</label>
-            <input id="f_jobTitle" type="text" placeholder="اختياري">
+            <label>${T("المسمى الوظيفي")}</label>
+            <input id="f_jobTitle" type="text" placeholder="${T("اختياري")}">
           </div>
         </div>
 
-        <div class="section-title">تفاصيل العمل</div>
+        <div class="section-title">${T("تفاصيل العمل")}</div>
         <div class="field">
-          <label>وصف العملية <span class="req-star">*</span></label>
-          <textarea id="f_desc" placeholder="اشرح طبيعة العمل المطلوب تنفيذه"></textarea>
+          <label>${T("وصف العملية")} <span class="req-star">*</span></label>
+          <textarea id="f_desc" placeholder="${T("اشرح طبيعة العمل المطلوب تنفيذه")}"></textarea>
         </div>
         <div class="field">
-          <label>مكان العمل <span class="req-star">*</span></label>
+          <label>${T("مكان العمل")} <span class="req-star">*</span></label>
           <select id="workLocationSelect" name="workLocation" required>
-            <option value="">اختر مكان العمل...</option>
+            <option value="">${T("اختر مكان العمل...")}</option>
             ${WORK_LOCATIONS.map(loc => `<option value="${loc}">${loc}</option>`).join('')}
           </select>
         </div>
         <div class="field">
-          <label>المعدة / الماكينة / العملية</label>
-          <input id="f_equip" type="text" placeholder="اختياري">
+          <label>${T("المعدة / الماكينة / العملية")}</label>
+          <input id="f_equip" type="text" placeholder="${T("اختياري")}">
         </div>
         <div class="field">
-          <label>الأدوات والعدد <small style="font-weight:400;color:var(--muted);">(بعد فحصها وقبولها)</small></label>
+          <label>${T("الأدوات والعدد")} <small style="font-weight:400;color:var(--muted);">${T("(بعد فحصها وقبولها)")}</small></label>
           <div class="tools-checklist" id="toolsChecklist">
             ${TOOLS_LIST.map((tool, i) => `
             <label class="tool-check-label">
               <input type="checkbox" id="tool_${i}" value="${tool}" class="tool-checkbox">
-              <span>${tool}</span>
+              <span>${T(tool)}</span>
             </label>`).join('')}
             <div class="tool-other-wrap" id="toolOtherWrap" style="display:none;">
-              <input type="text" id="tool_other_text" placeholder="أدخل الأداة الأخرى..." class="tool-other-input">
+              <input type="text" id="tool_other_text" placeholder="${T("أدخل الأداة الأخرى...")}" class="tool-other-input">
             </div>
           </div>
         </div>
         <div class="field">
-          <label>أسماء القائمين بالعمل (كل اسم في سطر) <span class="req-star">*</span></label>
+          <label>${T("أسماء القائمين بالعمل (كل اسم في سطر)")} <span class="req-star">*</span></label>
           <textarea id="f_workers" placeholder="1- ...&#10;2- ..."></textarea>
         </div>
 
-        <div class="section-title">قائمة التحقق (نعم / لا / لا ينطبق)</div>
+        <div class="section-title">${T("قائمة التحقق (نعم / لا / لا ينطبق)")}</div>
         <div class="checklist" data-total-chk="${totalChkItems}">${checklistHtml}</div>
         <div class="field">
-          <label>ملاحظات على قائمة التحقق</label>
-          <textarea id="f_checknote" placeholder="اختياري"></textarea>
+          <label>${T("ملاحظات على قائمة التحقق")}</label>
+          <textarea id="f_checknote" placeholder="${T("اختياري")}"></textarea>
         </div>
 
-        <div class="section-title">تقييم المخاطر</div>
+        <div class="section-title">${T("تقييم المخاطر")}</div>
         <div id="riskRows"></div>
-        <button type="button" class="add-risk-btn" onclick="addRiskRow()">+ إضافة خطر</button>
+        <button type="button" class="add-risk-btn" onclick="addRiskRow()">${T("+ إضافة خطر")}</button>
 
-        <button class="submit-btn" id="submitBtn" onclick="submitPermit()">إرسال الطلب للمشرف</button>
+        <button class="submit-btn" id="submitBtn" onclick="submitPermit()">${T("إرسال الطلب للمشرف")}</button>
       </div>
     </div>
   `;
@@ -1877,13 +2007,13 @@ function addRiskRow(){
   div.className = 'risk-row';
   div.id = id;
   div.innerHTML = `
-    <div class="field"><label>مصدر الخطر</label><input class="risk-source" type="text" placeholder="مثال: سقوط من ارتفاع"></div>
+    <div class="field"><label>${T("مصدر الخطر")}</label><input class="risk-source" type="text" placeholder="${T("مثال: سقوط من ارتفاع")}"></div>
     <div class="row2" style="align-items:flex-end;">
-      <div class="field"><label>الاحتمالية L (1-5)</label><select class="risk-l" onchange="calcRisk(this)">${RISK_LEVELS.map(n=>`<option value="${n}">${n}</option>`).join('')}</select></div>
-      <div class="field"><label>الشدة S (1-5)</label><select class="risk-s" onchange="calcRisk(this)">${RISK_LEVELS.map(n=>`<option value="${n}">${n}</option>`).join('')}</select></div>
+      <div class="field"><label>${T("الاحتمالية L (1-5)")}</label><select class="risk-l" onchange="calcRisk(this)">${RISK_LEVELS.map(n=>`<option value="${n}">${n}</option>`).join('')}</select></div>
+      <div class="field"><label>${T("الشدة S (1-5)")}</label><select class="risk-s" onchange="calcRisk(this)">${RISK_LEVELS.map(n=>`<option value="${n}">${n}</option>`).join('')}</select></div>
       <div class="risk-badge" style="margin-bottom:12px;"></div>
     </div>
-    <div class="field"><label>إجراءات التحكم والوقاية</label><textarea class="risk-control" placeholder="اختياري"></textarea></div>
+    <div class="field"><label>${T("إجراءات التحكم والوقاية")}</label><textarea class="risk-control" placeholder="${T("اختياري")}"></textarea></div>
   `;
   document.getElementById('riskRows').appendChild(div);
   calcRisk(div.querySelector('.risk-l')); // initial calc
@@ -1898,13 +2028,13 @@ function calcRisk(el) {
   
   badge.className = 'risk-badge';
   if (score <= 4) {
-    badge.textContent = 'خطورة ضعيفة 🟢';
+    badge.textContent = T('خطورة ضعيفة 🟢');
     badge.classList.add('risk-low');
   } else if (score <= 12) {
-    badge.textContent = 'خطورة متوسطة 🟡';
+    badge.textContent = T('خطورة متوسطة 🟡');
     badge.classList.add('risk-medium');
   } else {
-    badge.textContent = 'خطورة عالية 🔴';
+    badge.textContent = T('خطورة عالية 🔴');
     badge.classList.add('risk-high');
   }
 }
@@ -1919,7 +2049,7 @@ function collectChecklist(){
       results.push({
         section: section.sectionTitle,
         question: q,
-        answer: sel ? sel.value : 'لا ينطبق'
+        answer: sel ? sel.value : T('لا ينطبق')
       });
       idx++;
     }
@@ -1933,7 +2063,7 @@ function collectTools(){
     if (cb.value === 'أخرى') {
       const otherText = document.getElementById('tool_other_text');
       const val = otherText ? otherText.value.trim() : '';
-      checked.push(val ? `أخرى: ${val}` : 'أخرى');
+      checked.push(val ? `${T("أخرى:")} ${val}` : 'أخرى');
     } else {
       checked.push(cb.value);
     }
@@ -1967,30 +2097,30 @@ async function submitPermit(){
 
   const missingFields = [];
 
-  if(!loc) missingFields.push('مكان العمل');
-  if(!desc) missingFields.push('وصف العملية');
-  if(!date) missingFields.push('تاريخ التنفيذ');
-  if(!timeFrom) missingFields.push('وقت البدء');
-  if(!timeTo && !openEnd) missingFields.push('وقت الانتهاء');
-  if(!workers) missingFields.push('أسماء القائمين بالعمل');
+  if(!loc) missingFields.push(T('مكان العمل'));
+  if(!desc) missingFields.push(T('وصف العملية'));
+  if(!date) missingFields.push(T('تاريخ التنفيذ'));
+  if(!timeFrom) missingFields.push(T('وقت البدء'));
+  if(!timeTo && !openEnd) missingFields.push(T('وقت الانتهاء'));
+  if(!workers) missingFields.push(T('أسماء القائمين بالعمل'));
 
   // Also include name/dept just in case they were cleared
-  if(!name) missingFields.push('اسم مقدم الطلب');
-  if(!dept) missingFields.push('الإدارة الطالبة / القسم');
+  if(!name) missingFields.push(T('اسم مقدم الطلب'));
+  if(!dept) missingFields.push(T('الإدارة الطالبة / القسم'));
 
   const risks = collectRisks();
   if (risks.length < 2 || !risks[0].source || !risks[0].control || !risks[1].source || !risks[1].control) {
-    missingFields.push('تقييم المخاطر (الخطر 1 و 2 وإجراءات الوقاية)');
+    missingFields.push(T('تقييم المخاطر (الخطر 1 و 2 وإجراءات الوقاية)'));
   }
 
   if (missingFields.length > 0) {
-    showToast('برجاء استكمال الحقول المطلوبة التالية:\n• ' + missingFields.join('\n• '), 'error');
+    showToast(T('برجاء استكمال الحقول المطلوبة التالية:\n• ') + missingFields.join('\n• '), 'error');
     return;
   }
 
   const btn = document.getElementById('submitBtn');
   btn.disabled = true;
-  btn.textContent = 'جارِ الإرسال…';
+  btn.textContent = T('جارِ الإرسال…');
 
   const list = await loadPermits();
   const type = PERMIT_TYPES[selectedType];
@@ -2004,7 +2134,7 @@ async function submitPermit(){
     date: date,
     previousPermitNo: document.getElementById('f_prev').value.trim(),
     timeFrom: timeFrom,
-    timeTo: openEnd ? 'نهاية مفتوحة' : timeTo,
+    timeTo: openEnd ? T('نهاية مفتوحة') : timeTo,
     workerName: name,
     requesterKind: document.getElementById('f_kind').value,
     requesterPhone: document.getElementById('f_phone').value.trim(),
@@ -2032,8 +2162,8 @@ async function submitPermit(){
 
   if(!ok){
     btn.disabled = false;
-    btn.textContent = 'إرسال الطلب للمشرف';
-    showToast('حصل خطأ في الإرسال، حاول تاني', 'error');
+    btn.textContent = T('إرسال الطلب للمشرف');
+    showToast(T('حصل خطأ في الإرسال، حاول تاني'), 'error');
     return;
   }
 
@@ -2041,13 +2171,13 @@ async function submitPermit(){
     <div class="ticket">
       <div class="confirm">
         <div style="font-size:30px;">✅</div>
-        <h2>تم إرسال الطلب</h2>
+        <h2>${T("تم إرسال الطلب")}</h2>
         <div class="tnum-big">${permit.id}</div>
-        <span class="stamp pending big-stamp">قيد الانتظار</span>
-        <p>${type.fullLabel} — هيوصل الطلب للمشرف على طول عشان يوافق عليه</p>
-        <p style="font-size:12.5px;color:var(--muted);margin-top:10px;">احتفظ برقم الطلب ده — اضغط زر "تتبع الطلب ده" أو افتح تاب "📁 سجل طلباتي" عشان تعرف حالته أول ما المشرف يرد</p>
-        <button class="again-btn" onclick="renderForm()">+ طلب جديد</button>
-        <button class="again-btn" style="margin-inline-start:8px;border-color:var(--amber);color:var(--amber);" onclick="goTrackWithId('${permit.id}')">📁 سجل طلباتي</button>
+        <span class="stamp pending big-stamp">${T("قيد الانتظار")}</span>
+        <p>${T(type.fullLabel)} ${T("— هيوصل الطلب للمشرف على طول عشان يوافق عليه")}</p>
+        <p style="font-size:12.5px;color:var(--muted);margin-top:10px;">${T("احتفظ برقم الطلب ده — اضغط زر")} "${T("تتبع الطلب ده")}" ${T("أو افتح تاب")} "${T("📁 سجل طلباتي")}" ${T("عشان تعرف حالته أول ما المشرف يرد")}</p>
+        <button class="again-btn" onclick="renderForm()">${T("+ طلب جديد")}</button>
+        <button class="again-btn" style="margin-inline-start:8px;border-color:var(--amber);color:var(--amber);" onclick="goTrackWithId('${permit.id}')">${T("📁 سجل طلباتي")}</button>
       </div>
     </div>
   `;
@@ -2072,13 +2202,13 @@ function goTrackWithId(permitId){
 function renderFilters(){
   const opts = ['الكل','بانتظار أدمن القسم','بانتظار السلامة والصحة المهنية','موافق عليه','مرفوض','مغلق','🗑️ المحذوفات'];
   document.getElementById('filters').innerHTML = opts.map(o=>
-    `<div class="chip ${o===currentFilter?'active':''}" onclick="setFilter('${o}')">${o}</div>`
+    `<div class="chip ${o===currentFilter?'active':''}" onclick="setFilter('${o}')">${T(o)}</div>`
   ).join('');
 }
 function renderTypeFilters(){
   const opts = ['الكل', ...Object.keys(PERMIT_TYPES).map(k=>PERMIT_TYPES[k].label)];
   document.getElementById('typeFilters').innerHTML = opts.map(o=>
-    `<div class="chip ${o===currentTypeFilter?'active':''}" onclick="setTypeFilter('${o}')">${o}</div>`
+    `<div class="chip ${o===currentTypeFilter?'active':''}" onclick="setTypeFilter('${o}')">${T(o)}</div>`
   ).join('');
 }
 function setFilter(f){ currentFilter = f; renderFilters(); renderList(); }
@@ -2098,13 +2228,13 @@ async function renderPmDeptFilters(){
       const currentVal = currentPmDeptFilter === 'الكل' ? '' : currentPmDeptFilter;
       dArea.innerHTML = `
         <input type="text" id="pmDeptFilterInput" class="dept-filter-input" list="pmDeptDatalist"
-          placeholder="🏢 اختر أو اكتب اسم القسم..." value="${escapeAttr(currentVal)}"
+          placeholder="${T("🏢 اختر أو اكتب اسم القسم...")}" value="${escapeAttr(currentVal)}"
           oninput="onPmDeptFilterInput(this.value)" autocomplete="off"
           style="min-width:220px;flex:1;max-width:320px;">
         <datalist id="pmDeptDatalist">
           ${realDepts.map(d => `<option value="${escapeAttr(d)}"></option>`).join('')}
         </datalist>
-        ${currentPmDeptFilter !== 'الكل' ? `<div class="chip active" onclick="setPmDeptFilterFromInput('')">✕ إلغاء فلتر القسم</div>` : ''}
+        ${currentPmDeptFilter !== 'الكل' ? `<div class="chip active" onclick="setPmDeptFilterFromInput('')">${T("✕ إلغاء فلتر القسم")}</div>` : ''}
       `;
       dArea.dataset.built = '1';
     }
@@ -2129,7 +2259,7 @@ function renderPmYearFilters(){
   if (!yArea) return;
   const years = ['الكل', ...FILTER_YEARS];
   yArea.innerHTML = years.map(y =>
-    `<div class="chip ${currentPmYearFilter===y?'active':''}" onclick="setPmYearFilter('${y}')">${y}</div>`
+    `<div class="chip ${currentPmYearFilter===y?'active':''}" onclick="setPmYearFilter('${y}')">${T(y)}</div>`
   ).join('');
 }
 function setPmYearFilter(y){ currentPmYearFilter = y; renderPmYearFilters(); renderList(); }
@@ -2180,7 +2310,7 @@ async function renderSupervisor(){
   renderTypeFilters();
   await renderPmDeptFilters();
   renderPmYearFilters();
-  document.getElementById('supList').innerHTML = '<div class="loading">جارِ التحميل…</div>';
+  document.getElementById('supList').innerHTML = T('<div class="loading">جارِ التحميل…</div>');
   const res = await apiGet('work-permits');
   lastPermitsRaw = res && res.value ? (typeof res.value === 'string' ? res.value : JSON.stringify(res.value)) : '[]';
   try {
@@ -2221,8 +2351,8 @@ const statusTranslations = {
 
 function getStatusBadgeArabic(status) {
   const key = String(status || '').toLowerCase().trim();
-  if (key.startsWith('closed')) return 'مغلق / مكتمل';
-  return statusTranslations[key] || status;
+  if (key.startsWith('closed')) return T('مغلق / مكتمل');
+  return T(statusTranslations[key] || status);
 }
 
 function statusLabel(raw){
@@ -2230,9 +2360,9 @@ function statusLabel(raw){
 }
 function closureLabel(c){
   if(!c) return '';
-  if(c.type==='safe') return 'اكتمل العمل بأمان';
-  if(c.type==='incomplete') return 'لم يكتمل العمل';
-  if(c.type==='forced') return 'إغلاق جبري';
+  if(c.type==='safe') return T('اكتمل العمل بأمان');
+  if(c.type==='incomplete') return T('لم يكتمل العمل');
+  if(c.type==='forced') return T('إغلاق جبري');
   return '';
 }
 function formatTime12(time24) {
@@ -2240,7 +2370,7 @@ function formatTime12(time24) {
   const [hStr, mStr] = time24.split(':');
   let h = parseInt(hStr, 10);
   if (isNaN(h)) return time24;
-  const ampm = h >= 12 ? 'م' : 'ص';
+  const ampm = h >= 12 ? T('م') : T('ص');
   h = h % 12;
   h = h ? h : 12;
   return `${h.toString().padStart(2, '0')}:${mStr} ${ampm}`;
@@ -2326,12 +2456,12 @@ function renderList(){
   list = applyPermitAdvancedFilters(list);
 
   const pmCountEl = document.getElementById('pmFilterCount');
-  if (pmCountEl) pmCountEl.textContent = `عدد النتائج: ${list.length}`;
+  if (pmCountEl) pmCountEl.textContent = `${T("عدد النتائج:")} ${list.length}`;
 
   const container = document.getElementById('supList');
 
   if(list.length === 0){
-    container.innerHTML = `<div class="empty"><div class="icon">🗂️</div>لا توجد طلبات مطابقة حاليًا</div>`;
+    container.innerHTML = `<div class="empty"><div class="icon">🗂️</div>${T("لا توجد طلبات مطابقة حاليًا")}</div>`;
     return;
   }
 
@@ -2340,16 +2470,16 @@ function renderList(){
     // بناء قائمة التحقق مع قدوات الأقسام
     const checklistBySection = {};
     (p.checklist||[]).forEach(c => {
-      const sec = c.section || 'بنود عامة';
+      const sec = c.section || T('بنود عامة');
       if (!checklistBySection[sec]) checklistBySection[sec] = [];
       checklistBySection[sec].push(c);
     });
     const checklistHtml = Object.entries(checklistBySection).map(([sec, items]) => `
-      <div style="font-size:11.5px;font-weight:800;color:var(--steel);letter-spacing:0.5px;padding:6px 0 3px;border-bottom:1px solid var(--paper-line);margin-bottom:3px;">${escapeHtml(sec)}</div>
+      <div style="font-size:11.5px;font-weight:800;color:var(--steel);letter-spacing:0.5px;padding:6px 0 3px;border-bottom:1px solid var(--paper-line);margin-bottom:3px;">${escapeHtml(T(sec))}</div>
       ${items.map(c=>`
       <div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--paper-line);font-size:12.5px;">
-        <span>${escapeHtml(c.question)}</span>
-        <span style="font-weight:700;color:${c.answer==='لا'?'var(--danger)':c.answer==='نعم'?'var(--success)':'var(--muted)'};white-space:nowrap;">${c.answer}</span>
+        <span>${escapeHtml(T(c.question))}</span>
+        <span style="font-weight:700;color:${c.answer==='لا'?'var(--danger)':c.answer==='نعم'?'var(--success)':'var(--muted)'};white-space:nowrap;">${T(c.answer)}</span>
       </div>`).join('')}
     `).join('');
     const risksHtml = (p.risks||[]).map(r=>`
@@ -2357,7 +2487,7 @@ function renderList(){
         <b>${escapeHtml(r.source)}</b> — L${r.l}×S${r.s} = ${r.score}
         ${r.control ? `<br><span style="color:var(--muted);">${escapeHtml(r.control)}</span>` : ''}
       </div>
-    `).join('') || `<div class="risk-summary" style="color:var(--muted);">لا توجد مخاطر مسجلة</div>`;
+    `).join('') || `<div class="risk-summary" style="color:var(--muted);">${T("لا توجد مخاطر مسجلة")}</div>`;
 
     const deletedBy = (typeof p.deletedBy === 'object' && p.deletedBy !== null) ? p.deletedBy : {};
     const isTrashedForMe = deletedBy[currentRoleKey] === true;
@@ -2377,120 +2507,120 @@ function renderList(){
     <div class="sup-card ${isTrashedForMe ? 'deleted' : ''}">
       <div class="sup-top">
         <div>
-          <div class="worker"><span class="type-pill">${escapeHtml(p.typeLabel)}</span>${escapeHtml(p.workerName)}</div>
-          <div class="tnum">${p.id} · ${p.date||''} · وردية ${escapeHtml(p.shift||'')}</div>
+          <div class="worker"><span class="type-pill">${escapeHtml(T(p.typeLabel))}</span>${escapeHtml(p.workerName)}</div>
+          <div class="tnum">${p.id} · ${p.date||''} ${T("· وردية")} ${escapeHtml(p.shift||'')}</div>
         </div>
         ${statusBadge}
       </div>
       <div class="meta-grid">
-        <div><span>القسم</span>${escapeHtml(p.department)||'—'}</div>
-        <div><span>مكان العمل</span>${escapeHtml(p.location)||'—'}</div>
-        <div style="white-space: normal;"><span>الوقت</span>${escapeHtml(formatTime12(p.timeFrom))} → ${escapeHtml(formatTime12(p.timeTo))}</div>
-        <div><span>الصفة</span>${escapeHtml(p.requesterKind)||'—'}</div>
+        <div><span>${T("القسم")}</span>${escapeHtml(p.department)||'—'}</div>
+        <div><span>${T("مكان العمل")}</span>${escapeHtml(p.location)||'—'}</div>
+        <div style="white-space: normal;"><span>${T("الوقت")}</span>${escapeHtml(formatTime12(p.timeFrom))} → ${escapeHtml(formatTime12(p.timeTo))}</div>
+        <div><span>${T("الصفة")}</span>${escapeHtml(T(p.requesterKind))||'—'}</div>
         <div>
-          <span>الكود الوظيفي</span>
-          ${p.employeeId ? escapeHtml(p.employeeId) : '<span style="color:var(--danger);font-weight:700;">غير مسجل ⚠</span>'}
+          <span>${T("الكود الوظيفي")}</span>
+          ${p.employeeId ? escapeHtml(p.employeeId) : T('<span style="color:var(--danger);font-weight:700;">غير مسجل ⚠</span>')}
         </div>
       </div>
       ${!p.employeeId ? `
       <div class="row2 empcode-add-box" style="margin-top:8px;">
         <div class="field">
-          <input id="empcode-${p.id}" type="text" placeholder="أدخل الكود الوظيفي (${escapeHtml(p.workerName || 'صاحب الطلب')})" style="direction:ltr;font-size:12px;padding:6px;">
+          <input id="empcode-${p.id}" type="text" placeholder="${T("أدخل الكود الوظيفي (")}${escapeHtml(p.workerName || T('صاحب الطلب'))})" style="direction:ltr;font-size:12px;padding:6px;">
         </div>
-        <button class="act-btn approve" style="align-self:flex-end;" onclick="savePermitEmployeeCode('${p.id}')">💾 حفظ الكود</button>
+        <button class="act-btn approve" style="align-self:flex-end;" onclick="savePermitEmployeeCode('${p.id}')">${T("💾 حفظ الكود")}</button>
       </div>
       ` : ''}
-      <div class="desc"><strong>وصف العملية:</strong> ${escapeHtml(p.description)}</div>
-      ${failedChecks>0 ? `<div class="checklist-summary"><b>⚠ ${failedChecks} بند غير مستوفٍ في قائمة التحقق</b></div>` : `<div class="checklist-summary">✓ كل بنود قائمة التحقق مستوفاة أو لا تنطبق</div>`}
+      <div class="desc"><strong>${T("وصف العملية:")}</strong> ${escapeHtml(p.description)}</div>
+      ${failedChecks>0 ? `<div class="checklist-summary"><b>⚠ ${failedChecks} ${T("بند غير مستوفٍ في قائمة التحقق")}</b></div>` : `<div class="checklist-summary">${T("✓ كل بنود قائمة التحقق مستوفاة أو لا تنطبق")}</div>`}
 
-      <span class="details-toggle" onclick="toggleDetails('${p.id}')">عرض كل التفاصيل (قائمة التحقق + المخاطر) ⌄</span>
-      <button class="btn btn-secondary btn-sm" type="button" style="margin-inline-start:10px;" onclick="navigateWithAuth('/api/permits/${p.id}/pdf')">🖨️ طباعة PDF</button>
+      <span class="details-toggle" onclick="toggleDetails('${p.id}')">${T("عرض كل التفاصيل (قائمة التحقق + المخاطر) ⌄")}</span>
+      <button class="btn btn-secondary btn-sm" type="button" style="margin-inline-start:10px;" onclick="navigateWithAuth('/api/permits/${p.id}/pdf')">${T("🖨️ طباعة PDF")}</button>
       <div class="full-details" id="details-${p.id}">
-        <div class="section-title" style="margin-top:14px;">قائمة التحقق</div>
+        <div class="section-title" style="margin-top:14px;">${T("قائمة التحقق")}</div>
         ${checklistHtml}
-        ${p.checklistNote ? `<div class="review-note">ملاحظة: ${escapeHtml(p.checklistNote)}</div>` : ''}
-        <div class="section-title">تقييم المخاطر</div>
+        ${p.checklistNote ? `<div class="review-note">${T("ملاحظة:")} ${escapeHtml(p.checklistNote)}</div>` : ''}
+        <div class="section-title">${T("تقييم المخاطر")}</div>
         ${risksHtml}
-        ${p.workersNames ? `<div class="section-title">القائمون بالعمل</div><div class="desc">${escapeHtml(p.workersNames)}</div>` : ''}
-        ${p.equipment ? `<div class="meta-grid" style="margin-top:8px;"><div><span>المعدة/الماكينة</span>${escapeHtml(p.equipment)}</div></div>` : ''}
+        ${p.workersNames ? `<div class="section-title">${T("القائمون بالعمل")}</div><div class="desc">${escapeHtml(p.workersNames)}</div>` : ''}
+        ${p.equipment ? `<div class="meta-grid" style="margin-top:8px;"><div><span>${T("المعدة/الماكينة")}</span>${escapeHtml(p.equipment)}</div></div>` : ''}
         ${(p.tools && (Array.isArray(p.tools) ? p.tools.length > 0 : p.tools)) ? `
-          <div class="section-title" style="margin-top:10px;">الأدوات والعدد</div>
+          <div class="section-title" style="margin-top:10px;">${T("الأدوات والعدد")}</div>
           <div class="tools-display">${Array.isArray(p.tools) ? p.tools.map(t=>`<span class="tool-tag">${escapeHtml(t)}</span>`).join('') : escapeHtml(p.tools)}</div>` : ''}
-        ${p.previousPermitNo ? `<div class="reviewed-by">رقم طلب سابق: ${escapeHtml(p.previousPermitNo)}</div>`:''}
-        ${p.requesterPhone ? `<div class="reviewed-by">تليفون: ${escapeHtml(p.requesterPhone)}</div>`:''}
+        ${p.previousPermitNo ? `<div class="reviewed-by">${T("رقم طلب سابق:")} ${escapeHtml(p.previousPermitNo)}</div>`:''}
+        ${p.requesterPhone ? `<div class="reviewed-by">${T("تليفون:")} ${escapeHtml(p.requesterPhone)}</div>`:''}
         <div class="doc-control-footer">SE-07-F02 &nbsp;|&nbsp; VER.NO.: 01 &nbsp;|&nbsp; VER. DATE: 01/01/2025</div>
       </div>
 
       ${(p.status === 'pending' || p.status === 'pending_dept') ? `
         ${(((currentUserRole === 'dept_admin' || currentUserRole === 'maint_admin') && currentUserDept === p.department)) || currentUserRole === 'super_admin' ? `
           <div class="row2" style="margin-top:12px;">
-            <div class="field"><label>اسم مدير المنطقة</label><input id="area-${p.id}" type="text" placeholder="اختياري"></div>
+            <div class="field"><label>${T("اسم مدير المنطقة")}</label><input id="area-${p.id}" type="text" placeholder="${T("اختياري")}"></div>
           </div>
           <div class="actions">
-            <button class="act-btn approve" onclick="approvePermit('${p.id}')">✓ موافقة أدمن القسم</button>
-            <button class="act-btn reject" onclick="toggleNote('${p.id}')">✗ رفض</button>
+            <button class="act-btn approve" onclick="approvePermit('${p.id}')">${T("✓ موافقة أدمن القسم")}</button>
+            <button class="act-btn reject" onclick="toggleNote('${p.id}')">${T("✗ رفض")}</button>
           </div>
           <div class="note-box" id="note-${p.id}">
-            <textarea id="notetext-${p.id}" placeholder="سبب الرفض (اختياري)"></textarea>
-            <button onclick="rejectPermit('${p.id}')">تأكيد الرفض</button>
+            <textarea id="notetext-${p.id}" placeholder="${T("سبب الرفض (اختياري)")}"></textarea>
+            <button onclick="rejectPermit('${p.id}')">${T("تأكيد الرفض")}</button>
           </div>
         ` : `
-          <div class="review-note">⏳ الطلب بانتظار موافقة أدمن قسم ${escapeHtml(p.department)}</div>
+          <div class="review-note">${T("⏳ الطلب بانتظار موافقة أدمن قسم")} ${escapeHtml(p.department)}</div>
         `}
       ` : ''}
 
       ${p.status === 'pending_hse' ? `
-        <div class="reviewed-by">موافقة مبدئية من: ${escapeHtml(p.areaHeadReviewedBy)||'أدمن القسم'} — ${p.areaHeadReviewedAt ? new Date(p.areaHeadReviewedAt).toLocaleString('ar-EG') : ''}</div>
+        <div class="reviewed-by">${T("موافقة مبدئية من:")} ${escapeHtml(p.areaHeadReviewedBy)||T('أدمن القسم')} — ${p.areaHeadReviewedAt ? new Date(p.areaHeadReviewedAt).toLocaleString(LOC()) : ''}</div>
         ${(currentUserRole === 'hse_admin' || currentUserRole === 'super_admin') ? `
           <div class="row2" style="margin-top:12px;">
-            <div class="field"><label>اسم مشرف السلامة</label><input id="safety-${p.id}" type="text" placeholder="اختياري"></div>
+            <div class="field"><label>${T("اسم مشرف السلامة")}</label><input id="safety-${p.id}" type="text" placeholder="${T("اختياري")}"></div>
           </div>
           <div class="actions">
-            <button class="act-btn approve" onclick="approvePermit('${p.id}')">✓ اعتماد السلامة والصحة المهنية (HSE)</button>
-            <button class="act-btn reject" onclick="toggleNote('${p.id}')">✗ رفض</button>
+            <button class="act-btn approve" onclick="approvePermit('${p.id}')">${T("✓ اعتماد السلامة والصحة المهنية (HSE)")}</button>
+            <button class="act-btn reject" onclick="toggleNote('${p.id}')">${T("✗ رفض")}</button>
           </div>
           <div class="note-box" id="note-${p.id}">
-            <textarea id="notetext-${p.id}" placeholder="سبب الرفض (اختياري)"></textarea>
-            <button onclick="rejectPermit('${p.id}')">تأكيد الرفض</button>
+            <textarea id="notetext-${p.id}" placeholder="${T("سبب الرفض (اختياري)")}"></textarea>
+            <button onclick="rejectPermit('${p.id}')">${T("تأكيد الرفض")}</button>
           </div>
         ` : `
-          <div class="review-note">⏳ الطلب بانتظار اعتماد السلامة والصحة المهنية (HSE)</div>
+          <div class="review-note">${T("⏳ الطلب بانتظار اعتماد السلامة والصحة المهنية (HSE)")}</div>
         `}
       ` : ''}
 
       ${p.status === 'approved' ? `
-        ${p.areaHeadReviewedBy ? `<div class="reviewed-by">موافقة رئيس منطقة: ${escapeHtml(p.areaHeadReviewedBy)} — ${p.areaHeadReviewedAt ? new Date(p.areaHeadReviewedAt).toLocaleString('ar-EG') : ''}</div>` : ''}
-        <div class="reviewed-by">اعتمدته الإدارة: ${escapeHtml(p.reviewedBy)||'الإدارة'} — ${p.reviewedAt ? new Date(p.reviewedAt).toLocaleString('ar-EG') : ''}</div>
+        ${p.areaHeadReviewedBy ? `<div class="reviewed-by">${T("موافقة رئيس منطقة:")} ${escapeHtml(p.areaHeadReviewedBy)} — ${p.areaHeadReviewedAt ? new Date(p.areaHeadReviewedAt).toLocaleString(LOC()) : ''}</div>` : ''}
+        <div class="reviewed-by">${T("اعتمدته الإدارة:")} ${escapeHtml(p.reviewedBy)||T('الإدارة')} — ${p.reviewedAt ? new Date(p.reviewedAt).toLocaleString(LOC()) : ''}</div>
         <div class="review-note" style="background-color: var(--card-bg); border: 1px dashed var(--success);">
-          🔒 الطلب معتمد ومفتوح. يمكن للموظف إغلاقه من حسابه.
+          ${T("🔒 الطلب معتمد ومفتوح. يمكن للموظف إغلاقه من حسابه.")}
         </div>
       ` : ''}
 
       ${p.status === 'rejected' ? `
-        <div class="reviewed-by">رفضه: ${escapeHtml(p.reviewedBy)||'المشرف'} — ${p.reviewedAt ? new Date(p.reviewedAt).toLocaleString('ar-EG') : ''}</div>
-        ${p.reviewNote ? `<div class="review-note">سبب الرفض: ${escapeHtml(p.reviewNote)}</div>` : ''}
+        <div class="reviewed-by">${T("رفضه:")} ${escapeHtml(p.reviewedBy)||T('المشرف')} — ${p.reviewedAt ? new Date(p.reviewedAt).toLocaleString(LOC()) : ''}</div>
+        ${p.reviewNote ? `<div class="review-note">${T("سبب الرفض:")} ${escapeHtml(p.reviewNote)}</div>` : ''}
       ` : ''}
 
       ${p.status.startsWith('closed') ? `
-        <div class="reviewed-by">اعتمدته الإدارة: ${escapeHtml(p.reviewedBy)||'الإدارة'}</div>
-        <div class="reviewed-by">حالة الإغلاق: ${closureLabel(p.closure)} — ${p.closure && p.closure.time ? new Date(p.closure.time).toLocaleString('ar-EG') : ''}</div>
-        ${p.closure && p.closure.closedBy ? `<div class="reviewed-by">أغلقه: ${escapeHtml(p.closure.closedBy.includes('(worker)') ? (p.workerName || p.applicantName || p.employeeName || p.closure.closedBy) : p.closure.closedBy)}</div>` : ''}
-        ${p.closure && p.closure.reason ? `<div class="review-note">السبب: ${escapeHtml(p.closure.reason)}</div>` : ''}
+        <div class="reviewed-by">${T("اعتمدته الإدارة:")} ${escapeHtml(p.reviewedBy)||T('الإدارة')}</div>
+        <div class="reviewed-by">${T("حالة الإغلاق:")} ${closureLabel(p.closure)} — ${p.closure && p.closure.time ? new Date(p.closure.time).toLocaleString(LOC()) : ''}</div>
+        ${p.closure && p.closure.closedBy ? `<div class="reviewed-by">${T("أغلقه:")} ${escapeHtml(p.closure.closedBy.includes('(worker)') ? (p.workerName || p.applicantName || p.employeeName || p.closure.closedBy) : p.closure.closedBy)}</div>` : ''}
+        ${p.closure && p.closure.reason ? `<div class="review-note">${T("السبب:")} ${escapeHtml(p.closure.reason)}</div>` : ''}
       ` : ''}
       ${currentFilter === '🗑️ المحذوفات' ? `
         <div style="margin-top:12px; border-top:1px solid var(--paper-line); padding-top:10px; display: flex; flex-direction: column; gap: 8px;">
           ${(currentUserRole === 'super_admin' || p.deletedByUsername === currentUsername || p.lastDeletedByUsername === currentUsername) ? `
           <div style="display: flex; gap: 8px;">
-            <button class="act-btn" style="flex:1; background:var(--success); color:white; border:none; padding:8px; border-radius:4px; cursor:pointer;" onclick="restorePermit('${p.id}')">🔄 استرجاع</button>
-            <button class="act-btn" style="flex:1; background:var(--danger); color:white; border:none; padding:8px; border-radius:4px; cursor:pointer;" onclick="hardDeletePermit('${p.id}')">❌ حذف نهائي</button>
+            <button class="act-btn" style="flex:1; background:var(--success); color:white; border:none; padding:8px; border-radius:4px; cursor:pointer;" onclick="restorePermit('${p.id}')">${T("🔄 استرجاع")}</button>
+            <button class="act-btn" style="flex:1; background:var(--danger); color:white; border:none; padding:8px; border-radius:4px; cursor:pointer;" onclick="hardDeletePermit('${p.id}')">${T("❌ حذف نهائي")}</button>
           </div>
           ` : ''}
-          ${(p.lastDeletedByUsername || p.deletedByUsername) ? `<div style="font-size:12px; color:var(--danger); margin-top:4px; font-weight:bold;">حُذف بواسطة: ${escapeHtml(p.lastDeletedByUsername || p.deletedByUsername || 'المشرف')} ${p.deleteReason ? `| السبب: ${escapeHtml(p.deleteReason)}` : ''}</div>` : ''}
+          ${(p.lastDeletedByUsername || p.deletedByUsername) ? `<div style="font-size:12px; color:var(--danger); margin-top:4px; font-weight:bold;">${T("حُذف بواسطة:")} ${escapeHtml(p.lastDeletedByUsername || p.deletedByUsername || T('المشرف'))} ${p.deleteReason ? `${T("| السبب:")} ${escapeHtml(p.deleteReason)}` : ''}</div>` : ''}
         </div>
       ` : ''}
       ${currentFilter !== '🗑️ المحذوفات' && (currentUserRole === 'super_admin' || currentUserRole === 'hse_admin' || currentUserRole === 'dept_admin' || currentUserRole === 'maint_admin') ? `
         <div style="margin-top:12px; text-align:left;">
-          <button class="um-btn del" onclick="openDeletePermitModal('${p.id}')">🗑️ حذف</button>
+          <button class="um-btn del" onclick="openDeletePermitModal('${p.id}')">${T("🗑️ حذف")}</button>
         </div>
       ` : ''}
     </div>
@@ -2522,7 +2652,7 @@ async function confirmDeletePermit() {
   msgEl.className = 'um-msg';
 
   if(!reason) {
-    msgEl.textContent = 'من فضلك أدخل سبب الحذف';
+    msgEl.textContent = T('من فضلك أدخل سبب الحذف');
     msgEl.className = 'um-msg error show';
     return;
   }
@@ -2535,7 +2665,7 @@ async function confirmDeletePermit() {
     });
     const data = await res.json();
     if (res.ok) {
-      msgEl.textContent = '✅ تم حذف الطلب ونقله للأرشيف';
+      msgEl.textContent = T('✅ تم حذف الطلب ونقله للأرشيف');
       msgEl.className = 'um-msg success show';
       
       if (data.permit) {
@@ -2549,16 +2679,16 @@ async function confirmDeletePermit() {
         pollPermitsForSupervisor();
       }, 1000);
     } else {
-      msgEl.textContent = data.error || 'فشل عملية الحذف';
+      msgEl.textContent = data.error || T('فشل عملية الحذف');
       msgEl.className = 'um-msg error show';
     }
   } catch (e) {
-    msgEl.textContent = 'خطأ في الاتصال بالسيرفر';
+    msgEl.textContent = T('خطأ في الاتصال بالسيرفر');
     msgEl.className = 'um-msg error show';
   }
 }
 async function restorePermit(id) {
-  if(!confirm('هل أنت متأكد من استعادة هذا الطلب؟')) return;
+  if(!confirm(T('هل أنت متأكد من استعادة هذا الطلب؟'))) return;
   try {
     const res = await authFetch(`/api/permits/${encodeURIComponent(id)}/restore`, { method: 'POST' });
     if(res.ok) {
@@ -2571,15 +2701,15 @@ async function restorePermit(id) {
       pollPermitsForSupervisor();
     } else {
       const data = await res.json();
-      showToast(data.error || 'فشل استعادة الطلب', 'error');
+      showToast(data.error || T('فشل استعادة الطلب'), 'error');
     }
   } catch (e) {
-    showToast('خطأ في الاتصال بالسيرفر', 'error');
+    showToast(T('خطأ في الاتصال بالسيرفر'), 'error');
   }
 }
 
 async function hardDeletePermit(id) {
-  if(!confirm('هل أنت متأكد من حذف هذا الطلب نهائياً من سلة المحذوفات؟ لا يمكن التراجع عن هذا الإجراء')) return;
+  if(!confirm(T('هل أنت متأكد من حذف هذا الطلب نهائياً من سلة المحذوفات؟ لا يمكن التراجع عن هذا الإجراء'))) return;
   try {
     const res = await authFetch(`/api/permits/${encodeURIComponent(id)}/permanent`, { method: 'DELETE' });
     if(res.ok) {
@@ -2592,10 +2722,10 @@ async function hardDeletePermit(id) {
       pollPermitsForSupervisor();
     } else {
       const data = await res.json();
-      showToast(data.error || 'فشل الحذف النهائي', 'error');
+      showToast(data.error || T('فشل الحذف النهائي'), 'error');
     }
   } catch (e) {
-    showToast('خطأ في الاتصال بالسيرفر', 'error');
+    showToast(T('خطأ في الاتصال بالسيرفر'), 'error');
   }
 }
 
@@ -2621,10 +2751,10 @@ async function approvePermit(id){
       renderFilters();
       renderList();
     } else {
-      showToast(data.error || 'حصل خطأ في الموافقة، حاول تاني', 'error');
+      showToast(data.error || T('حصل خطأ في الموافقة، حاول تاني'), 'error');
     }
   } catch(e) {
-    showToast('حصل خطأ في الاتصال بالسيرفر', 'error');
+    showToast(T('حصل خطأ في الاتصال بالسيرفر'), 'error');
   }
 }
 
@@ -2646,10 +2776,10 @@ async function rejectPermit(id){
       if (idx !== -1 && data.permit) permitsCache[idx] = data.permit;
       renderList();
     } else {
-      showToast(data.error || 'حصل خطأ في الرفض، حاول تاني', 'error');
+      showToast(data.error || T('حصل خطأ في الرفض، حاول تاني'), 'error');
     }
   } catch(e) {
-    showToast('حصل خطأ في الاتصال بالسيرفر', 'error');
+    showToast(T('حصل خطأ في الاتصال بالسيرفر'), 'error');
   }
 }
 
@@ -2658,7 +2788,7 @@ async function savePermitEmployeeCode(id){
   const inputEl = document.getElementById('empcode-'+id);
   const code = inputEl ? inputEl.value.trim() : '';
   if(!code){
-    showToast('من فضلك أدخل الكود الوظيفي أولاً', 'error');
+    showToast(T('من فضلك أدخل الكود الوظيفي أولاً'), 'error');
     return;
   }
   try {
@@ -2673,10 +2803,10 @@ async function savePermitEmployeeCode(id){
       if (idx !== -1 && data.permit) permitsCache[idx] = data.permit;
       renderList();
     } else {
-      showToast(data.error || 'حصل خطأ في حفظ الكود، حاول تاني', 'error');
+      showToast(data.error || T('حصل خطأ في حفظ الكود، حاول تاني'), 'error');
     }
   } catch(e) {
-    showToast('حصل خطأ في الاتصال بالسيرفر', 'error');
+    showToast(T('حصل خطأ في الاتصال بالسيرفر'), 'error');
   }
 }
 
@@ -2695,10 +2825,10 @@ async function closePermit(id, type){
       if (idx !== -1 && data.permit) permitsCache[idx] = data.permit;
       renderList();
     } else {
-      showToast(data.error || 'حصل خطأ في الإغلاق، حاول تاني', 'error');
+      showToast(data.error || T('حصل خطأ في الإغلاق، حاول تاني'), 'error');
     }
   } catch(e) {
-    showToast('حصل خطأ في الاتصال بالسيرفر', 'error');
+    showToast(T('حصل خطأ في الاتصال بالسيرفر'), 'error');
   }
 }
 
@@ -2717,10 +2847,10 @@ async function workerClosePermit(id, type) {
     if (res.ok) {
       renderMyHistory(true);
     } else {
-      showToast(data.error || 'حصل خطأ في الإغلاق، حاول تاني', 'error');
+      showToast(data.error || T('حصل خطأ في الإغلاق، حاول تاني'), 'error');
     }
   } catch(e) {
-    showToast('حصل خطأ في الاتصال بالسيرفر', 'error');
+    showToast(T('حصل خطأ في الاتصال بالسيرفر'), 'error');
   }
 }
 
@@ -2758,7 +2888,7 @@ function exportExcel(){
     });
 
     if(list.length === 0){
-      showToast('لا توجد بيانات محذوفة لتصديرها بعد', 'error');
+      showToast(T('لا توجد بيانات محذوفة لتصديرها بعد'), 'error');
       return;
     }
 
@@ -2766,16 +2896,16 @@ function exportExcel(){
       'كود الطلب': p.id,
       'اسم مقدم الطلب': p.workerName,
       'القسم': p.department,
-      'تاريخ الحذف': p.deletedAt ? new Date(p.deletedAt).toLocaleString('ar-EG') : '',
+      'تاريخ الحذف': p.deletedAt ? new Date(p.deletedAt).toLocaleString(LOC()) : '',
       'اسم من قام بالحذف': p.deletedByUsername || '',
       'سبب الحذف': p.deleteReason || ''
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
     ws['!cols'] = Object.keys(rows[0]).map(()=>({wch:20}));
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'المحذوفات');
+    XLSX.utils.book_append_sheet(wb, ws, T('المحذوفات'));
     const dateStr = new Date().toISOString().split('T')[0];
-    XLSX.writeFile(wb, `سجل_المحذوفات_${dateStr}.xlsx`);
+    XLSX.writeFile(wb, `${T("سجل_المحذوفات_")}${dateStr}.xlsx`);
     return;
   }
 
@@ -2801,7 +2931,7 @@ function exportExcel(){
     return !deletedBy[roleKey] && statusFilterMatch(p.status) && typeFilterMatch(p);
   });
   if(list.length === 0){
-    showToast('لا توجد بيانات لتصديرها بعد', 'error');
+    showToast(T('لا توجد بيانات لتصديرها بعد'), 'error');
     return;
   }
   // main sheet mirrors the official "سجل متابعة الطلبات" column layout
@@ -2824,16 +2954,16 @@ function exportExcel(){
     'مكان العمل': p.location,
     'أسماء القائمين بالعمل': p.workersNames,
     'بنود قائمة تحقق = لا': (p.checklist||[]).filter(c=>c.answer==='لا').map(c=>c.question).join(' | '),
-    'وقت الإرسال': p.submittedAt ? new Date(p.submittedAt).toLocaleString('ar-EG') : '',
-    'وقت المراجعة': p.reviewedAt ? new Date(p.reviewedAt).toLocaleString('ar-EG') : ''
+    'وقت الإرسال': p.submittedAt ? new Date(p.submittedAt).toLocaleString(LOC()) : '',
+    'وقت المراجعة': p.reviewedAt ? new Date(p.reviewedAt).toLocaleString(LOC()) : ''
   }));
   const ws = XLSX.utils.json_to_sheet(rows);
   ws['!cols'] = Object.keys(rows[0]).map(()=>({wch:20}));
 
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'سجل متابعة الطلبات');
+  XLSX.utils.book_append_sheet(wb, ws, T('سجل متابعة الطلبات'));
   const dateStr = new Date().toISOString().split('T')[0];
-  XLSX.writeFile(wb, `سجل_طلبات_العمل_${dateStr}.xlsx`);
+  XLSX.writeFile(wb, `${T("سجل_طلبات_العمل_")}${dateStr}.xlsx`);
 }
 
 // ---------- PWA install prompt (Android/Chrome "أضف للشاشة الرئيسية") ----------
@@ -2909,7 +3039,7 @@ function toggleUmDept() {
 async function renderUsersPanel(){
   const listEl = document.getElementById('um_usersList');
   if(!listEl) return;
-  listEl.innerHTML = '<div class="loading">جارِ تحميل المستخدمين…</div>';
+  listEl.innerHTML = T('<div class="loading">جارِ تحميل المستخدمين…</div>');
   try{
     const res = await authFetch('/api/users');
     if(!res.ok) throw new Error('fetch failed');
@@ -2917,7 +3047,7 @@ async function renderUsersPanel(){
     const users = data.users || [];
     window.umUsers = users; // Save globally for the edit modal
     if(users.length === 0){
-      listEl.innerHTML = '<div class="empty"><div class="icon">👤</div>لا يوجد مستخدمون</div>';
+      listEl.innerHTML = T('<div class="empty"><div class="icon">👤</div>لا يوجد مستخدمون</div>');
       return;
     }
     listEl.innerHTML = `
@@ -2926,11 +3056,11 @@ async function renderUsersPanel(){
           <thead>
             <tr>
               <th>#</th>
-              <th>الاسم</th>
-              <th>اسم المستخدم</th>
-              <th>الدور</th>
-              <th>تاريخ الإنشاء</th>
-              <th>إجراءات</th>
+              <th>${T("الاسم")}</th>
+              <th>${T("اسم المستخدم")}</th>
+              <th>${T("الدور")}</th>
+              <th>${T("تاريخ الإنشاء")}</th>
+              <th>${T("إجراءات")}</th>
             </tr>
           </thead>
           <tbody>
@@ -2943,12 +3073,12 @@ async function renderUsersPanel(){
                   <span class="role-badge ${u.role}">${roleLabel(u.role)}</span>
                   ${u.role === 'dept_admin' && u.department ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">${escapeHtml(u.department)}</div>` : ''}
                 </td>
-                <td style="color:var(--muted);font-size:12px;">${u.createdAt ? new Date(u.createdAt).toLocaleDateString('ar-EG') : '—'}</td>
+                <td style="color:var(--muted);font-size:12px;">${u.createdAt ? new Date(u.createdAt).toLocaleDateString(LOC()) : '—'}</td>
                 <td>
                   <div class="um-action-btns">
-                    <button class="um-btn pass" onclick="openEditUserModal('${u.id}')">✏️ تعديل</button>
+                    <button class="um-btn pass" onclick="openEditUserModal('${u.id}')">${T("✏️ تعديل")}</button>
                     <button class="um-btn del" onclick="deleteUser('${u.id}','${escapeHtml(u.name)}')"
-                      ${u.role==='super_admin' ? 'disabled title="لا يمكن حذف Super Admin"' : ''}>🗑 حذف</button>
+                      ${u.role==='super_admin' ? T('disabled title="لا يمكن حذف Super Admin"') : ''}>${T("🗑 حذف")}</button>
                   </div>
                 </td>
               </tr>
@@ -2958,7 +3088,7 @@ async function renderUsersPanel(){
       </div>
     `;
   } catch(e){
-    listEl.innerHTML = '<div class="empty" style="color:var(--danger);">فشل تحميل المستخدمين</div>';
+    listEl.innerHTML = T('<div class="empty" style="color:var(--danger);">فشل تحميل المستخدمين</div>');
   }
 }
 
@@ -2975,12 +3105,12 @@ async function addUser(){
   msgEl.style.display = 'none';
 
   if(!name || !username || !password){
-    msgEl.textContent = 'من فضلك املأ جميع الحقول المطلوبة';
+    msgEl.textContent = T('من فضلك املأ جميع الحقول المطلوبة');
     msgEl.className = 'um-msg error show';
     return;
   }
   btn.disabled = true;
-  btn.textContent = 'جارِ الإضافة…';
+  btn.textContent = T('جارِ الإضافة…');
   try{
     // ─── استخدام authFetch لإرسال الـ Token ─────────────────
     const res = await authFetch('/api/users',{
@@ -2990,7 +3120,7 @@ async function addUser(){
     });
     const data = await res.json();
     if(res.ok){
-      msgEl.textContent = `✅ تم إضافة المستخدم "${name}" بنجاح`;
+      msgEl.textContent = `${T("✅ تم إضافة المستخدم")} "${name}" ${T("بنجاح")}`;
       msgEl.className = 'um-msg success show';
       document.getElementById('um_name').value = '';
       document.getElementById('um_username').value = '';
@@ -2998,19 +3128,19 @@ async function addUser(){
       document.getElementById('um_role').value = 'hse_admin';
       renderUsersPanel();
     } else {
-      msgEl.textContent = data.error || 'حصل خطأ في الإضافة';
+      msgEl.textContent = data.error || T('حصل خطأ في الإضافة');
       msgEl.className = 'um-msg error show';
     }
   } catch(e){
-    msgEl.textContent = 'حصل خطأ في الاتصال بالسيرفر';
+    msgEl.textContent = T('حصل خطأ في الاتصال بالسيرفر');
     msgEl.className = 'um-msg error show';
   }
   btn.disabled = false;
-  btn.textContent = '➕ إضافة المستخدم';
+  btn.textContent = T('➕ إضافة المستخدم');
 }
 
 async function deleteUser(id, name){
-  if(!confirm(`هل أنت متأكد من حذف المستخدم "${name}"؟\nهذه العملية لا يمكن التراجع عنها.`)) return;
+  if(!confirm(`${T("هل أنت متأكد من حذف المستخدم")} "${name}"${T("؟\\nهذه العملية لا يمكن التراجع عنها.")}`)) return;
   try{
     // ─── استخدام authFetch لإرسال الـ Token ─────────────────
     const res = await authFetch(`/api/users/${encodeURIComponent(id)}`, {method:'DELETE'});
@@ -3018,10 +3148,10 @@ async function deleteUser(id, name){
     if(res.ok){
       renderUsersPanel();
     } else {
-      showToast(data.error || 'فشل حذف المستخدم', 'error');
+      showToast(data.error || T('فشل حذف المستخدم'), 'error');
     }
   } catch(e){
-    showToast('حصل خطأ في الاتصال بالسيرفر', 'error');
+    showToast(T('حصل خطأ في الاتصال بالسيرفر'), 'error');
   }
 }
 
@@ -3042,7 +3172,7 @@ function openEditUserModal(userId){
   if(!user) return;
   
   umEditTargetId = userId;
-  document.getElementById('um_editModalName').textContent = `تعديل المستخدم: ${user.name}`;
+  document.getElementById('um_editModalName').textContent = `${T("تعديل المستخدم:")} ${user.name}`;
   document.getElementById('um_editName').value = user.name || '';
   document.getElementById('um_editUsername').value = user.username || '';
   document.getElementById('um_editRole').value = user.role || 'hse_admin';
@@ -3072,12 +3202,12 @@ async function saveUserEdit(){
   msgEl.className = 'um-msg';
   
   if(!name || !username || !role){
-    msgEl.textContent = 'من فضلك أملأ جميع الحقول المطلوبة';
+    msgEl.textContent = T('من فضلك أملأ جميع الحقول المطلوبة');
     msgEl.className = 'um-msg error show';
     return;
   }
   if(newPass && newPass.length < 6){
-    msgEl.textContent = 'كلمة المرور يجب أن تكون 6 أحرف على الأقل';
+    msgEl.textContent = T('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
     msgEl.className = 'um-msg error show';
     return;
   }
@@ -3093,18 +3223,18 @@ async function saveUserEdit(){
     });
     const data = await res.json();
     if(res.ok){
-      msgEl.textContent = '✅ تم تحديث بيانات المستخدم بنجاح';
+      msgEl.textContent = T('✅ تم تحديث بيانات المستخدم بنجاح');
       msgEl.className = 'um-msg success show';
       setTimeout(() => {
         closeEditUserModal();
         renderUsersPanel();
       }, 1000);
     } else {
-      msgEl.textContent = data.error || 'حصل خطأ أثناء التحديث';
+      msgEl.textContent = data.error || T('حصل خطأ أثناء التحديث');
       msgEl.className = 'um-msg error show';
     }
   } catch(e){
-    msgEl.textContent = 'حصل خطأ في الاتصال بالسيرفر';
+    msgEl.textContent = T('حصل خطأ في الاتصال بالسيرفر');
     msgEl.className = 'um-msg error show';
   }
 }
@@ -3145,7 +3275,7 @@ const EMP_ROLE_LABELS = {
   contractor: 'مقاول / خارجي'
 };
 
-function empRoleLabel(r){ return EMP_ROLE_LABELS[r] || r || 'عامل'; }
+function empRoleLabel(r){ return T(EMP_ROLE_LABELS[r] || r || T('عامل')); }
 
 
 function toArray(val) {
@@ -3166,7 +3296,7 @@ async function renderEmployeesPanel() {
   if (tableWrap) tableWrap.style.display = 'block';
   
   const listEl = document.getElementById('empDirList');
-  if (listEl) listEl.innerHTML = '<div class="loading">جارِ تحميل الموظفين…</div>';
+  if (listEl) listEl.innerHTML = T('<div class="loading">جارِ تحميل الموظفين…</div>');
 
   // Sync user badge
   const emArea = document.getElementById('emUserProfileChip');
@@ -3214,7 +3344,7 @@ async function renderEmployeesPanel() {
     renderModelEmployeeSection();
   } catch (err) {
     console.error('Error in renderEmployeesPanel:', err);
-    if (listEl) listEl.innerHTML = `<p style="color:var(--danger); text-align:center; padding:2rem;">فشل تحميل الموظفين: ${err.message}</p>`;
+    if (listEl) listEl.innerHTML = `<p style="color:var(--danger); text-align:center; padding:2rem;">${T("فشل تحميل الموظفين:")} ${err.message}</p>`;
   }
 }
 
@@ -3449,22 +3579,22 @@ function renderEmployeesPanelUI() {
       <div class="emp-kpi-card">
         <div class="emp-kpi-icon">👥</div>
         <div class="emp-kpi-value">${scoredEmployees.length}</div>
-        <div class="emp-kpi-label">إجمالي الموظفين</div>
+        <div class="emp-kpi-label">${T("إجمالي الموظفين")}</div>
       </div>
       <div class="emp-kpi-card">
         <div class="emp-kpi-icon">🎓</div>
         <div class="emp-kpi-value">${totalTHours}</div>
-        <div class="emp-kpi-label">ساعات التدريب المنجزة</div>
+        <div class="emp-kpi-label">${T("ساعات التدريب المنجزة")}</div>
       </div>
       <div class="emp-kpi-card">
         <div class="emp-kpi-icon">⚠️</div>
         <div class="emp-kpi-value">${totalHCount}</div>
-        <div class="emp-kpi-label">بلاغات الخطورة المقدمة</div>
+        <div class="emp-kpi-label">${T("بلاغات الخطورة المقدمة")}</div>
       </div>
       <div class="emp-kpi-card">
         <div class="emp-kpi-icon">📈</div>
         <div class="emp-kpi-value">${avgTPerc}%</div>
-        <div class="emp-kpi-label">متوسط نسبة الالتزام</div>
+        <div class="emp-kpi-label">${T("متوسط نسبة الالتزام")}</div>
       </div>
     </div>
   `;
@@ -3533,7 +3663,7 @@ async function renderModelEmployeeSection() {
     deptFilterHtml = `
       <select id="modelEmpDeptSelect" class="lb-filter-btn" style="cursor:pointer;padding:6px 10px;"
         onchange="setModelEmpDeptFilter(this.value)">
-        <option value="الكل">🏢 كل الأقسام</option>
+        <option value="الكل">${T("🏢 كل الأقسام")}</option>
         ${realDepts.map(d => `<option value="${escapeAttr(d)}" ${_modelEmpDeptFilter === d ? 'selected' : ''}>${escapeHtml(d)}</option>`).join('')}
       </select>`;
   }
@@ -3562,7 +3692,7 @@ async function renderModelEmployeeSection() {
 
   const headerHtml = `
     <div class="leaderboard-header">
-      <div class="leaderboard-title">🏆 العامل المثالي${_modelEmpDeptFilter !== 'الكل' ? ' — ' + escapeHtml(_modelEmpDeptFilter) : ''}</div>
+      <div class="leaderboard-title">${T("🏆 العامل المثالي")}${_modelEmpDeptFilter !== 'الكل' ? ' — ' + escapeHtml(_modelEmpDeptFilter) : ''}</div>
       ${canFilterByDept ? `<div class="leaderboard-filters">${deptFilterHtml}</div>` : ''}
     </div>`;
 
@@ -3570,7 +3700,7 @@ async function renderModelEmployeeSection() {
     wrap.innerHTML = `
       <div class="emp-leaderboard-wrap">
         ${headerHtml}
-        <div style="padding:20px;text-align:center;color:var(--muted);">لا توجد بيانات كافية لعرض القائمة${_modelEmpDeptFilter !== 'الكل' ? ' لهذا القسم' : ''}</div>
+        <div style="padding:20px;text-align:center;color:var(--muted);">${T("لا توجد بيانات كافية لعرض القائمة")}${_modelEmpDeptFilter !== 'الكل' ? T(' لهذا القسم') : ''}</div>
       </div>`;
     // Re-apply the select's value after innerHTML rebuild (it's inside headerHtml, already set via `selected` above)
     return;
@@ -3586,13 +3716,13 @@ async function renderModelEmployeeSection() {
       <div class="leaderboard-content">
         <div class="lb-champion-card">
           <div class="lb-champion-crown">👑</div>
-          <div class="lb-champion-title">العامل المثالي</div>
+          <div class="lb-champion-title">${T("العامل المثالي")}</div>
           <div class="lb-champion-name">${escapeHtml(champion.emp.name || '')}</div>
           <div class="lb-champion-dept">${escapeHtml(champion.emp.department || '')}${champion.emp.jobTitle ? ' · ' + escapeHtml(champion.emp.jobTitle) : ''}</div>
           <div class="lb-champion-stats">
-            <div class="lb-stat"><div class="lb-stat-val">${champion.modelScore}%</div><div class="lb-stat-lbl">الالتزام</div></div>
-            <div class="lb-stat"><div class="lb-stat-val">${champion.hazardsCount}</div><div class="lb-stat-lbl">بلاغات</div></div>
-            <div class="lb-stat"><div class="lb-stat-val">${champion.trainingHours}</div><div class="lb-stat-lbl">ساعات تدريب</div></div>
+            <div class="lb-stat"><div class="lb-stat-val">${champion.modelScore}%</div><div class="lb-stat-lbl">${T("الالتزام")}</div></div>
+            <div class="lb-stat"><div class="lb-stat-val">${champion.hazardsCount}</div><div class="lb-stat-lbl">${T("بلاغات")}</div></div>
+            <div class="lb-stat"><div class="lb-stat-val">${champion.trainingHours}</div><div class="lb-stat-lbl">${T("ساعات تدريب")}</div></div>
           </div>
         </div>
         <div class="lb-list">
@@ -3601,7 +3731,7 @@ async function renderModelEmployeeSection() {
               <div class="lb-item-rank ${rankClass(idx + 1)}">${idx + 2}</div>
               <div class="lb-item-info">
                 <div class="lb-item-name">${escapeHtml(r.emp.name || '')}</div>
-                <div class="lb-item-dept">${escapeHtml(r.emp.department || '')}${r.activePenalties ? ' · ⚠️ ' + r.activePenalties + ' جزاء' : ''}</div>
+                <div class="lb-item-dept">${escapeHtml(r.emp.department || '')}${r.activePenalties ? ' · ⚠️ ' + r.activePenalties + T(' جزاء') : ''}</div>
               </div>
               <div class="lb-item-score">${r.modelScore}%</div>
             </div>`).join('')}
@@ -3627,13 +3757,13 @@ function renderEmployeesTable(list) {
           <thead>
             <tr>
               <th>#</th>
-              <th>الكود</th>
-              <th>الاسم الكامل</th>
-              <th>القسم / المسمى</th>
-              <th>⚠️ البلاغات</th>
-              <th>🎓 المحاضرات</th>
-              <th>🚨 تجارب الطوارئ</th>
-              <th>إجراءات</th>
+              <th>${T("الكود")}</th>
+              <th>${T("الاسم الكامل")}</th>
+              <th>${T("القسم / المسمى")}</th>
+              <th>${T("⚠️ البلاغات")}</th>
+              <th>${T("🎓 المحاضرات")}</th>
+              <th>${T("🚨 تجارب الطوارئ")}</th>
+              <th>${T("إجراءات")}</th>
             </tr>
           </thead>
           <tbody id="empTableBody">
@@ -3688,8 +3818,8 @@ function renderEmployeesTableRows(list) {
   if (!Array.isArray(list)) list = [];
   
   if (list.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7"><div class="empty" style="padding:20px;text-align:center;"><div class="icon">👤</div>لا توجد نتائج مطابقة للبحث</div></td></tr>';
-    if (countEl) countEl.innerText = 'إجمالي: 0 موظف';
+    tbody.innerHTML = T('<tr><td colspan="7"><div class="empty" style="padding:20px;text-align:center;"><div class="icon">👤</div>لا توجد نتائج مطابقة للبحث</div></td></tr>');
+    if (countEl) countEl.innerText = T('إجمالي: 0 موظف');
     return;
   }
   
@@ -3729,7 +3859,7 @@ function renderEmployeesTableRows(list) {
         <div style="font-size:11px;color:var(--muted);">${escapeHtml(e.jobTitle || '—')}</div>
       </td>
       <td>
-        <div style="font-size:12px; font-weight:bold; margin-bottom:4px;">${hCount} / ${hTarget} بلاغ</div>
+        <div style="font-size:12px; font-weight:bold; margin-bottom:4px;">${hCount} / ${hTarget} ${T("بلاغ")}</div>
         <div style="display:flex;align-items:center;gap:6px;">
           <div style="flex:1;background:var(--paper-line);height:8px;border-radius:4px;overflow:hidden;min-width:40px;">
             <div style="height:100%;width:${hPerc}%;background:var(--amber);"></div>
@@ -3738,7 +3868,7 @@ function renderEmployeesTableRows(list) {
         </div>
       </td>
       <td>
-        <div style="font-size:12px; font-weight:bold; margin-bottom:4px;">${tHours} / ${tTarget} ساعات</div>
+        <div style="font-size:12px; font-weight:bold; margin-bottom:4px;">${tHours} / ${tTarget} ${T("ساعات")}</div>
         <div style="display:flex;align-items:center;gap:6px;">
           <div style="flex:1;background:var(--paper-line);height:8px;border-radius:4px;overflow:hidden;min-width:40px;">
             <div style="height:100%;width:${tPerc}%;background:var(--amber);"></div>
@@ -3748,19 +3878,19 @@ function renderEmployeesTableRows(list) {
         </div>
       </td>
       <td>
-        <div style="font-size:12px; font-weight:bold; margin-bottom:4px; color:var(--danger);">${dCount} تجربة</div>
+        <div style="font-size:12px; font-weight:bold; margin-bottom:4px; color:var(--danger);">${dCount} ${T("تجربة")}</div>
       </td>
       <td>
         <div class="um-action-btns">
-          <button class="um-btn pass" onclick="openEmpModal('${escapeHtml(e.empCode || e.code)}')">✏️ تعديل</button>
-          <button class="um-btn del"  onclick="deleteEmployee('${escapeHtml(e.empCode || e.code)}','${escapeHtml(e.name||'')}')">🗑 حذف</button>
+          <button class="um-btn pass" onclick="openEmpModal('${escapeHtml(e.empCode || e.code)}')">${T("✏️ تعديل")}</button>
+          <button class="um-btn del"  onclick="deleteEmployee('${escapeHtml(e.empCode || e.code)}','${escapeHtml(e.name||'')}')">${T("🗑 حذف")}</button>
         </div>
       </td>
     </tr>
     `;
   }).join('');
   
-  if (countEl) countEl.innerText = `إجمالي: ${list.length} موظف`;
+  if (countEl) countEl.innerText = `${T("إجمالي:")} ${list.length} ${T("موظف")}`;
   
   // Track currently displayed employee objects for filtered export
   window._currentVisibleEmployees = list;
@@ -3774,7 +3904,7 @@ function openEmpModal(code = null) {
     // Edit mode
     const emp = _allEmployees.find(e => e.empCode === code);
     if (!emp) return;
-    if (titleEl) titleEl.textContent = `✏️ تعديل: ${emp.empCode}`;
+    if (titleEl) titleEl.textContent = `${T("✏️ تعديل:")} ${emp.empCode}`;
     if (codeEl) { codeEl.value = emp.empCode; codeEl.setAttribute('readonly','readonly'); }
     const set = (id, val) => { const el = document.getElementById(id); if(el) el.value = val || ''; };
     set('em_name',     emp.name);
@@ -3784,7 +3914,7 @@ function openEmpModal(code = null) {
     set('em_phone',    emp.phone);
   } else {
     // Add mode
-    if (titleEl) titleEl.textContent = '➕ إضافة موظف جديد';
+    if (titleEl) titleEl.textContent = T('➕ إضافة موظف جديد');
     if (codeEl) { codeEl.value = ''; codeEl.removeAttribute('readonly'); }
     ['em_name','em_dept','em_jobTitle','em_phone'].forEach(id => {
       const el = document.getElementById(id); if(el) el.value = '';
@@ -3814,7 +3944,7 @@ async function saveEmployee() {
   const msgEl    = document.getElementById('em_msg');
 
   if (!code || !name) {
-    if (msgEl) { msgEl.textContent = 'الكود والاسم مطلوبان'; msgEl.className = 'um-msg error show'; }
+    if (msgEl) { msgEl.textContent = T('الكود والاسم مطلوبان'); msgEl.className = 'um-msg error show'; }
     return;
   }
 
@@ -3837,30 +3967,30 @@ async function saveEmployee() {
     }
     const data = await res.json();
     if (res.ok) {
-      if (msgEl) { msgEl.textContent = '✅ تم الحفظ بنجاح'; msgEl.className = 'um-msg success show'; }
+      if (msgEl) { msgEl.textContent = T('✅ تم الحفظ بنجاح'); msgEl.className = 'um-msg success show'; }
       setTimeout(() => { closeEmpModal(); renderEmployeesPanel(); }, 900);
     } else {
-      if (msgEl) { msgEl.textContent = data.error || 'فشل الحفظ'; msgEl.className = 'um-msg error show'; }
+      if (msgEl) { msgEl.textContent = data.error || T('فشل الحفظ'); msgEl.className = 'um-msg error show'; }
     }
   } catch(e) {
-    if (msgEl) { msgEl.textContent = 'خطأ في الاتصال'; msgEl.className = 'um-msg error show'; }
+    if (msgEl) { msgEl.textContent = T('خطأ في الاتصال'); msgEl.className = 'um-msg error show'; }
   }
 }
 
 /** Delete an employee */
 async function deleteEmployee(code, name) {
-  if (!confirm(`هل تريد حذف الموظف "${name}" (${code})؟\nهذه العملية لا يمكن التراجع عنها.`)) return;
+  if (!confirm(`${T("هل تريد حذف الموظف")} "${name}" (${code}${T(")؟\\nهذه العملية لا يمكن التراجع عنها.")}`)) return;
   try {
     const res  = await authFetch(`/api/employees/${encodeURIComponent(code)}`, { method: 'DELETE' });
     const data = await res.json();
     if (res.ok) {
-      showToast(`تم حذف الموظف ${name} بنجاح`, 'success');
+      showToast(`${T("تم حذف الموظف")} ${name} ${T("بنجاح")}`, 'success');
       renderEmployeesPanel();
     } else {
-      showToast(data.error || 'فشل الحذف', 'error');
+      showToast(data.error || T('فشل الحذف'), 'error');
     }
   } catch(e) {
-    showToast('خطأ في الاتصال', 'error');
+    showToast(T('خطأ في الاتصال'), 'error');
   }
 }
 
@@ -3876,7 +4006,7 @@ async function importEmployeesExcel(input) {
     const base64 = btoa(
       new Uint8Array(e.target.result).reduce((s, b) => s + String.fromCharCode(b), '')
     );
-    showToast('جارِ رفع الملف وتحليله…', 'info');
+    showToast(T('جارِ رفع الملف وتحليله…'), 'info');
     try {
       const res  = await authFetch('/api/employees/import-excel', {
         method:  'POST',
@@ -3885,13 +4015,13 @@ async function importEmployeesExcel(input) {
       });
       const data = await res.json();
       if (res.ok) {
-        showToast(`✅ تم الاستيراد: ${data.added} جديد، ${data.updated} محدّث (الإجمالي: ${data.total})`, 'success');
+        showToast(`${T("✅ تم الاستيراد:")} ${data.added} ${T("جديد،")} ${data.updated} ${T("محدّث (الإجمالي:")} ${data.total})`, 'success');
         renderEmployeesPanel();
       } else {
-        showToast(data.error || 'فشل الاستيراد', 'error');
+        showToast(data.error || T('فشل الاستيراد'), 'error');
       }
     } catch(err) {
-      showToast('خطأ في الاتصال أثناء الاستيراد', 'error');
+      showToast(T('خطأ في الاتصال أثناء الاستيراد'), 'error');
     }
   };
   reader.readAsArrayBuffer(file);
@@ -3904,7 +4034,7 @@ window.exportEmployeesExcel = function() {
     : (window._masterEmployeesList || []);
 
   if (!dataToExport || dataToExport.length === 0) {
-    showToast('لا توجد بيانات لتصديرها', 'error');
+    showToast(T('لا توجد بيانات لتصديرها'), 'error');
     return;
   }
 
@@ -3952,14 +4082,14 @@ window.exportEmployeesExcel = function() {
 
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'قاعدة الموظفين');
+    XLSX.utils.book_append_sheet(wb, ws, T('قاعدة الموظفين'));
     
-    const filterName = lbTimeframe === 'all' ? 'سنة_كاملة' : `${lbTimeframe}_أشهر`;
+    const filterName = lbTimeframe === 'all' ? T('سنة_كاملة') : `${lbTimeframe}${T("_أشهر")}`;
     XLSX.writeFile(wb, `employees_stats_${filterName}_${new Date().toISOString().slice(0, 10)}.xlsx`);
-    showToast(`تم تصدير ${scoredData.length} موظف مع الإحصائيات بنجاح 📊`, 'success');
+    showToast(`${T("تم تصدير")} ${scoredData.length} ${T("موظف مع الإحصائيات بنجاح 📊")}`, 'success');
   } catch(e) {
     console.error('Export error:', e);
-    showToast('خطأ أثناء التصدير', 'error');
+    showToast(T('خطأ أثناء التصدير'), 'error');
   }
 };
 
@@ -3988,7 +4118,7 @@ function setMyHistoryFilter(f){
 async function renderMyHistory(isSilent = false){
   if(!currentEmployee){
     const list = document.getElementById('myHistoryList');
-    if(list) list.innerHTML = `<div class="empty"><div class="icon">🔒</div>سجّل دخولك أولاً لعرض سجل طلباتك</div>`;
+    if(list) list.innerHTML = `<div class="empty"><div class="icon">🔒</div>${T("سجّل دخولك أولاً لعرض سجل طلباتك")}</div>`;
     return;
   }
 
@@ -3996,7 +4126,7 @@ async function renderMyHistory(isSilent = false){
   const filtersEl = document.getElementById('myHistoryFilters');
   if(filtersEl){
     filtersEl.innerHTML = MY_HISTORY_FILTERS.map(f =>
-      `<button class="mh-filter-btn ${f === myHistoryFilter ? 'active' : ''}" onclick="setMyHistoryFilter('${f}')">${f}</button>`
+      `<button class="mh-filter-btn ${f === myHistoryFilter ? 'active' : ''}" onclick="setMyHistoryFilter('${f}')">${T(f)}</button>`
     ).join('');
   }
 
@@ -4005,7 +4135,7 @@ async function renderMyHistory(isSilent = false){
   if(subEl) subEl.textContent = `${escapeHtml(currentEmployee.name)} · ${escapeHtml(currentEmployee.empCode)} · ${escapeHtml(currentEmployee.department || '')}`;
 
   const listEl = document.getElementById('myHistoryList');
-  if(!isSilent && listEl) listEl.innerHTML = '<div class="loading">جارِ تحميل سجلك…</div>';
+  if(!isSilent && listEl) listEl.innerHTML = T('<div class="loading">جارِ تحميل سجلك…</div>');
 
   const res = await apiGet('work-permits');
   const raw = res && res.value ? res.value : '[]';
@@ -4026,7 +4156,7 @@ async function renderMyHistory(isSilent = false){
   if(!listEl) return;
 
   if(myPermits.length === 0){
-    listEl.innerHTML = `<div class="empty"><div class="icon">📂</div>لا توجد طلبات ${myHistoryFilter !== 'الكل' ? 'بهذا الفلتر' : 'بعد'}</div>`;
+    listEl.innerHTML = `<div class="empty"><div class="icon">📂</div>${T("لا توجد طلبات")} ${myHistoryFilter !== 'الكل' ? T('بهذا الفلتر') : T('بعد')}</div>`;
     return;
   }
 
@@ -4039,33 +4169,33 @@ async function renderMyHistory(isSilent = false){
     <div class="permit-history-card">
       <div class="phc-top">
         <div>
-          <div class="phc-type-pill">${escapeHtml(p.typeLabel || '')}</div>
+          <div class="phc-type-pill">${escapeHtml(T(p.typeLabel || ''))}</div>
           <div class="phc-id">${escapeHtml(p.id)}</div>
-          <div class="phc-date">${escapeHtml(p.date || '')} · وردية ${escapeHtml(p.shift || '')}</div>
+          <div class="phc-date">${escapeHtml(p.date || '')} ${T("· وردية")} ${escapeHtml(p.shift || '')}</div>
         </div>
         <span class="stamp ${stampClass}">${stampText}</span>
       </div>
       <div class="phc-meta">
-        <div><span>مكان العمل</span>${escapeHtml(p.location || '—')}</div>
-        <div><span>القسم</span>${escapeHtml(p.department || '—')}</div>
+        <div><span>${T("مكان العمل")}</span>${escapeHtml(p.location || '—')}</div>
+        <div><span>${T("القسم")}</span>${escapeHtml(p.department || '—')}</div>
       </div>
       <div class="phc-desc">${escapeHtml(p.description || '')}</div>
-      ${(st === 'pending' || st === 'pending_dept') ? `<div class="phc-msg pending">⏳ بانتظار موافقة أدمن القسم</div>` : ''}
-      ${st === 'pending_hse' ? `<div class="phc-msg pending">✅ تمت موافقة القسم (بانتظار اعتماد السلامة والصحة المهنية)</div>` : ''}
+      ${(st === 'pending' || st === 'pending_dept') ? `<div class="phc-msg pending">${T("⏳ بانتظار موافقة أدمن القسم")}</div>` : ''}
+      ${st === 'pending_hse' ? `<div class="phc-msg pending">${T("✅ تمت موافقة القسم (بانتظار اعتماد السلامة والصحة المهنية)")}</div>` : ''}
       ${st === 'approved' ? `
-        <div class="phc-msg approved">🟢 تم الاعتماد النهائي للطلب — يمكنك الإغلاق بعد الانتهاء</div>
+        <div class="phc-msg approved">${T("🟢 تم الاعتماد النهائي للطلب — يمكنك الإغلاق بعد الانتهاء")}</div>
         <div class="closure-box" style="margin-top:8px;">
-          <div class="field"><input id="myhistory-closereason-${p.id}" type="text" placeholder="سبب عدم الاكتمال أو الإغلاق الجبري (إن وجد)" style="font-size:12px;padding:6px;"></div>
+          <div class="field"><input id="myhistory-closereason-${p.id}" type="text" placeholder="${T("سبب عدم الاكتمال أو الإغلاق الجبري (إن وجد)")}" style="font-size:12px;padding:6px;"></div>
           <div class="closure-actions" style="margin-top:4px;">
-            <button style="color:var(--success);" onclick="workerClosePermit('${p.id}','safe')">اكتمل بأمان</button>
-            <button style="color:var(--amber);" onclick="workerClosePermit('${p.id}','incomplete')">لم يكتمل</button>
-            <button style="color:var(--danger);" onclick="workerClosePermit('${p.id}','forced')">إغلاق جبري</button>
+            <button style="color:var(--success);" onclick="workerClosePermit('${p.id}','safe')">${T("اكتمل بأمان")}</button>
+            <button style="color:var(--amber);" onclick="workerClosePermit('${p.id}','incomplete')">${T("لم يكتمل")}</button>
+            <button style="color:var(--danger);" onclick="workerClosePermit('${p.id}','forced')">${T("إغلاق جبري")}</button>
           </div>
         </div>
       ` : ''}
-      ${st === 'rejected' ? `<div class="phc-msg rejected">❌ تم رفض الطلب${p.reviewNote ? ' — السبب: ' + escapeHtml(p.reviewNote) : ''}</div>` : ''}
-      ${st.startsWith('closed') ? `<div class="phc-msg muted">🔒 مغلق: ${closureLabel(p.closure)}${p.closure && p.closure.reason ? ' — ' + escapeHtml(p.closure.reason) : ''}</div>` : ''}
-      <div class="phc-submitted">أرسل ${p.submittedAt ? new Date(p.submittedAt).toLocaleString('ar-EG') : ''}</div>
+      ${st === 'rejected' ? `<div class="phc-msg rejected">${T("❌ تم رفض الطلب")}${p.reviewNote ? T(' — السبب: ') + escapeHtml(p.reviewNote) : ''}</div>` : ''}
+      ${st.startsWith('closed') ? `<div class="phc-msg muted">${T("🔒 مغلق:")} ${closureLabel(p.closure)}${p.closure && p.closure.reason ? ' — ' + escapeHtml(p.closure.reason) : ''}</div>` : ''}
+      <div class="phc-submitted">${T("أرسل")} ${p.submittedAt ? new Date(p.submittedAt).toLocaleString(LOC()) : ''}</div>
     </div>
     `;
   }).join('');
@@ -4089,7 +4219,7 @@ async function pollMyHistory(){
 async function renderMyHazards(isSilent = false) {
   if (!currentEmployee) {
     const list = document.getElementById('myHazardsList');
-    if (list) list.innerHTML = `<div class="empty"><div class="icon">🔒</div>سجّل دخولك أولاً لعرض سجل بلاغاتك</div>`;
+    if (list) list.innerHTML = `<div class="empty"><div class="icon">🔒</div>${T("سجّل دخولك أولاً لعرض سجل بلاغاتك")}</div>`;
     return;
   }
 
@@ -4097,7 +4227,7 @@ async function renderMyHazards(isSilent = false) {
   if (subEl) subEl.textContent = `${escapeHtml(currentEmployee.name)} · ${escapeHtml(currentEmployee.empCode)}`;
 
   const listEl = document.getElementById('myHazardsList');
-  if (!isSilent && listEl) listEl.innerHTML = '<div class="loading">جارِ تحميل بلاغاتك…</div>';
+  if (!isSilent && listEl) listEl.innerHTML = T('<div class="loading">جارِ تحميل بلاغاتك…</div>');
 
   try {
     const res = await fetch(`/api/my-hazards/${encodeURIComponent(currentEmployee.name)}?empCode=${encodeURIComponent(currentEmployee.empCode || currentEmployee.code || '')}`);
@@ -4107,7 +4237,7 @@ async function renderMyHazards(isSilent = false) {
     window.lastMyHazardsData = JSON.stringify(myHazards);
     
     if (myHazards.length === 0) {
-      if (listEl) listEl.innerHTML = `<div class="empty"><div class="icon">📂</div>لا توجد بلاغات مسجلة</div>`;
+      if (listEl) listEl.innerHTML = `<div class="empty"><div class="icon">📂</div>${T("لا توجد بلاغات مسجلة")}</div>`;
       return;
     }
 
@@ -4115,24 +4245,24 @@ async function renderMyHazards(isSilent = false) {
     myHazards.reverse().forEach(h => {
       let statusStr = 'مفتوح 🔴';
       let statusClass = 'hz-high';
-      let pendingDesc = 'بانتظار مراجعة المشرف';
+      let pendingDesc = T('بانتظار مراجعة المشرف');
       
       if (h.status === 'notified') {
-        statusStr = 'تم الإبلاغ 📢';
+        statusStr = T('تم الإبلاغ 📢');
         statusClass = 'hz-medium';
-        pendingDesc = 'تم إبلاغ القسم المعني والمتخصصين';
+        pendingDesc = T('تم إبلاغ القسم المعني والمتخصصين');
       } else if (h.status === 'in_progress') {
-        statusStr = 'قيد المعالجة والإصلاح 🟡';
+        statusStr = T('قيد المعالجة والإصلاح 🟡');
         statusClass = 'hz-medium';
-        pendingDesc = 'جاري العمل على حل المشكلة';
+        pendingDesc = T('جاري العمل على حل المشكلة');
       } else if (h.status === 'resolved' || h.status === 'closed') {
-        statusStr = 'تم الحل وإغلاق البلاغ 🟢';
+        statusStr = T('تم الحل وإغلاق البلاغ 🟢');
         statusClass = 'hz-low';
-        pendingDesc = 'تمت المعالجة بنجاح';
+        pendingDesc = T('تمت المعالجة بنجاح');
       } else if (h.status && h.status.startsWith('rejected')) {
         statusStr = 'مرفوض ❌';
         statusClass = 'hz-high';
-        pendingDesc = 'تم رفض البلاغ';
+        pendingDesc = T('تم رفض البلاغ');
       }
       
       let riskStr = h.riskLevel === 'H' ? 'High 🔴' : h.riskLevel === 'M' ? 'Medium 🟡' : 'Low 🟢';
@@ -4142,62 +4272,62 @@ async function renderMyHazards(isSilent = false) {
         <div class="sup-card" style="margin-bottom:12px;">
           <div class="sup-top">
             <div>
-              <div class="hz-status-badge ${statusClass}">${statusStr}</div>
+              <div class="hz-status-badge ${statusClass}">${T(statusStr)}</div>
             </div>
             <div class="tnum">${h.id}</div>
           </div>
           <div class="meta-grid">
-            <div><span>التاريخ</span>${h.date}</div>
-            <div><span>القسم</span>${escapeHtml(h.department)}</div>
-            <div><span>المنطقة</span>${escapeHtml(h.area)}</div>
+            <div><span>${T("التاريخ")}</span>${h.date}</div>
+            <div><span>${T("القسم")}</span>${escapeHtml(h.department)}</div>
+            <div><span>${T("المنطقة")}</span>${escapeHtml(h.area)}</div>
           </div>
           <div style="display:flex;align-items:center;gap:12px;margin:12px 0;">
-            <span style="font-size:12px; font-weight:bold;">مستوى الخطورة:</span>
+            <span style="font-size:12px; font-weight:bold;">${T("مستوى الخطورة:")}</span>
             <div class="hz-risk-badge ${riskClass}" style="margin:0; padding:4px 8px; font-size:11.5px;">${riskStr}</div>
           </div>
-          <div class="desc"><strong>وصف الخطورة:</strong><br>${escapeHtml(h.description)}</div>
-          ${h.photoUrl ? `<div style="margin-top:8px;"><div class="hz-photo-badge" onclick="openLightbox('${h.photoUrl}')">🖼️ عرض الصورة</div></div>` : ''}
+          <div class="desc"><strong>${T("وصف الخطورة:")}</strong><br>${escapeHtml(h.description)}</div>
+          ${h.photoUrl ? `<div style="margin-top:8px;"><div class="hz-photo-badge" onclick="openLightbox('${h.photoUrl}')">${T("🖼️ عرض الصورة")}</div></div>` : ''}
           <div class="phc-msg" style="margin-top:10px; font-size:12px; color:var(--muted);">${pendingDesc}</div>
           ${h.actionTaken ? `<div class="note-box show" style="margin-top:10px; background-color: #f8f9fa; border-left: 4px solid var(--primary); padding: 10px; border-radius: 4px;">
-            <strong>🛠️ الإجراء المتخذ من المشرف (${escapeHtml(h.updatedBy || 'إدارة السلامة')}):</strong><br>
+            <strong>${T("🛠️ الإجراء المتخذ من المشرف (")}${escapeHtml(h.updatedBy || T('إدارة السلامة'))}):</strong><br>
             ${escapeHtml(h.actionTaken)}
           </div>` : ''}
           <div class="hazard-timeline">
             <div class="timeline-step done">
               <span class="step-icon">📝</span>
               <div class="step-info">
-                <strong>وقت الإرسال:</strong>
+                <strong>${T("وقت الإرسال:")}</strong>
                 <span>${formatDateTime(h.submittedAt || h.createdAt)}</span>
               </div>
             </div>
             <div class="timeline-step ${h.seenAt ? 'done' : 'pending'}">
               <span class="step-icon">👁️</span>
               <div class="step-info">
-                <strong>وقت المشاهدة من المشرف:</strong>
-                <span>${h.seenAt ? `${formatDateTime(h.seenAt)} (${escapeHtml(h.seenBy || 'المشرف')})` : 'لم تتم المشاهدة بعد'}</span>
+                <strong>${T("وقت المشاهدة من المشرف:")}</strong>
+                <span>${h.seenAt ? `${formatDateTime(h.seenAt)} (${escapeHtml(h.seenBy || T('المشرف'))})` : T('لم تتم المشاهدة بعد')}</span>
               </div>
             </div>
             <div class="timeline-step ${h.inProgressAt ? 'done' : 'pending'}">
               <span class="step-icon">⚙️</span>
               <div class="step-info">
-                <strong>وقت بدء المعالجة:</strong>
-                <span>${h.inProgressAt ? `${formatDateTime(h.inProgressAt)} (${escapeHtml(h.inProgressBy || 'الصيانة')})` : 'بانتظار البدء'}</span>
+                <strong>${T("وقت بدء المعالجة:")}</strong>
+                <span>${h.inProgressAt ? `${formatDateTime(h.inProgressAt)} (${escapeHtml(h.inProgressBy || T('الصيانة'))})` : T('بانتظار البدء')}</span>
               </div>
             </div>
             <div class="timeline-step ${h.resolvedAt ? 'done' : 'pending'}">
               <span class="step-icon">✅</span>
               <div class="step-info">
-                <strong>وقت الانتهاء والإغلاق:</strong>
-                <span>${h.resolvedAt ? `${formatDateTime(h.resolvedAt)} (${escapeHtml(h.resolvedBy || 'المشرف')})` : 'لم ينتهِ بعد'}</span>
+                <strong>${T("وقت الانتهاء والإغلاق:")}</strong>
+                <span>${h.resolvedAt ? `${formatDateTime(h.resolvedAt)} (${escapeHtml(h.resolvedBy || T('المشرف'))})` : T('لم ينتهِ بعد')}</span>
               </div>
             </div>
             ${h.status && h.status.startsWith('rejected') ? `
             <div class="timeline-step done" style="border-left-color: var(--danger);">
               <span class="step-icon" style="background: var(--danger); color: white;">❌</span>
               <div class="step-info">
-                <strong style="color: var(--danger);">تم رفض البلاغ:</strong>
-                <span>${h.rejectedAt ? `${formatDateTime(h.rejectedAt)} (بواسطة: ${escapeHtml(h.rejectedBy || 'المشرف')})` : '—'}</span>
-                <br><span style="color: var(--danger); font-size: 11px;">سبب الرفض: ${escapeHtml(h.rejectionReason || h.reason || 'لم يتم تحديد سبب')}</span>
+                <strong style="color: var(--danger);">${T("تم رفض البلاغ:")}</strong>
+                <span>${h.rejectedAt ? `${formatDateTime(h.rejectedAt)} ${T("(بواسطة:")} ${escapeHtml(h.rejectedBy || T('المشرف'))})` : '—'}</span>
+                <br><span style="color: var(--danger); font-size: 11px;">${T("سبب الرفض:")} ${escapeHtml(h.rejectionReason || h.reason || T('لم يتم تحديد سبب'))}</span>
               </div>
             </div>
             ` : ''}
@@ -4207,7 +4337,7 @@ async function renderMyHazards(isSilent = false) {
     });
     if (listEl) listEl.innerHTML = html;
   } catch (e) {
-    if (listEl) listEl.innerHTML = '<div class="empty">خطأ في جلب البيانات</div>';
+    if (listEl) listEl.innerHTML = T('<div class="empty">خطأ في جلب البيانات</div>');
   }
 }
 
@@ -4257,12 +4387,12 @@ async function lookupHazardEmpCode() {
       if (deptEl) deptEl.value = emp.department || '';
       if (msgEl) { msgEl.textContent = `✅ ${emp.name} — ${emp.department || ''}`; msgEl.style.color = 'var(--success)'; }
     } else {
-      if (msgEl) { msgEl.textContent = 'الكود غير مسجل، يرجى كتابة البيانات يدوياً'; msgEl.style.color = 'var(--muted)'; }
+      if (msgEl) { msgEl.textContent = T('الكود غير مسجل، يرجى كتابة البيانات يدوياً'); msgEl.style.color = 'var(--muted)'; }
       const nameEl = document.getElementById('hz_name');
       if (nameEl) nameEl.removeAttribute('readonly');
     }
   } catch(e) {
-    if (msgEl) { msgEl.textContent = 'خطأ في البحث'; msgEl.style.color = 'var(--danger)'; }
+    if (msgEl) { msgEl.textContent = T('خطأ في البحث'); msgEl.style.color = 'var(--danger)'; }
   }
 }
 
@@ -4337,7 +4467,7 @@ function handleHazardPhotoSelect(event) {
   reader.readAsDataURL(file);
 }
 function confirmHazardPhoto() {
-  showToast('تم اعتماد الصورة بنجاح ✅', 'success');
+  showToast(T('تم اعتماد الصورة بنجاح ✅'), 'success');
 }
 function removeHazardPhoto() {
   currentHazardPhotoBase64 = null;
@@ -4364,13 +4494,13 @@ async function submitHazardReport() {
   const riskLevel = riskBadge ? riskBadge.dataset.level : 'L';
 
   if (!reporterName || !date || !department || !area || !description || !potentialInjury) {
-    showToast('يرجى ملء جميع الحقول المطلوبة', 'error');
+    showToast(T('يرجى ملء جميع الحقول المطلوبة'), 'error');
     return;
   }
 
   const btn = document.getElementById('hz_submitBtn');
   btn.disabled = true;
-  btn.textContent = 'جارِ الإرسال...';
+  btn.textContent = T('جارِ الإرسال...');
 
   try {
     const payload = {
@@ -4396,10 +4526,10 @@ async function submitHazardReport() {
       const msgEl = document.getElementById('hz_msg');
       if (msgEl) {
         msgEl.className = 'wl-msg success';
-        msgEl.textContent = 'تم إرسال البلاغ بنجاح! شكراً لتعاونك.';
+        msgEl.textContent = T('تم إرسال البلاغ بنجاح! شكراً لتعاونك.');
         setTimeout(() => msgEl.textContent = '', 5000);
       }
-      showToast('تم إرسال البلاغ بنجاح! شكراً لتعاونك.', 'success');
+      showToast(T('تم إرسال البلاغ بنجاح! شكراً لتعاونك.'), 'success');
       // Reset form
       document.getElementById('hz_area').value = '';
       document.getElementById('hz_desc').value = '';
@@ -4411,14 +4541,14 @@ async function submitHazardReport() {
       removeHazardPhoto();
     } else {
       const data = await res.json();
-      showToast(data.error || 'حدث خطأ أثناء الإرسال', 'error');
+      showToast(data.error || T('حدث خطأ أثناء الإرسال'), 'error');
     }
   } catch (err) {
-    showToast('خطأ في الاتصال بالخادم', 'error');
+    showToast(T('خطأ في الاتصال بالخادم'), 'error');
   }
 
   btn.disabled = false;
-  btn.textContent = 'إرسال البلاغ ←';
+  btn.textContent = T('إرسال البلاغ ←');
 }
 
 // Supervisor Hazard Functions
@@ -4430,7 +4560,7 @@ let currentHzYearFilter = 'الكل';
 function formatDateTime(isoStr) {
   if (!isoStr) return '';
   const d = new Date(isoStr);
-  return d.toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' });
+  return d.toLocaleString(LOC(), { dateStyle: 'short', timeStyle: 'short' });
 }
 
 function getHazardCardHtml(h) {
@@ -4439,36 +4569,36 @@ function getHazardCardHtml(h) {
   
   let statusStr = 'مفتوح 🔴';
   let statusClass = 'hz-status-open';
-  if (h.status === 'assigned_to_maintenance') { statusStr = `تم التوجيه لـ: ${h.assignedToMaintenance || 'الصيانة'} 📢`; statusClass = 'hz-status-in_progress'; }
+  if (h.status === 'assigned_to_maintenance') { statusStr = `${T("تم التوجيه لـ:")} ${h.assignedToMaintenance || T('الصيانة')} 📢`; statusClass = 'hz-status-in_progress'; }
   if (h.status === 'in_progress') { statusStr = 'قيد الإصلاح 🟡'; statusClass = 'hz-status-in_progress'; }
-  if (h.status === 'rejected_by_maintenance') { statusStr = 'مرفوض (صيانة) ❌'; statusClass = 'hz-status-rejected'; }
-  if (h.status === 'rejected_by_hse') { statusStr = 'مرفوض 🚫'; statusClass = 'hz-status-rejected'; }
-  if (h.status === 'resolved' || h.status === 'closed') { statusStr = 'تم الإصلاح والإغلاق 🟢'; statusClass = 'hz-status-resolved'; }
-  if (h.deleted) { statusStr = 'محذوف 🗑️'; statusClass = 'hz-status-resolved'; }
+  if (h.status === 'rejected_by_maintenance') { statusStr = T('مرفوض (صيانة) ❌'); statusClass = 'hz-status-rejected'; }
+  if (h.status === 'rejected_by_hse') { statusStr = T('مرفوض 🚫'); statusClass = 'hz-status-rejected'; }
+  if (h.status === 'resolved' || h.status === 'closed') { statusStr = T('تم الإصلاح والإغلاق 🟢'); statusClass = 'hz-status-resolved'; }
+  if (h.deleted) { statusStr = T('محذوف 🗑️'); statusClass = 'hz-status-resolved'; }
 
   let actionHtml = '';
   if (!h.deleted) {
     if (h.status === 'rejected_by_maintenance') {
       actionHtml = `<div class="desc" style="margin-top:10px; background:rgba(220,38,38,0.08); padding:8px; border-radius:4px; border:1px solid rgba(220,38,38,0.25);">
-        <strong>سبب رفض الصيانة (${escapeHtml(h.assignedToMaintenance || '')}):</strong><br>${escapeHtml(h.maintRejectReason || '')}
-        <br><span style="font-size:11px;color:var(--danger);">بواسطة: ${escapeHtml(h.maintRejectedBy || '')}</span>
+        <strong>${T("سبب رفض الصيانة (")}${escapeHtml(h.assignedToMaintenance || '')}):</strong><br>${escapeHtml(h.maintRejectReason || '')}
+        <br><span style="font-size:11px;color:var(--danger);">${T("بواسطة:")} ${escapeHtml(h.maintRejectedBy || '')}</span>
       </div>`;
       if (currentUserRole === 'hse_admin' || currentUserRole === 'super_admin') {
         actionHtml += `<div style="display:flex; gap:8px; margin-top:8px;">
-          <button onclick="openHzAssignModal('${h.id}')" class="btn-cyan" style="flex:1;">📢 إعادة التوجيه لقسم آخر</button>
-          <button onclick="openHzRejectHseModal('${h.id}')" class="act-btn approve" style="background:var(--danger); color:#fff;">🚫 رفض البلاغ نهائياً</button>
+          <button onclick="openHzAssignModal('${h.id}')" class="btn-cyan" style="flex:1;">${T("📢 إعادة التوجيه لقسم آخر")}</button>
+          <button onclick="openHzRejectHseModal('${h.id}')" class="act-btn approve" style="background:var(--danger); color:#fff;">${T("🚫 رفض البلاغ نهائياً")}</button>
         </div>`;
       }
     } else if (h.status === 'rejected_by_hse') {
       actionHtml = `<div class="desc" style="margin-top:10px; background:rgba(220,38,38,0.08); padding:8px; border-radius:4px; border:1px solid rgba(220,38,38,0.25);">
-        <strong>سبب رفض المشرف:</strong><br>${escapeHtml(h.hseRejectReason || '')}
-        <br><span style="font-size:11px;color:var(--danger);">بواسطة: ${escapeHtml(h.hseRejectedBy || '')}</span>
+        <strong>${T("سبب رفض المشرف:")}</strong><br>${escapeHtml(h.hseRejectReason || '')}
+        <br><span style="font-size:11px;color:var(--danger);">${T("بواسطة:")} ${escapeHtml(h.hseRejectedBy || '')}</span>
       </div>`;
     } else if (h.status === 'resolved' || h.status === 'closed') {
       actionHtml = `<div class="desc" style="margin-top:10px;">
-        <strong>تفاصيل الإصلاح (الصيانة):</strong><br>${escapeHtml(h.maintenanceAction || 'لا يوجد')}
-        ${h.maintenanceTeamNames ? `<br><strong>فريق الصيانة:</strong> ${escapeHtml(h.maintenanceTeamNames)}` : ''}
-        ${h.resolvedByMaintenanceName ? `<br><span style="font-size:11px;color:var(--muted);">بواسطة: ${escapeHtml(h.resolvedByMaintenanceName)}</span>` : ''}
+        <strong>${T("تفاصيل الإصلاح (الصيانة):")}</strong><br>${escapeHtml(h.maintenanceAction || T('لا يوجد'))}
+        ${h.maintenanceTeamNames ? `<br><strong>${T("فريق الصيانة:")}</strong> ${escapeHtml(h.maintenanceTeamNames)}` : ''}
+        ${h.resolvedByMaintenanceName ? `<br><span style="font-size:11px;color:var(--muted);">${T("بواسطة:")} ${escapeHtml(h.resolvedByMaintenanceName)}</span>` : ''}
       </div>`;
     } else {
       const curRole = currentUserRole || (window.currentUser && window.currentUser.role) || '';
@@ -4480,24 +4610,24 @@ function getHazardCardHtml(h) {
         if (hasFullControl) {
           actionHtml += `
             <div style="display:flex; gap:8px; width:100%; margin-top:10px;">
-              <button onclick="openHzAssignModal('${h.id}')" class="btn-cyan" style="flex:1;">📢 توجيه للصيانة</button>
-              <button onclick="startHzMaintenance('${h.id}')" class="btn-amber" style="flex:1;">🛠️ بدء الإصلاح</button>
-              <button onclick="updateHazardStatus('${h.id}', 'rejected')" class="btn-red" style="flex:1;">🚫 رفض البلاغ</button>
+              <button onclick="openHzAssignModal('${h.id}')" class="btn-cyan" style="flex:1;">${T("📢 توجيه للصيانة")}</button>
+              <button onclick="startHzMaintenance('${h.id}')" class="btn-amber" style="flex:1;">${T("🛠️ بدء الإصلاح")}</button>
+              <button onclick="updateHazardStatus('${h.id}', 'rejected')" class="btn-red" style="flex:1;">${T("🚫 رفض البلاغ")}</button>
             </div>`;
         }
       } else if (h.status === 'assigned_to_maintenance' || h.status === 'assigned_maintenance') {
         if (hasFullControl || (isMaint && h.assignedToMaintenance === currentUserDept)) {
           actionHtml += `
             <div style="display:flex; gap:8px; width:100%; margin-top:10px;">
-              <button onclick="startHzMaintenance('${h.id}')" class="btn-amber" style="flex:1;">🛠️ بدء الإصلاح</button>
-              <button onclick="resolveHazardPrompt('${h.id}')" class="btn-emerald" style="flex:1;">✅ تم الحل والإغلاق</button>
+              <button onclick="startHzMaintenance('${h.id}')" class="btn-amber" style="flex:1;">${T("🛠️ بدء الإصلاح")}</button>
+              <button onclick="resolveHazardPrompt('${h.id}')" class="btn-emerald" style="flex:1;">${T("✅ تم الحل والإغلاق")}</button>
             </div>`;
         }
       } else if (h.status === 'in_progress') {
         if (hasFullControl || (isMaint && h.assignedToMaintenance === currentUserDept)) {
           actionHtml += `
             <div style="display:flex; gap:8px; width:100%; margin-top:10px;">
-              <button onclick="resolveHazardPrompt('${h.id}')" class="btn-emerald" style="flex:1;">✅ تأكيد الإصلاح والإغلاق</button>
+              <button onclick="resolveHazardPrompt('${h.id}')" class="btn-emerald" style="flex:1;">${T("✅ تأكيد الإصلاح والإغلاق")}</button>
             </div>`;
         }
       }
@@ -4507,8 +4637,8 @@ function getHazardCardHtml(h) {
     // Assignment details
     if (h.assignedToMaintenance && h.status !== 'rejected_by_maintenance' && h.status !== 'rejected_by_hse') {
       actionHtml += `<div class="desc" style="margin-top:10px; background:rgba(3,105,161,0.08); padding:8px; border-radius:4px; border:1px solid rgba(3,105,161,0.25);">
-        <strong>جهة الصيانة:</strong> ${escapeHtml(h.assignedToMaintenance)}
-        ${h.forwardedByHseName ? `<br><span style="font-size:11px;color:var(--muted);">توجيه بواسطة: ${escapeHtml(h.forwardedByHseName)}</span>` : ''}
+        <strong>${T("جهة الصيانة:")}</strong> ${escapeHtml(h.assignedToMaintenance)}
+        ${h.forwardedByHseName ? `<br><span style="font-size:11px;color:var(--muted);">${T("توجيه بواسطة:")} ${escapeHtml(h.forwardedByHseName)}</span>` : ''}
       </div>`;
     }
   }
@@ -4523,32 +4653,32 @@ function getHazardCardHtml(h) {
     if (currentUserRole === 'super_admin' || currentUserRole === 'hse_admin' || currentUserRole === 'dept_admin' || (currentUserRole === 'maint_admin' && h.maintenanceDeletedDept === currentUserDept)) {
       manageHtml = `<div style="display:flex; flex-direction:column; gap:8px; margin-top:12px; border-top:1px solid var(--paper-line); padding-top:12px;">
         <div style="display:flex; gap:8px;">
-          <button onclick="restoreHazard('${h.id}')" class="act-btn" style="flex:1; background:var(--success); color:#fff;">🔄 استرجاع</button>
-          <button onclick="permanentDeleteHazard('${h.id}')" class="act-btn" style="flex:1; background:var(--danger); color:#fff;">❌ حذف نهائي</button>
+          <button onclick="restoreHazard('${h.id}')" class="act-btn" style="flex:1; background:var(--success); color:#fff;">${T("🔄 استرجاع")}</button>
+          <button onclick="permanentDeleteHazard('${h.id}')" class="act-btn" style="flex:1; background:var(--danger); color:#fff;">${T("❌ حذف نهائي")}</button>
         </div>
-        ${(h.lastDeletedByUsername || h.deletedByUsername) ? `<div style="font-size:12px; color:var(--danger); margin-top:4px; font-weight:bold;">حُذف بواسطة: ${escapeHtml(h.lastDeletedByUsername || h.deletedByUsername || 'المشرف')} ${h.deleteReason ? `| السبب: ${escapeHtml(h.deleteReason)}` : ''}</div>` : ''}
+        ${(h.lastDeletedByUsername || h.deletedByUsername) ? `<div style="font-size:12px; color:var(--danger); margin-top:4px; font-weight:bold;">${T("حُذف بواسطة:")} ${escapeHtml(h.lastDeletedByUsername || h.deletedByUsername || T('المشرف'))} ${h.deleteReason ? `${T("| السبب:")} ${escapeHtml(h.deleteReason)}` : ''}</div>` : ''}
       </div>`;
     }
   } else {
     if (currentUserRole === 'super_admin' || currentUserRole === 'hse_admin' || currentUserRole === 'dept_admin' || (currentUserRole === 'maint_admin' && h.assignedToMaintenance === currentUserDept)) {
       manageHtml = `<div style="display:flex; justify-content:flex-end; margin-top:12px; border-top:1px solid var(--paper-line); padding-top:12px;">
-        <button onclick="softDeleteHazard('${h.id}')" class="act-btn" style="background:var(--danger); color:#fff; padding:4px 8px; font-size:12px;">🗑️ حذف</button>
+        <button onclick="softDeleteHazard('${h.id}')" class="act-btn" style="background:var(--danger); color:#fff; padding:4px 8px; font-size:12px;">${T("🗑️ حذف")}</button>
       </div>`;
     }
   }
 
   const rawStart = h.treatmentStartedAt || h.startedAt || (h.status === 'resolved' ? h.completedAt : null);
-  const startDisplay = rawStart ? new Date(rawStart).toLocaleString('ar-EG', {
+  const startDisplay = rawStart ? new Date(rawStart).toLocaleString(LOC(), {
     year: 'numeric', month: 'numeric', day: 'numeric',
     hour: '2-digit', minute: '2-digit', hour12: true
-  }) : 'لم تبدأ بعد';
+  }) : T('لم تبدأ بعد');
 
   const timelineHtml = `
     <div class="hazard-timeline">
       <div class="timeline-step done">
         <span class="step-icon">📝</span>
         <div class="step-info">
-          <strong>وقت الإرسال:</strong>
+          <strong>${T("وقت الإرسال:")}</strong>
           <span>${formatDateTime(h.submittedAt || h.createdAt)}</span>
         </div>
       </div>
@@ -4556,24 +4686,24 @@ function getHazardCardHtml(h) {
       <div class="timeline-step ${h.seenAt ? 'done' : 'pending'}">
         <span class="step-icon">👁️</span>
         <div class="step-info">
-          <strong>وقت المشاهدة من المشرف:</strong>
-          <span>${h.seenAt ? `${formatDateTime(h.seenAt)} (${h.seenBy || 'المشرف'})` : 'لم تتم المشاهدة بعد'}</span>
+          <strong>${T("وقت المشاهدة من المشرف:")}</strong>
+          <span>${h.seenAt ? `${formatDateTime(h.seenAt)} (${h.seenBy || T('المشرف')})` : T('لم تتم المشاهدة بعد')}</span>
         </div>
       </div>
 
       <div class="timeline-step ${rawStart ? 'done' : 'pending'}">
         <span class="step-icon">⚙️</span>
         <div class="step-info">
-          <strong>وقت بدء المعالجة:</strong>
-          <span>${startDisplay} ${rawStart && h.assignedTechName ? `(المنسوب: ${h.assignedTechName}${h.assignedTechCode ? ' - '+h.assignedTechCode : ''})` : (rawStart && h.startedByName ? `(${h.startedByName})` : (rawStart ? '(الصيانة)' : ''))}</span>
+          <strong>${T("وقت بدء المعالجة:")}</strong>
+          <span>${startDisplay} ${rawStart && h.assignedTechName ? `${T("(المنسوب:")} ${h.assignedTechName}${h.assignedTechCode ? ' - '+h.assignedTechCode : ''})` : (rawStart && h.startedByName ? `(${h.startedByName})` : (rawStart ? T('(الصيانة)') : ''))}</span>
         </div>
       </div>
 
       <div class="timeline-step ${h.resolvedAt ? 'done' : 'pending'}">
         <span class="step-icon">✅</span>
         <div class="step-info">
-          <strong>وقت الانتهاء والإغلاق:</strong>
-          <span>${h.resolvedAt ? `${formatDateTime(h.resolvedAt)} (${h.resolvedBy || 'المشرف'})` : 'لم ينتهِ بعد'}</span>
+          <strong>${T("وقت الانتهاء والإغلاق:")}</strong>
+          <span>${h.resolvedAt ? `${formatDateTime(h.resolvedAt)} (${h.resolvedBy || T('المشرف')})` : T('لم ينتهِ بعد')}</span>
         </div>
       </div>
     </div>
@@ -4583,28 +4713,28 @@ function getHazardCardHtml(h) {
     <div class="sup-card" id="hz_card_${h.id}">
       <div class="sup-top">
         <div>
-          <div class="hz-status-badge ${statusClass}">${statusStr}</div>
+          <div class="hz-status-badge ${statusClass}">${T(statusStr)}</div>
           <div class="worker">${escapeHtml(h.reporterName)}</div>
         </div>
         <div class="tnum">${h.id}</div>
       </div>
       <div class="meta-grid">
-        <div><span>التاريخ</span>${h.date}</div>
-        <div><span>القسم</span>${escapeHtml(h.department)}</div>
-        <div><span>المنطقة</span>${escapeHtml(h.area)}</div>
-        ${(h.hseName || h.hseReviewer) ? `<div><span>مشرف السلامة</span>${escapeHtml(h.hseName || h.hseReviewer)}</div>` : ''}
+        <div><span>${T("التاريخ")}</span>${h.date}</div>
+        <div><span>${T("القسم")}</span>${escapeHtml(h.department)}</div>
+        <div><span>${T("المنطقة")}</span>${escapeHtml(h.area)}</div>
+        ${(h.hseName || h.hseReviewer) ? `<div><span>${T("مشرف السلامة")}</span>${escapeHtml(h.hseName || h.hseReviewer)}</div>` : ''}
       </div>
       <div style="display:flex;align-items:center;gap:12px;margin:12px 0;">
-        <span style="font-size:12px; font-weight:bold;">مستوى الخطورة:</span>
+        <span style="font-size:12px; font-weight:bold;">${T("مستوى الخطورة:")}</span>
         <div class="hz-risk-badge ${riskClass}" style="margin:0; padding:4px 8px; font-size:11.5px;">${riskStr}</div>
       </div>
-      <div class="desc"><strong>وصف الخطورة:</strong><br>${escapeHtml(h.description)}</div>
-      ${h.potentialInjury ? `<div class="desc"><strong>الإصابة المحتملة:</strong><br>${escapeHtml(h.potentialInjury)}</div>` : ''}
-      ${h.proposedSolution ? `<div class="desc"><strong>الحل المقترح:</strong><br>${escapeHtml(h.proposedSolution)}</div>` : ''}
-      ${h.actionTaken ? `<div class="desc" style="background:#f8f9fa; border-right:4px solid var(--primary); padding:10px; margin-top:10px;"><strong>الإجراء المتخذ:</strong><br>${escapeHtml(h.actionTaken)}</div>` : ''}
-      ${h.assignNotes ? `<div class="desc" style="background:#e0f7fa; padding:8px; border-radius:4px; border:1px solid #b2ebf2; margin-top:8px;"><strong>ملاحظات التوجيه للصيانة:</strong><br>${escapeHtml(h.assignNotes)}</div>` : ''}
-      ${h.photoUrl ? `<div style="margin-top:8px;"><div class="hz-photo-badge" onclick="openLightbox('${h.photoUrl}')">🖼️ عرض الصورة</div></div>` : ''}
-      <button class="btn btn-secondary btn-sm" type="button" style="margin-top:10px;" onclick="navigateWithAuth('/api/hazards/${h.id}/pdf')">🖨️ طباعة PDF</button>
+      <div class="desc"><strong>${T("وصف الخطورة:")}</strong><br>${escapeHtml(h.description)}</div>
+      ${h.potentialInjury ? `<div class="desc"><strong>${T("الإصابة المحتملة:")}</strong><br>${escapeHtml(h.potentialInjury)}</div>` : ''}
+      ${h.proposedSolution ? `<div class="desc"><strong>${T("الحل المقترح:")}</strong><br>${escapeHtml(h.proposedSolution)}</div>` : ''}
+      ${h.actionTaken ? `<div class="desc" style="background:#f8f9fa; border-right:4px solid var(--primary); padding:10px; margin-top:10px;"><strong>${T("الإجراء المتخذ:")}</strong><br>${escapeHtml(h.actionTaken)}</div>` : ''}
+      ${h.assignNotes ? `<div class="desc" style="background:#e0f7fa; padding:8px; border-radius:4px; border:1px solid #b2ebf2; margin-top:8px;"><strong>${T("ملاحظات التوجيه للصيانة:")}</strong><br>${escapeHtml(h.assignNotes)}</div>` : ''}
+      ${h.photoUrl ? `<div style="margin-top:8px;"><div class="hz-photo-badge" onclick="openLightbox('${h.photoUrl}')">${T("🖼️ عرض الصورة")}</div></div>` : ''}
+      <button class="btn btn-secondary btn-sm" type="button" style="margin-top:10px;" onclick="navigateWithAuth('/api/hazards/${h.id}/pdf')">${T("🖨️ طباعة PDF")}</button>
       ${actionHtml}
       ${timelineHtml}
       ${manageHtml}
@@ -4618,7 +4748,7 @@ function getHazardCardHtml(h) {
 window._hazardsRawCache = null;
 
 async function renderSupHazard(isSilent = false, forceRefetch = true, skipFilterBar = false) {
-  if (!isSilent) document.getElementById('hzList').innerHTML = '<div class="loading">جارِ التحميل…</div>';
+  if (!isSilent) document.getElementById('hzList').innerHTML = T('<div class="loading">جارِ التحميل…</div>');
 
   const hzArea = document.getElementById('hzUserProfileChip');
   if (hzArea && document.getElementById('supUserProfileChip')) {
@@ -4736,11 +4866,11 @@ async function renderSupHazard(isSilent = false, forceRefetch = true, skipFilter
     window._currentFilteredHazards = hazards;
 
     const hzCountEl = document.getElementById('hzFilterCount');
-    if (hzCountEl) hzCountEl.textContent = `عدد النتائج: ${hazards.length}`;
+    if (hzCountEl) hzCountEl.textContent = `${T("عدد النتائج:")} ${hazards.length}`;
 
     const listEl = document.getElementById('hzList');
     if (hazards.length === 0) {
-      listEl.innerHTML = '<div class="empty"><div class="icon">⚠️</div>لا توجد بلاغات حالياً</div>';
+      listEl.innerHTML = T('<div class="empty"><div class="icon">⚠️</div>لا توجد بلاغات حالياً</div>');
       return;
     }
     let html = '';
@@ -4750,7 +4880,7 @@ async function renderSupHazard(isSilent = false, forceRefetch = true, skipFilter
     listEl.innerHTML = html;
 
   } catch(e) {
-    document.getElementById('hzList').innerHTML = '<div class="empty">خطأ في جلب البيانات</div>';
+    document.getElementById('hzList').innerHTML = T('<div class="empty">خطأ في جلب البيانات</div>');
   }
 }
 
@@ -4782,7 +4912,7 @@ async function renderHzFilters() {
 
   const statuses = ['الكل', 'مفتوح 🔴', 'موجه للصيانة 📢', 'قيد الإصلاح 🟡', 'مرفوض ❌', 'تم الحل والإغلاق 🟢', '🗑️ المحذوفات'];
   fArea.innerHTML = statuses.map(s => 
-    `<div class="chip ${currentHzStatusFilter===s?'active':''}" onclick="setHzFilter('${s}')">${s}</div>`
+    `<div class="chip ${currentHzStatusFilter===s?'active':''}" onclick="setHzFilter('${s}')">${T(s)}</div>`
   ).join('');
 
   if (currentUserRole !== 'area_head' && currentUserRole !== 'maint_admin') {
@@ -4795,13 +4925,13 @@ async function renderHzFilters() {
       const currentVal = currentHzDeptFilter === 'الكل' ? '' : currentHzDeptFilter;
       dArea.innerHTML = `
         <input type="text" id="hzDeptFilterInput" class="dept-filter-input" list="hzDeptDatalist"
-          placeholder="🏢 اختر أو اكتب اسم القسم..." value="${escapeAttr(currentVal)}"
+          placeholder="${T("🏢 اختر أو اكتب اسم القسم...")}" value="${escapeAttr(currentVal)}"
           oninput="onHzDeptFilterInput(this.value)" autocomplete="off"
           style="min-width:220px;flex:1;max-width:320px;">
         <datalist id="hzDeptDatalist">
           ${realDepts.map(d => `<option value="${escapeAttr(d)}"></option>`).join('')}
         </datalist>
-        ${currentHzDeptFilter !== 'الكل' ? `<div class="chip active" onclick="setHzDeptFilterFromInput('')">✕ إلغاء فلتر القسم</div>` : ''}
+        ${currentHzDeptFilter !== 'الكل' ? `<div class="chip active" onclick="setHzDeptFilterFromInput('')">${T("✕ إلغاء فلتر القسم")}</div>` : ''}
       `;
       dArea.dataset.built = '1';
     }
@@ -4812,10 +4942,10 @@ async function renderHzFilters() {
   const sArea = document.getElementById('hzSeverityPillsFilters');
   if (sArea) {
     const severities = [
-      { label: 'الكل', val: 'الكل' },
-      { label: 'عالي 🔴', val: 'H' },
-      { label: 'متوسط 🟡', val: 'M' },
-      { label: 'منخفض 🟢', val: 'L' }
+      { label: T('الكل'), val: 'الكل' },
+      { label: T('عالي 🔴'), val: 'H' },
+      { label: T('متوسط 🟡'), val: 'M' },
+      { label: T('منخفض 🟢'), val: 'L' }
     ];
     sArea.innerHTML = severities.map(s => 
       `<div class="chip ${currentHzSeverityFilter===s.val?'active':''}" onclick="setHzSeverityFilter('${s.val}')">${s.label}</div>`
@@ -4826,7 +4956,7 @@ async function renderHzFilters() {
   if (yArea) {
     const years = ['الكل', ...FILTER_YEARS];
     yArea.innerHTML = years.map(y =>
-      `<div class="chip ${currentHzYearFilter===y?'active':''}" onclick="setHzYearFilter('${y}')">${y}</div>`
+      `<div class="chip ${currentHzYearFilter===y?'active':''}" onclick="setHzYearFilter('${y}')">${T(y)}</div>`
     ).join('');
   }
 }
@@ -4858,10 +4988,10 @@ function setHzYearFilter(y) {
 }
 
 window.resolveHazardPrompt = async function(hazardId) {
-  const correctiveAction = window.prompt("يرجى كتابة الإجراء التصحيحي المتخذ لإغلاق هذا البلاغ:");
+  const correctiveAction = window.prompt(T("يرجى كتابة الإجراء التصحيحي المتخذ لإغلاق هذا البلاغ:"));
   if (correctiveAction === null) return; // cancelled
   if (!correctiveAction.trim()) {
-    showToast("⚠️ يجب كتابة الإجراء التصحيحي قبل إغلاق البلاغ", 'error');
+    showToast(T("⚠️ يجب كتابة الإجراء التصحيحي قبل إغلاق البلاغ"), 'error');
     return;
   }
 
@@ -4884,12 +5014,12 @@ window.resolveHazardPrompt = async function(hazardId) {
     });
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || errData.message || 'فشل تحديث حالة البلاغ');
+      throw new Error(errData.error || errData.message || T('فشل تحديث حالة البلاغ'));
     }
     // Refresh list
     if (typeof loadHazards === 'function') loadHazards();
     if (typeof renderSupHazard === 'function') renderSupHazard(); // Refresh supervisor/admin view too
-    showToast('تم تحديث البلاغ بنجاح', 'success');
+    showToast(T('تم تحديث البلاغ بنجاح'), 'success');
   } catch (err) {
     showToast(err.message, 'error');
   }
@@ -4903,7 +5033,7 @@ async function updateHazardStatus(id, newStatus, actionOverride = null) {
   }
 
   if (newStatus === 'resolved' && !actionTaken) {
-    showToast('يجب كتابة الإجراء التصحيحي قبل إغلاق البلاغ', 'error');
+    showToast(T('يجب كتابة الإجراء التصحيحي قبل إغلاق البلاغ'), 'error');
     return;
   }
 
@@ -4915,7 +5045,7 @@ async function updateHazardStatus(id, newStatus, actionOverride = null) {
     });
     
     if (res.ok) {
-      showToast('تم تحديث البلاغ بنجاح', 'success');
+      showToast(T('تم تحديث البلاغ بنجاح'), 'success');
       const data = await res.json();
       if (data.hazard) {
         const card = document.getElementById(`hz_card_${id}`);
@@ -4925,10 +5055,10 @@ async function updateHazardStatus(id, newStatus, actionOverride = null) {
       }
     } else {
       const data = await res.json();
-      showToast(data.error || 'فشل التحديث', 'error');
+      showToast(data.error || T('فشل التحديث'), 'error');
     }
   } catch(e) {
-    showToast('خطأ في الاتصال بالخادم', 'error');
+    showToast(T('خطأ في الاتصال بالخادم'), 'error');
   }
 }
 let currentHzAssignId = null;
@@ -4944,14 +5074,14 @@ async function startHzMaintenance(id) {
       body: JSON.stringify({ action: 'start_maintenance' })
     });
     if (res.ok) {
-      showToast('تم البدء بالإصلاح بنجاح', 'success');
+      showToast(T('تم البدء بالإصلاح بنجاح'), 'success');
       renderSupHazard(true);
     } else {
       const d = await res.json();
-      showToast(d.error || 'حدث خطأ', 'error');
+      showToast(d.error || T('حدث خطأ'), 'error');
     }
   } catch (e) {
-    showToast('خطأ في الاتصال', 'error');
+    showToast(T('خطأ في الاتصال'), 'error');
   }
 }
 
@@ -4965,7 +5095,7 @@ function closeHzRejectMaintModal() {
 }
 async function submitHzRejectMaint() {
   const reason = document.getElementById('hz_maint_reject_reason').value.trim();
-  if (!reason) return showToast('يرجى كتابة سبب الرفض', 'error');
+  if (!reason) return showToast(T('يرجى كتابة سبب الرفض'), 'error');
   try {
     const res = await authFetch(`/api/hazards/${currentHzRejectMaintId}`, {
       method: 'PATCH',
@@ -4973,14 +5103,14 @@ async function submitHzRejectMaint() {
       body: JSON.stringify({ action: 'reject_maintenance', rejectReason: reason })
     });
     if (res.ok) {
-      showToast('تم رفض البلاغ وتم إشعار مشرف السلامة', 'success');
+      showToast(T('تم رفض البلاغ وتم إشعار مشرف السلامة'), 'success');
       closeHzRejectMaintModal();
       renderSupHazard(true);
     } else {
       const d = await res.json();
-      showToast(d.error || 'حدث خطأ', 'error');
+      showToast(d.error || T('حدث خطأ'), 'error');
     }
-  } catch (e) { showToast('خطأ في الاتصال', 'error'); }
+  } catch (e) { showToast(T('خطأ في الاتصال'), 'error'); }
 }
 
 function openHzRejectHseModal(id) {
@@ -4993,7 +5123,7 @@ function closeHzRejectHseModal() {
 }
 async function submitHzRejectHse() {
   const reason = document.getElementById('hz_hse_reject_reason').value.trim();
-  if (!reason) return showToast('يرجى كتابة سبب الرفض', 'error');
+  if (!reason) return showToast(T('يرجى كتابة سبب الرفض'), 'error');
   try {
     const res = await authFetch(`/api/hazards/${currentHzRejectHseId}`, {
       method: 'PATCH',
@@ -5001,14 +5131,14 @@ async function submitHzRejectHse() {
       body: JSON.stringify({ action: 'reject_hse', rejectReason: reason })
     });
     if (res.ok) {
-      showToast('تم رفض البلاغ نهائياً', 'success');
+      showToast(T('تم رفض البلاغ نهائياً'), 'success');
       closeHzRejectHseModal();
       renderSupHazard(true);
     } else {
       const d = await res.json();
-      showToast(d.error || 'حدث خطأ', 'error');
+      showToast(d.error || T('حدث خطأ'), 'error');
     }
-  } catch(e) { showToast('خطأ في الاتصال', 'error'); }
+  } catch(e) { showToast(T('خطأ في الاتصال'), 'error'); }
 }
 
 window.populateTrainerInfo = function() {
@@ -5087,7 +5217,7 @@ function closeHzAssignModal() {
 async function submitHzAssign() {
   const target = document.getElementById('hz_target_maint').value;
   const notes = document.getElementById('hz_assign_notes') ? document.getElementById('hz_assign_notes').value.trim() : '';
-  if (!target) return showToast('يرجى اختيار قسم الصيانة المستهدف', 'error');
+  if (!target) return showToast(T('يرجى اختيار قسم الصيانة المستهدف'), 'error');
   try {
     const res = await authFetch(`/api/hazards/${currentHzAssignId}`, {
       method: 'PATCH',
@@ -5095,14 +5225,14 @@ async function submitHzAssign() {
       body: JSON.stringify({ action: 'assign_maintenance', targetMaintenance: target, assignNotes: notes })
     });
     if (res.ok) {
-      showToast('تم التوجيه للصيانة بنجاح', 'success');
+      showToast(T('تم التوجيه للصيانة بنجاح'), 'success');
       closeHzAssignModal();
       renderSupHazard(true);
     } else {
       const d = await res.json();
-      showToast(d.error || 'حدث خطأ', 'error');
+      showToast(d.error || T('حدث خطأ'), 'error');
     }
-  } catch(e) { showToast('خطأ في الاتصال', 'error'); }
+  } catch(e) { showToast(T('خطأ في الاتصال'), 'error'); }
 }
 
 function openHzResolveModal(id) {
@@ -5117,7 +5247,7 @@ function closeHzResolveModal() {
 async function submitHzResolve() {
   const actionTaken = document.getElementById('hz_resolve_action').value.trim();
   const team = document.getElementById('hz_resolve_team').value.trim();
-  if (!actionTaken || !team) return showToast('يرجى تعبئة كافة الحقول', 'error');
+  if (!actionTaken || !team) return showToast(T('يرجى تعبئة كافة الحقول'), 'error');
   try {
     const res = await authFetch(`/api/hazards/${currentHzResolveId}`, {
       method: 'PATCH',
@@ -5125,47 +5255,47 @@ async function submitHzResolve() {
       body: JSON.stringify({ action: 'resolve_maintenance', maintenanceAction: actionTaken, maintenanceTeamNames: team })
     });
     if (res.ok) {
-      showToast('تم الإصلاح والإغلاق بنجاح', 'success');
+      showToast(T('تم الإصلاح والإغلاق بنجاح'), 'success');
       closeHzResolveModal();
       renderSupHazard(true);
     } else {
       const d = await res.json();
-      showToast(d.error || 'حدث خطأ', 'error');
+      showToast(d.error || T('حدث خطأ'), 'error');
     }
-  } catch(e) { showToast('خطأ في الاتصال', 'error'); }
+  } catch(e) { showToast(T('خطأ في الاتصال'), 'error'); }
 }
 
 async function softDeleteHazard(id) {
-  if (!confirm('هل أنت متأكد من حذف هذا البلاغ ونقله للمحذوفات؟')) return;
+  if (!confirm(T('هل أنت متأكد من حذف هذا البلاغ ونقله للمحذوفات؟'))) return;
   try {
     const res = await authFetch(`/api/hazards/${id}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: 'حذف من لوحة التحكم' }) });
     if (res.ok) {
-      showToast('تم النقل للمحذوفات بنجاح', 'success');
+      showToast(T('تم النقل للمحذوفات بنجاح'), 'success');
       renderSupHazard(true);
-    } else { showToast('فشل الحذف', 'error'); }
-  } catch(e) { showToast('خطأ في الاتصال', 'error'); }
+    } else { showToast(T('فشل الحذف'), 'error'); }
+  } catch(e) { showToast(T('خطأ في الاتصال'), 'error'); }
 }
 
 async function restoreHazard(id) {
-  if (!confirm('هل تريد استعادة هذا البلاغ؟')) return;
+  if (!confirm(T('هل تريد استعادة هذا البلاغ؟'))) return;
   try {
     const res = await authFetch(`/api/hazards/${id}/restore`, { method: 'POST' });
     if (res.ok) {
-      showToast('تم الاستعادة بنجاح', 'success');
+      showToast(T('تم الاستعادة بنجاح'), 'success');
       renderSupHazard(true);
-    } else { showToast('فشل الاستعادة', 'error'); }
-  } catch(e) { showToast('خطأ في الاتصال', 'error'); }
+    } else { showToast(T('فشل الاستعادة'), 'error'); }
+  } catch(e) { showToast(T('خطأ في الاتصال'), 'error'); }
 }
 
 async function permanentDeleteHazard(id) {
-  if (!confirm('تنبيه هام! هل أنت متأكد من الحذف النهائي؟ لا يمكن التراجع عن هذا الإجراء.')) return;
+  if (!confirm(T('تنبيه هام! هل أنت متأكد من الحذف النهائي؟ لا يمكن التراجع عن هذا الإجراء.'))) return;
   try {
     const res = await authFetch(`/api/hazards/${id}/permanent`, { method: 'DELETE' });
     if (res.ok) {
-      showToast('تم الحذف النهائي بنجاح', 'success');
+      showToast(T('تم الحذف النهائي بنجاح'), 'success');
       renderSupHazard(true);
-    } else { showToast('فشل الحذف', 'error'); }
-  } catch(e) { showToast('خطأ في الاتصال', 'error'); }
+    } else { showToast(T('فشل الحذف'), 'error'); }
+  } catch(e) { showToast(T('خطأ في الاتصال'), 'error'); }
 }
 
 let isKpiVisible = false;
@@ -5179,7 +5309,7 @@ async function uploadHazardsExcel(event) {
     const dataUrl = e.target.result;
     const base64Data = dataUrl.split(',')[1];
     
-    showToast('جاري رفع السجل واستيراد البيانات...', 'info');
+    showToast(T('جاري رفع السجل واستيراد البيانات...'), 'info');
     
     try {
       const res = await authFetch('/api/hazards/upload-excel', {
@@ -5189,14 +5319,14 @@ async function uploadHazardsExcel(event) {
       });
       const json = await res.json();
       if (json.success) {
-        showToast(`تم استيراد ${json.count} بلاغ بنجاح! (مغلق: ${json.closed ?? '?'} / مفتوح: ${json.open ?? '?'})`, 'success');
+        showToast(`${T("تم استيراد")} ${json.count} ${T("بلاغ بنجاح! (مغلق:")} ${json.closed ?? '?'} ${T("/ مفتوح:")} ${json.open ?? '?'})`, 'success');
         renderSupHazard(true); // refresh the list
       } else {
-        showToast(json.message || 'حدث خطأ أثناء الرفع', 'error');
+        showToast(json.message || T('حدث خطأ أثناء الرفع'), 'error');
       }
     } catch (err) {
       console.error(err);
-      showToast('خطأ في الاتصال بالخادم', 'error');
+      showToast(T('خطأ في الاتصال بالخادم'), 'error');
     }
     
     // Reset file input
@@ -5218,23 +5348,23 @@ const CLEAR_MODULE_LABELS = {
 };
 
 async function clearModuleData(moduleName, refreshFn) {
-  const label = CLEAR_MODULE_LABELS[moduleName] || moduleName;
+  const label = T(CLEAR_MODULE_LABELS[moduleName] || moduleName);
 
   const step1 = window.confirm(
-    `⚠️ تحذير: هتمسح كل بيانات "${label}" نهائيًا — للعمال والأدمن كلهم.\n` +
-    `هيتاخد باك أب على السيرفر، لكن العملية دي مش هترجع من الواجهة.\n\n` +
-    `متأكد إنك عايز تكمل؟`
+    `${T("⚠️ تحذير: هتمسح كل بيانات")} "${label}" ${T("نهائيًا — للعمال والأدمن كلهم.\\n")}` +
+    `${T("هيتاخد باك أب على السيرفر، لكن العملية دي مش هترجع من الواجهة.\\n\\n")}` +
+    `${T("متأكد إنك عايز تكمل؟")}`
   );
   if (!step1) return;
 
-  const typed = window.prompt(`لتأكيد المسح النهائي، اكتب كلمة "تأكيد" بالظبط:`);
+  const typed = window.prompt(`${T("لتأكيد المسح النهائي، اكتب كلمة")} "${T("تأكيد")}" ${T("بالظبط:")}`);
   if (typed !== 'تأكيد') {
-    showToast('اتلغت عملية المسح — لازم تكتب "تأكيد" بالظبط', 'info');
+    showToast(T('اتلغت عملية المسح — لازم تكتب "تأكيد" بالظبط'), 'info');
     return;
   }
 
   try {
-    showToast(`جاري مسح ${label}...`, 'info');
+    showToast(`${T("جاري مسح")} ${label}...`, 'info');
     const res = await authFetch('/api/admin/clear-module', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -5242,14 +5372,14 @@ async function clearModuleData(moduleName, refreshFn) {
     });
     const json = await res.json();
     if (json.success) {
-      showToast(`✅ اتمسح ${label} بالكامل (${json.cleared ?? 0} سجل)`, 'success');
+      showToast(`${T("✅ اتمسح")} ${label} ${T("بالكامل (")}${json.cleared ?? 0} ${T("سجل)")}`, 'success');
       if (typeof refreshFn === 'function') refreshFn();
     } else {
-      showToast(json.message || 'حدث خطأ أثناء المسح', 'error');
+      showToast(json.message || T('حدث خطأ أثناء المسح'), 'error');
     }
   } catch (err) {
     console.error(err);
-    showToast('خطأ في الاتصال بالخادم', 'error');
+    showToast(T('خطأ في الاتصال بالخادم'), 'error');
   }
 }
 
@@ -5262,7 +5392,7 @@ async function uploadPermitsExcel(event) {
     const dataUrl = e.target.result;
     const base64Data = dataUrl.split(',')[1];
 
-    showToast('جاري رفع سجل التصاريح القديمة واستيراد البيانات...', 'info');
+    showToast(T('جاري رفع سجل التصاريح القديمة واستيراد البيانات...'), 'info');
 
     try {
       const res = await authFetch('/api/permits/upload-excel', {
@@ -5272,14 +5402,14 @@ async function uploadPermitsExcel(event) {
       });
       const json = await res.json();
       if (json.success) {
-        showToast(`تم استيراد ${json.count} تصريح قديم بنجاح! (اترّبط بموظف: ${json.matched ?? '?'})`, 'success');
+        showToast(`${T("تم استيراد")} ${json.count} ${T("تصريح قديم بنجاح! (اترّبط بموظف:")} ${json.matched ?? '?'})`, 'success');
         renderSupervisor(); // refresh the permits list
       } else {
-        showToast(json.message || 'حدث خطأ أثناء الرفع', 'error');
+        showToast(json.message || T('حدث خطأ أثناء الرفع'), 'error');
       }
     } catch (err) {
       console.error(err);
-      showToast('خطأ في الاتصال بالخادم', 'error');
+      showToast(T('خطأ في الاتصال بالخادم'), 'error');
     }
 
     // Reset file input
@@ -5291,7 +5421,7 @@ async function uploadPermitsExcel(event) {
 window.exportHazardsExcel = function() {
   const dataToExport = window._currentFilteredHazards || [];
   if (dataToExport.length === 0) {
-    showToast('لا توجد بلاغات للتصدير', 'error');
+    showToast(T('لا توجد بلاغات للتصدير'), 'error');
     return;
   }
   
@@ -5307,9 +5437,9 @@ window.exportHazardsExcel = function() {
       'حالة البلاغ': h.status === 'open' ? 'مفتوح 🔴' :
                     (h.status === 'in_progress' ? 'قيد الإصلاح 🟡' :
                     (h.status === 'assigned_to_maintenance' ? 'موجه للصيانة 📢' :
-                    (h.status === 'rejected_by_maintenance' ? 'مرفوض من الصيانة ❌' :
-                    (h.status === 'rejected_by_hse' ? 'مرفوض 🚫' :
-                    (h.status === 'resolved' || h.status === 'closed' ? 'تم الإصلاح والإغلاق 🟢' : h.status))))),
+                    (h.status === 'rejected_by_maintenance' ? T('مرفوض من الصيانة ❌') :
+                    (h.status === 'rejected_by_hse' ? T('مرفوض 🚫') :
+                    (h.status === 'resolved' || h.status === 'closed' ? T('تم الإصلاح والإغلاق 🟢') : h.status))))),
       'الإجراء المتخذ': h.actionTaken || ''
     }));
 
@@ -5330,13 +5460,13 @@ window.exportHazardsExcel = function() {
     ];
     
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'البلاغات');
+    XLSX.utils.book_append_sheet(wb, ws, T('البلاغات'));
     const dateStr = new Date().toISOString().split('T')[0];
-    XLSX.writeFile(wb, `سجل_بلاغات_الخطورة_${dateStr}.xlsx`);
-    showToast('تم تحميل سجل الإكسيل بنجاح 📊', 'success');
+    XLSX.writeFile(wb, `${T("سجل_بلاغات_الخطورة_")}${dateStr}.xlsx`);
+    showToast(T('تم تحميل سجل الإكسيل بنجاح 📊'), 'success');
   } catch (e) {
     console.error(e);
-    showToast('خطأ أثناء التصدير', 'error');
+    showToast(T('خطأ أثناء التصدير'), 'error');
   }
 };
 
@@ -5467,7 +5597,7 @@ async function loadWorkerTraining(isSilent = false) {
     // Update KPIs — hours-based (1 lecture = 0.5 hours, target = 8 hours)
     const attendedHours = myAttended * 0.5;
     const progressPercentage = Math.min(100, (attendedHours / 8) * 100);
-    textEl.textContent = `🎓 حضرت ${attendedHours} ساعة من إجمالي 8 ساعات`;
+    textEl.textContent = `${T("🎓 حضرت")} ${attendedHours} ${T("ساعة من إجمالي 8 ساعات")}`;
     barEl.style.width = `${progressPercentage}%`;
     barEl.style.background = progressPercentage >= 100 ? 'var(--success)' : 'var(--amber)';
 
@@ -5478,19 +5608,19 @@ async function loadWorkerTraining(isSilent = false) {
         activeArea.innerHTML = `
           <div class="ticket" style="border-left: 5px solid var(--success);">
             <div class="ticket-body" style="text-align:center;">
-              <h3 style="color:var(--success); margin:0 0 8px 0;">✅ تم تسجيل حضورك بنجاح</h3>
-              <p style="margin:0; font-size:14px;">محاضرة: <strong>${escapeHtml(activeSession.title)}</strong></p>
+              <h3 style="color:var(--success); margin:0 0 8px 0;">${T("✅ تم تسجيل حضورك بنجاح")}</h3>
+              <p style="margin:0; font-size:14px;">${T("محاضرة:")} <strong>${escapeHtml(activeSession.title)}</strong></p>
             </div>
           </div>`;
       } else {
         activeArea.innerHTML = `
           <div class="ticket" style="border-left: 5px solid var(--amber);">
             <div class="ticket-body">
-              <h3 style="margin:0 0 4px 0; color:var(--amber);">📡 محاضرة جارية الآن</h3>
+              <h3 style="margin:0 0 4px 0; color:var(--amber);">${T("📡 محاضرة جارية الآن")}</h3>
               <p style="margin:0 0 12px 0; font-size:14px; font-weight:700;">${escapeHtml(activeSession.title)} | ${escapeHtml(activeSession.location)}</p>
               <div style="display:flex; gap:8px;">
-                <input type="text" id="trnWorkerPin" placeholder="أدخل رمز الجلسة (PIN)" style="flex:1; text-align:center; font-family:monospace; font-size:18px; font-weight:bold; letter-spacing:4px;" maxlength="4">
-                <button class="submit-btn" style="flex:1;" onclick="submitAttendance('${activeSession.id}')">✅ تسجيل حضوري</button>
+                <input type="text" id="trnWorkerPin" placeholder="${T("أدخل رمز الجلسة (PIN)")}" style="flex:1; text-align:center; font-family:monospace; font-size:18px; font-weight:bold; letter-spacing:4px;" maxlength="4">
+                <button class="submit-btn" style="flex:1;" onclick="submitAttendance('${activeSession.id}')">${T("✅ تسجيل حضوري")}</button>
               </div>
               <div id="trnWorkerMsg" class="wl-msg" style="margin-top:8px;"></div>
             </div>
@@ -5500,29 +5630,29 @@ async function loadWorkerTraining(isSilent = false) {
       activeArea.innerHTML = `
         <div class="ticket">
           <div class="ticket-body" style="text-align:center; color:var(--muted); font-size:14px;">
-            لا توجد محاضرات جارية في الوقت الحالي.
+            ${T("لا توجد محاضرات جارية في الوقت الحالي.")}
           </div>
         </div>`;
     }
 
     // History
     if (myHistory.length === 0) {
-      historyList.innerHTML = '<div class="empty">لم تسجل حضور في أي محاضرة حتى الآن.</div>';
+      historyList.innerHTML = T('<div class="empty">لم تسجل حضور في أي محاضرة حتى الآن.</div>');
     } else {
       historyList.innerHTML = `
         <div class="um-table-wrap">
           <table class="um-table">
-            <thead><tr><th>التاريخ</th><th>الموضوع</th><th>الحالة</th></tr></thead>
+            <thead><tr><th>${T("التاريخ")}</th><th>${T("الموضوع")}</th><th>${T("الحالة")}</th></tr></thead>
             <tbody>
               ${myHistory.map(h => {
                 const stText = h.status || '';
-                let stHtml = escapeHtml(stText);
+                let stHtml = escapeHtml(T(stText));
                 if (stText.includes('غائب')) {
-                  stHtml = `<span class="badge badge-danger" style="background:#fee2e2; color:#b91c1c; border:1px solid #f87171; padding:4px 8px; border-radius:6px; font-weight:bold; font-size:11px; white-space:nowrap; display:inline-block;">${stText}</span>`;
+                  stHtml = `<span class="badge badge-danger" style="background:#fee2e2; color:#b91c1c; border:1px solid #f87171; padding:4px 8px; border-radius:6px; font-weight:bold; font-size:11px; white-space:nowrap; display:inline-block;">${T(stText)}</span>`;
                 } else if (stText.includes('مؤكد')) {
-                  stHtml = `<span class="badge badge-success" style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:4px 8px; border-radius:6px; font-weight:bold; font-size:11px; white-space:nowrap; display:inline-block;">${stText}</span>`;
+                  stHtml = `<span class="badge badge-success" style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:4px 8px; border-radius:6px; font-weight:bold; font-size:11px; white-space:nowrap; display:inline-block;">${T(stText)}</span>`;
                 } else {
-                  stHtml = `<span class="badge badge-warning" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; padding:4px 8px; border-radius:6px; font-weight:bold; font-size:11px; white-space:nowrap; display:inline-block;">${stText}</span>`;
+                  stHtml = `<span class="badge badge-warning" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; padding:4px 8px; border-radius:6px; font-weight:bold; font-size:11px; white-space:nowrap; display:inline-block;">${T(stText)}</span>`;
                 }
                 return `
                 <tr>
@@ -5544,7 +5674,7 @@ async function submitAttendance(sessionId) {
   const pin = document.getElementById('trnWorkerPin').value;
   const msgEl = document.getElementById('trnWorkerMsg');
   if (!pin || pin.length !== 4) {
-    msgEl.textContent = 'الرجاء إدخال الرمز المكون من 4 أرقام';
+    msgEl.textContent = T('الرجاء إدخال الرمز المكون من 4 أرقام');
     msgEl.className = 'um-msg error show';
     return;
   }
@@ -5557,15 +5687,15 @@ async function submitAttendance(sessionId) {
     });
     const data = await res.json();
     if (res.ok) {
-      msgEl.textContent = '✅ تم تسجيل حضورك';
+      msgEl.textContent = T('✅ تم تسجيل حضورك');
       msgEl.className = 'um-msg success show';
       setTimeout(loadWorkerTraining, 1500);
     } else {
-      msgEl.textContent = data.error || 'رمز غير صحيح';
+      msgEl.textContent = data.error || T('رمز غير صحيح');
       msgEl.className = 'um-msg error show';
     }
   } catch (e) {
-    msgEl.textContent = 'خطأ في الاتصال';
+    msgEl.textContent = T('خطأ في الاتصال');
     msgEl.className = 'um-msg error show';
   }
 }
@@ -5601,13 +5731,13 @@ async function loadAdminTraining(isSilent = false) {
     const topicDatalist = document.getElementById('topicsList') || document.getElementById('trainingTopicsList');
     if (topicDatalist && !isSilent) {
       const defaultTopics = [
-        "السلامة والصحة المهنية العامة",
-        "مكافحة الحرائق والإخلاء",
-        "الإسعافات الأولية",
-        "مهمات الوقاية الشخصية (PPE)",
-        "العمل على ارتفاعات",
-        "السلامة الكهربائية",
-        "التعامل الآمن مع المواد الكيميائية"
+        T("السلامة والصحة المهنية العامة"),
+        T("مكافحة الحرائق والإخلاء"),
+        T("الإسعافات الأولية"),
+        T("مهمات الوقاية الشخصية (PPE)"),
+        T("العمل على ارتفاعات"),
+        T("السلامة الكهربائية"),
+        T("التعامل الآمن مع المواد الكيميائية")
       ];
       const existingTopics = trainings.map(t => t && t.topic).filter(Boolean);
       const allUnique = Array.from(new Set([...defaultTopics, ...existingTopics]));
@@ -5678,18 +5808,18 @@ function renderAdminLiveSessions(trainings) {
           <div style="display:flex; justify-content:space-between; align-items:flex-start;">
             <div>
               <h3 style="margin:0 0 4px 0;">${escapeHtml(trn.title)}</h3>
-              <p style="margin:0; font-size:13px; color:var(--muted);">${escapeHtml(trn.location)} | المستهدف: ${escapeHtml(trn.targetGroup)}</p>
+              <p style="margin:0; font-size:13px; color:var(--muted);">${escapeHtml(trn.location)} ${T("| المستهدف:")} ${escapeHtml(trn.targetGroup)}</p>
             </div>
             <div style="background:var(--amber); color:#fff; padding:8px 16px; border-radius:8px; text-align:center;">
-              <div style="font-size:12px; opacity:0.9;">رمز الجلسة (PIN)</div>
+              <div style="font-size:12px; opacity:0.9;">${T("رمز الجلسة (PIN)")}</div>
               <div style="font-size:24px; font-family:monospace; font-weight:900; letter-spacing:4px;">${escapeHtml(trn.sessionPin)}</div>
             </div>
           </div>
           
-          <h4 style="margin:16px 0 8px 0; padding-top:16px; border-top:1px solid var(--paper-line);">📋 الحضور (${trn.attendees.length})</h4>
+          <h4 style="margin:16px 0 8px 0; padding-top:16px; border-top:1px solid var(--paper-line);">${T("📋 الحضور (")}${trn.attendees.length})</h4>
           <div class="um-table-wrap" style="margin-bottom:16px;">
             <table class="um-table">
-              <thead><tr><th>الكود</th><th>الاسم</th><th>القسم</th><th>الوقت</th><th>التحقق</th></tr></thead>
+              <thead><tr><th>${T("الكود")}</th><th>${T("الاسم")}</th><th>${T("القسم")}</th><th>${T("الوقت")}</th><th>${T("التحقق")}</th></tr></thead>
               <tbody>
               ${trn.attendees.map(a => {
                 // Check if employee attended this same topic in the last 90 days
@@ -5706,9 +5836,9 @@ function renderAdminLiveSessions(trainings) {
                   if (pastAttendedList.length > 0) {
                     const count = pastAttendedList.length;
                     const dates = pastAttendedList.map(t => new Date(t.createdAt).toISOString().split('T')[0]).join(' ، ');
-                    const countText = count === 1 ? 'مرة واحدة' : `${count} مرات`;
-                    const dateLabel = count === 1 ? 'بتاريخ:' : 'بتواريخ:';
-                    duplicateWarning = `<div style="margin-top:4px;font-size:11px;color:#fff;background:var(--amber);padding:2px 6px;border-radius:4px;display:inline-block;">⚠️ تنبيه: حضر الموظف هذه المحاضرة مسبقاً (${countText}) ${dateLabel} [${dates}]</div>`;
+                    const countText = count === 1 ? T('مرة واحدة') : `${count} ${T("مرات")}`;
+                    const dateLabel = count === 1 ? T('بتاريخ:') : T('بتواريخ:');
+                    duplicateWarning = `<div style="margin-top:4px;font-size:11px;color:#fff;background:var(--amber);padding:2px 6px;border-radius:4px;display:inline-block;">${T("⚠️ تنبيه: حضر الموظف هذه المحاضرة مسبقاً (")}${countText}) ${dateLabel} [${dates}]</div>`;
                   }
                 }
                 
@@ -5720,34 +5850,34 @@ function renderAdminLiveSessions(trainings) {
                     ${duplicateWarning}
                   </td>
                   <td>${escapeHtml(a.department)}</td>
-                  <td style="font-size:12px; color:var(--muted);">${new Date(a.attendedAt).toLocaleTimeString('ar-EG')}</td>
+                  <td style="font-size:12px; color:var(--muted);">${new Date(a.attendedAt).toLocaleTimeString(LOC())}</td>
                   <td>
                     <button class="um-btn ${a.verified ? 'del' : 'pass'}" onclick="toggleTrnVerification('${trn.id}', '${a.empCode}', ${!a.verified})" style="padding:4px 8px; font-size:11px;">
-                      ${a.verified ? '❌ إلغاء' : '✅ تأكيد'}
+                      ${a.verified ? T('❌ إلغاء') : T('✅ تأكيد')}
                     </button>
                   </td>
                 </tr>
                 `;
               }).join('')}
-              ${trn.attendees.length === 0 ? '<tr><td colspan="5" style="text-align:center; color:var(--muted);">لا يوجد حضور حتى الآن. رمز الجلسة ظاهر للعمال.</td></tr>' : ''}
+              ${trn.attendees.length === 0 ? T('<tr><td colspan="5" style="text-align:center; color:var(--muted);">لا يوجد حضور حتى الآن. رمز الجلسة ظاهر للعمال.</td></tr>') : ''}
               </tbody>
             </table>
           </div>
           
           <div style="display:flex; gap:8px;">
-            <button class="submit-btn" style="flex:1; background:var(--danger);" onclick="closeTrainingSession('${trn.id}')">🛑 إنهاء وإغلاق المحاضرة</button>
-            <button class="um-btn" style="flex:1;" onclick="addManualTrnAttendee('${trn.id}')">➕ إضافة حضور يدوي</button>
-            <button class="um-btn" style="flex:1;" onclick="exportTrainingExcel('${trn.id}')">📥 تصدير Excel</button>
+            <button class="submit-btn" style="flex:1; background:var(--danger);" onclick="closeTrainingSession('${trn.id}')">${T("🛑 إنهاء وإغلاق المحاضرة")}</button>
+            <button class="um-btn" style="flex:1;" onclick="addManualTrnAttendee('${trn.id}')">${T("➕ إضافة حضور يدوي")}</button>
+            <button class="um-btn" style="flex:1;" onclick="exportTrainingExcel('${trn.id}')">${T("📥 تصدير Excel")}</button>
           </div>
         </div>
       </div>`;
     });
   } else {
-    html += '<div class="empty">لا توجد محاضرات جارية. يمكنك إنشاء محاضرة جديدة.</div>';
+    html += T('<div class="empty">لا توجد محاضرات جارية. يمكنك إنشاء محاضرة جديدة.</div>');
   }
   
   if (closedSessions.length > 0) {
-    html += `<h4 style="margin-top:24px;">المحاضرات السابقة (${closedSessions.length})</h4>`;
+    html += `<h4 style="margin-top:24px;">${T("المحاضرات السابقة (")}${closedSessions.length})</h4>`;
     // If filtered, show all matches (or a generous limit like 100), otherwise top 5
     const displaySessions = hasFilters ? closedSessions.slice(0, 500) : closedSessions.slice(0, 10);
     
@@ -5758,40 +5888,40 @@ function renderAdminLiveSessions(trainings) {
           <div>
             <div style="font-weight:700;">${escapeHtml(trn.title)}</div>
             <div style="font-size:12px; color:var(--muted);">
-              ${escapeHtml(trn.date)} | ${escapeHtml(trn.trainer || 'غير محدد')} | حضور: ${trn.attendees.filter(a=>a.verified).length}
+              ${escapeHtml(trn.date)} | ${escapeHtml(trn.trainer || T('غير محدد'))} ${T("| حضور:")} ${trn.attendees.filter(a=>a.verified).length}
             </div>
           </div>
           <div>
             <button class="um-btn" onclick="exportTrainingExcel('${trn.id}')" style="padding:6px 12px; font-size:12px;">📥 Excel</button>
-            <button class="um-btn del" onclick="softDeleteTraining('${trn.id}')" style="padding:6px 12px; font-size:12px; margin-inline-start:4px;">🗑️ حذف</button>
+            <button class="um-btn del" onclick="softDeleteTraining('${trn.id}')" style="padding:6px 12px; font-size:12px; margin-inline-start:4px;">${T("🗑️ حذف")}</button>
           </div>
         </div>
       </div>`;
     });
     if (!hasFilters && closedSessions.length > 10) {
       html += `<div style="text-align:center; font-size:13px; color:var(--primary); margin-top:12px; padding:8px; border: 1px dashed var(--paper-line); border-radius: 8px;">
-        تم عرض أحدث 10 محاضرات من إجمالي ${closedSessions.length} محاضرة. استخدم فلاتر البحث بالأعلى لعرض الباقي.
+        ${T("تم عرض أحدث 10 محاضرات من إجمالي")} ${closedSessions.length} ${T("محاضرة. استخدم فلاتر البحث بالأعلى لعرض الباقي.")}
       </div>`;
     } else if (hasFilters) {
       html += `<div style="text-align:center; font-size:13px; color:var(--primary); margin-top:12px; padding:8px;">
-        تم العثور على ${closedSessions.length} نتيجة مطابقة.
+        ${T("تم العثور على")} ${closedSessions.length} ${T("نتيجة مطابقة.")}
       </div>`;
     }
   }
 
   if (trashSessions.length > 0) {
-    html += '<h4 style="margin-top:24px; color:var(--danger);">🗑️ سلة محذوفات المحاضرات</h4>';
+    html += T('<h4 style="margin-top:24px; color:var(--danger);">🗑️ سلة محذوفات المحاضرات</h4>');
     trashSessions.forEach(trn => {
       html += `
       <div class="ticket" style="margin-bottom:8px; border-color:var(--danger); opacity:0.8;">
         <div class="ticket-body" style="display:flex; justify-content:space-between; align-items:center;">
           <div>
             <div style="font-weight:700; text-decoration:line-through;">${escapeHtml(trn.title)}</div>
-            <div style="font-size:12px; color:var(--muted);">${escapeHtml(trn.date)} | حُذفت في: ${trn.deletedAt ? new Date(trn.deletedAt).toLocaleDateString('ar-EG') : ''}</div>
+            <div style="font-size:12px; color:var(--muted);">${escapeHtml(trn.date)} ${T("| حُذفت في:")} ${trn.deletedAt ? new Date(trn.deletedAt).toLocaleDateString(LOC()) : ''}</div>
           </div>
           <div>
-            <button class="um-btn pass" onclick="restoreTraining('${trn.id}')" style="padding:6px 12px; font-size:12px;">🔄 استعادة</button>
-            <button class="um-btn del" onclick="permanentDeleteTraining('${trn.id}')" style="padding:6px 12px; font-size:12px; margin-inline-start:4px;">❌ نهائي</button>
+            <button class="um-btn pass" onclick="restoreTraining('${trn.id}')" style="padding:6px 12px; font-size:12px;">${T("🔄 استعادة")}</button>
+            <button class="um-btn del" onclick="permanentDeleteTraining('${trn.id}')" style="padding:6px 12px; font-size:12px; margin-inline-start:4px;">${T("❌ نهائي")}</button>
           </div>
         </div>
       </div>`;
@@ -5835,11 +5965,11 @@ async function bulkExportTrainings() {
   });
 
   if (filtered.length === 0) {
-    showToast('لا توجد محاضرات مطابقة للفلاتر لتصديرها.', 'error');
+    showToast(T('لا توجد محاضرات مطابقة للفلاتر لتصديرها.'), 'error');
     return;
   }
 
-  showToast('جاري تحضير ملف الإكسيل...', 'info');
+  showToast(T('جاري تحضير ملف الإكسيل...'), 'info');
   const ids = filtered.map(t => t.id);
 
   try {
@@ -5861,13 +5991,13 @@ async function bulkExportTrainings() {
       document.body.appendChild(a);
       a.click();
       a.remove();
-      showToast('تم تحميل الملف المجمع بنجاح!', 'success');
+      showToast(T('تم تحميل الملف المجمع بنجاح!'), 'success');
     } else {
-      showToast('فشل في تصدير البيانات المجمعة', 'error');
+      showToast(T('فشل في تصدير البيانات المجمعة'), 'error');
     }
   } catch (err) {
     console.error(err);
-    showToast('حدث خطأ أثناء الاتصال بالخادم', 'error');
+    showToast(T('حدث خطأ أثناء الاتصال بالخادم'), 'error');
   }
 }
 
@@ -5880,7 +6010,7 @@ async function uploadTrainingsExcel(event) {
     const dataUrl = e.target.result;
     const base64Data = dataUrl.split(',')[1];
     
-    showToast('جاري رفع السجل واستيراد البيانات...', 'info');
+    showToast(T('جاري رفع السجل واستيراد البيانات...'), 'info');
     
     try {
       const res = await authFetch('/api/trainings/upload-excel', {
@@ -5890,14 +6020,14 @@ async function uploadTrainingsExcel(event) {
       });
       const json = await res.json();
       if (json.success) {
-        showToast(`تم استيراد ${json.count} محاضرة بنجاح!`, 'success');
+        showToast(`${T("تم استيراد")} ${json.count} ${T("محاضرة بنجاح!")}`, 'success');
         loadAdminTraining(true);
       } else {
-        showToast(json.message || 'حدث خطأ أثناء الرفع', 'error');
+        showToast(json.message || T('حدث خطأ أثناء الرفع'), 'error');
       }
     } catch (err) {
       console.error(err);
-      showToast('خطأ في الاتصال بالخادم', 'error');
+      showToast(T('خطأ في الاتصال بالخادم'), 'error');
     }
     
     // Reset file input
@@ -5918,7 +6048,7 @@ async function createTrainingSession() {
   const msgEl = document.getElementById('trn_createMsg');
   
   if (!title || !date || !stime || !etime) {
-    msgEl.textContent = 'الرجاء ملء جميع الحقول المطلوبة (*)';
+    msgEl.textContent = T('الرجاء ملء جميع الحقول المطلوبة (*)');
     msgEl.className = 'wl-msg error show';
     return;
   }
@@ -5935,7 +6065,7 @@ async function createTrainingSession() {
     });
     const data = await res.json();
     if (res.ok) {
-      msgEl.textContent = '✅ تم إنشاء المحاضرة بنجاح';
+      msgEl.textContent = T('✅ تم إنشاء المحاضرة بنجاح');
       msgEl.className = 'wl-msg success show';
       document.getElementById('trn_topic').value = '';
       document.getElementById('trn_targetGroup').value = '';
@@ -5948,17 +6078,17 @@ async function createTrainingSession() {
         loadAdminTraining(true);
       }, 1500);
     } else {
-      msgEl.textContent = data.error || 'فشل الإنشاء';
+      msgEl.textContent = data.error || T('فشل الإنشاء');
       msgEl.className = 'wl-msg error show';
     }
   } catch(e) {
-    msgEl.textContent = 'خطأ اتصال';
+    msgEl.textContent = T('خطأ اتصال');
     msgEl.className = 'wl-msg error show';
   }
 }
 
 async function closeTrainingSession(id) {
-  if (!confirm('هل أنت متأكد من إنهاء وإغلاق المحاضرة؟ (لن يتمكن العمال من تسجيل الحضور بعد ذلك)')) return;
+  if (!confirm(T('هل أنت متأكد من إنهاء وإغلاق المحاضرة؟ (لن يتمكن العمال من تسجيل الحضور بعد ذلك)'))) return;
   try {
     const res = await authFetch(`/api/trainings/${id}/close`, { method: 'PUT' });
     if (res.ok) loadAdminTraining(true);
@@ -5979,7 +6109,7 @@ async function toggleTrnVerification(id, empCode, verified) {
 // إضافة حضور يدويًا من الأدمن (لموظف ليس معه موبايل مثلاً) — بإدخال الكود
 // الوظيفي فقط؛ الاسم والقسم بيتسحبوا تلقائيًا من قاعدة الموظفين.
 async function addManualTrnAttendee(id) {
-  const empCode = window.prompt('من فضلك أدخل الكود الوظيفي للموظف المطلوب تسجيل حضوره:');
+  const empCode = window.prompt(T('من فضلك أدخل الكود الوظيفي للموظف المطلوب تسجيل حضوره:'));
   if (!empCode || !empCode.trim()) return;
   try {
     const res = await authFetch(`/api/trainings/${id}/add-attendee`, {
@@ -5991,10 +6121,10 @@ async function addManualTrnAttendee(id) {
     if (res.ok) {
       loadAdminTraining(true);
     } else {
-      showToast(data.error || 'تعذّر تسجيل الحضور', 'error');
+      showToast(data.error || T('تعذّر تسجيل الحضور'), 'error');
     }
   } catch(e) {
-    showToast('لا يوجد اتصال بالسيرفر', 'error');
+    showToast(T('لا يوجد اتصال بالسيرفر'), 'error');
   }
 }
 
@@ -6004,19 +6134,19 @@ async function exportTrainingExcel(sessionId) {
     const res = await fetch(`/api/trainings/${sessionId}/export-excel`, {
       headers: token ? { 'Authorization': `Bearer ${token}` } : {}
     });
-    if (!res.ok) throw new Error('فشل تصدير الملف');
+    if (!res.ok) throw new Error(T('فشل تصدير الملف'));
     const blob = await res.blob();
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `كشف_حضور_${sessionId}.xlsx`;
+    a.download = `${T("كشف_حضور_")}${sessionId}.xlsx`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     window.URL.revokeObjectURL(url);
   } catch (err) {
     console.error(err);
-    showToast('حدث خطأ أثناء تصدير ملف الإكسيل', 'error');
+    showToast(T('حدث خطأ أثناء تصدير ملف الإكسيل'), 'error');
   }
 }
 
@@ -6043,7 +6173,7 @@ async function loadWorkerDrill(isSilent = false) {
     const totalClosed = data.totalClosed || 0;
     const myAttended = data.myAttended || 0;
 
-    textEl.textContent = `🎯 حضرت ${myAttended} تجربة طوارئ`;
+    textEl.textContent = `${T("🎯 حضرت")} ${myAttended} ${T("تجربة طوارئ")}`;
     if(barEl && barEl.parentElement) barEl.parentElement.style.display = "none";
 
     if (activeSession) {
@@ -6052,19 +6182,19 @@ async function loadWorkerDrill(isSilent = false) {
         activeArea.innerHTML = `
           <div class="ticket" style="border-left: 5px solid var(--success);">
             <div class="ticket-body" style="text-align:center;">
-              <h3 style="color:var(--success); margin:0 0 8px 0;">✅ تم تسجيل حضورك بنجاح</h3>
-              <p style="margin:0; font-size:14px;">تجربة: <strong>${escapeHtml(activeSession.title)}</strong></p>
+              <h3 style="color:var(--success); margin:0 0 8px 0;">${T("✅ تم تسجيل حضورك بنجاح")}</h3>
+              <p style="margin:0; font-size:14px;">${T("تجربة:")} <strong>${escapeHtml(activeSession.title)}</strong></p>
             </div>
           </div>`;
       } else {
         activeArea.innerHTML = `
           <div class="ticket" style="border-left: 5px solid var(--danger);">
             <div class="ticket-body">
-              <h3 style="margin:0 0 4px 0; color:var(--danger);">🚨 تجربة أداء جارية الآن</h3>
+              <h3 style="margin:0 0 4px 0; color:var(--danger);">${T("🚨 تجربة أداء جارية الآن")}</h3>
               <p style="margin:0 0 12px 0; font-size:14px; font-weight:700;">${escapeHtml(activeSession.title)} | ${escapeHtml(activeSession.location)}</p>
               <div style="display:flex; gap:8px;">
-                <input type="text" id="drlWorkerPin" placeholder="أدخل رمز الجلسة (PIN)" style="flex:1; text-align:center; font-family:monospace; font-size:18px; font-weight:bold; letter-spacing:4px;" maxlength="4">
-                <button class="submit-btn" style="flex:1;" onclick="submitDrillAttendance('${activeSession.id}')">✅ تسجيل حضوري</button>
+                <input type="text" id="drlWorkerPin" placeholder="${T("أدخل رمز الجلسة (PIN)")}" style="flex:1; text-align:center; font-family:monospace; font-size:18px; font-weight:bold; letter-spacing:4px;" maxlength="4">
+                <button class="submit-btn" style="flex:1;" onclick="submitDrillAttendance('${activeSession.id}')">${T("✅ تسجيل حضوري")}</button>
               </div>
               <div id="drlWorkerMsg" class="wl-msg" style="margin-top:8px;"></div>
             </div>
@@ -6074,28 +6204,28 @@ async function loadWorkerDrill(isSilent = false) {
       activeArea.innerHTML = `
         <div class="ticket">
           <div class="ticket-body" style="text-align:center; color:var(--muted); font-size:14px;">
-            لا توجد تجارب أداء جارية في الوقت الحالي.
+            ${T("لا توجد تجارب أداء جارية في الوقت الحالي.")}
           </div>
         </div>`;
     }
 
     if (myHistory.length === 0) {
-      historyList.innerHTML = '<div class="empty">لم تسجل حضور في أي تجربة حتى الآن.</div>';
+      historyList.innerHTML = T('<div class="empty">لم تسجل حضور في أي تجربة حتى الآن.</div>');
     } else {
       historyList.innerHTML = `
         <div class="um-table-wrap">
           <table class="um-table">
-            <thead><tr><th>التاريخ</th><th>الموضوع</th><th>الحالة</th></tr></thead>
+            <thead><tr><th>${T("التاريخ")}</th><th>${T("الموضوع")}</th><th>${T("الحالة")}</th></tr></thead>
             <tbody>
               ${myHistory.map(h => {
                 const stText = h.status || '';
-                let stHtml = escapeHtml(stText);
+                let stHtml = escapeHtml(T(stText));
                 if (stText.includes('غائب')) {
-                  stHtml = `<span class="badge badge-danger" style="background:#fee2e2; color:#b91c1c; border:1px solid #f87171; padding:4px 8px; border-radius:6px; font-weight:bold; font-size:11px; white-space:nowrap; display:inline-block;">${stText}</span>`;
+                  stHtml = `<span class="badge badge-danger" style="background:#fee2e2; color:#b91c1c; border:1px solid #f87171; padding:4px 8px; border-radius:6px; font-weight:bold; font-size:11px; white-space:nowrap; display:inline-block;">${T(stText)}</span>`;
                 } else if (stText.includes('مؤكد')) {
-                  stHtml = `<span class="badge badge-success" style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:4px 8px; border-radius:6px; font-weight:bold; font-size:11px; white-space:nowrap; display:inline-block;">${stText}</span>`;
+                  stHtml = `<span class="badge badge-success" style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:4px 8px; border-radius:6px; font-weight:bold; font-size:11px; white-space:nowrap; display:inline-block;">${T(stText)}</span>`;
                 } else {
-                  stHtml = `<span class="badge badge-warning" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; padding:4px 8px; border-radius:6px; font-weight:bold; font-size:11px; white-space:nowrap; display:inline-block;">${stText}</span>`;
+                  stHtml = `<span class="badge badge-warning" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; padding:4px 8px; border-radius:6px; font-weight:bold; font-size:11px; white-space:nowrap; display:inline-block;">${T(stText)}</span>`;
                 }
                 return `
                 <tr>
@@ -6115,7 +6245,7 @@ async function submitDrillAttendance(sessionId) {
   const pin = document.getElementById('drlWorkerPin').value;
   const msgEl = document.getElementById('drlWorkerMsg');
   if (!pin || pin.length !== 4) {
-    msgEl.textContent = 'الرجاء إدخال الرمز المكون من 4 أرقام';
+    msgEl.textContent = T('الرجاء إدخال الرمز المكون من 4 أرقام');
     msgEl.className = 'um-msg error show';
     return;
   }
@@ -6127,15 +6257,15 @@ async function submitDrillAttendance(sessionId) {
     });
     const data = await res.json();
     if (res.ok) {
-      msgEl.textContent = '✅ تم تسجيل حضورك';
+      msgEl.textContent = T('✅ تم تسجيل حضورك');
       msgEl.className = 'um-msg success show';
       setTimeout(loadWorkerDrill, 1500);
     } else {
-      msgEl.textContent = data.error || 'فشل التسجيل';
+      msgEl.textContent = data.error || T('فشل التسجيل');
       msgEl.className = 'um-msg error show';
     }
   } catch(e) {
-    msgEl.textContent = 'خطأ اتصال';
+    msgEl.textContent = T('خطأ اتصال');
     msgEl.className = 'um-msg error show';
   }
 }
@@ -6167,7 +6297,7 @@ async function loadAdminDrill(isSilent = false) {
     let html = '';
 
     if (activeDrills.length === 0) {
-      html += '<div class="empty">لا توجد تجارب طوارئ جارية الآن. يمكنك إنشاء تجربة جديدة.</div>';
+      html += T('<div class="empty">لا توجد تجارب طوارئ جارية الآن. يمكنك إنشاء تجربة جديدة.</div>');
     } else {
       activeDrills.forEach(drl => {
         const attendees = (drl.attendees || []).map(a => {
@@ -6186,9 +6316,9 @@ async function loadAdminDrill(isSilent = false) {
             if (pastAttendedList.length > 0) {
               const count = pastAttendedList.length;
               const dates = pastAttendedList.map(d => new Date(d.createdAt).toISOString().split('T')[0]).join(' ، ');
-              const countText = count === 1 ? 'مرة واحدة' : `${count} مرات`;
-              const dateLabel = count === 1 ? 'بتاريخ:' : 'بتواريخ:';
-              dupWarningHtml = `<div style="margin-top:4px;font-size:11px;color:#fff;background:#f59e0b;padding:2px 6px;border-radius:4px;display:inline-block;">⚠️ تنبيه: حضر الموظف هذه التجربة مسبقاً (${countText}) ${dateLabel} [${dates}]</div>`;
+              const countText = count === 1 ? T('مرة واحدة') : `${count} ${T("مرات")}`;
+              const dateLabel = count === 1 ? T('بتاريخ:') : T('بتواريخ:');
+              dupWarningHtml = `<div style="margin-top:4px;font-size:11px;color:#fff;background:#f59e0b;padding:2px 6px;border-radius:4px;display:inline-block;">${T("⚠️ تنبيه: حضر الموظف هذه التجربة مسبقاً (")}${countText}) ${dateLabel} [${dates}]</div>`;
             }
           }
           return {
@@ -6196,7 +6326,7 @@ async function loadAdminDrill(isSilent = false) {
             rawCode: a.empCode,
             name: escapeHtml(a.name || ''),
             department: escapeHtml(a.department || ''),
-            time: new Date(a.attendedAt).toLocaleTimeString('ar-EG'),
+            time: new Date(a.attendedAt).toLocaleTimeString(LOC()),
             verified: a.verified !== false,
             dupWarningHtml
           };
@@ -6205,7 +6335,7 @@ async function loadAdminDrill(isSilent = false) {
           id: drl.id,
           pin: drl.sessionPin || '',
           title: drl.title || '',
-          location: drl.location || 'غير محدد',
+          location: drl.location || T('غير محدد'),
           supervisorName: drl.trainer || '',
           attendees
         };
@@ -6213,26 +6343,26 @@ async function loadAdminDrill(isSilent = false) {
 <div style="border: 2px solid #DC2626; border-radius: 10px; overflow: hidden; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); background: white;">
     <div style="display: flex; background: white; padding: 20px; align-items: center; border-bottom: 2px solid #f0f0f0;">
         <div style="background: #DC2626; color: white; padding: 15px; border-radius: 10px; text-align: center; min-width: 120px;">
-            <div style="font-size: 0.9rem; margin-bottom: 5px;">رمز الجلسة (PIN)</div>
+            <div style="font-size: 0.9rem; margin-bottom: 5px;">${T("رمز الجلسة (PIN)")}</div>
             <div style="font-size: 2rem; font-weight: bold; letter-spacing: 5px;">${drill.pin}</div>
         </div>
         <div style="flex-grow: 1; text-align: left; padding-right: 20px;">
             <h3 style="margin: 0 0 10px 0; color: #0F172A; font-size: 1.5rem;">${escapeHtml(drill.title)}</h3>
-            <p style="margin: 0; color: #64748B;">المكان: ${escapeHtml(drill.location)} | المشرف: ${escapeHtml(drill.supervisorName)}</p>
+            <p style="margin: 0; color: #64748B;">${T("المكان:")} ${escapeHtml(drill.location)} ${T("| المشرف:")} ${escapeHtml(drill.supervisorName)}</p>
         </div>
     </div>
     
     <div style="padding: 20px;">
-        <h4 style="margin-top: 0;">📋 الحضور (${drill.attendees ? drill.attendees.length : 0})</h4>
+        <h4 style="margin-top: 0;">${T("📋 الحضور (")}${drill.attendees ? drill.attendees.length : 0})</h4>
         <div style="overflow-x: auto;">
             <table style="width: 100%; border-collapse: collapse; text-align: right;">
                 <thead>
                     <tr style="background-color: #0F172A; color: white;">
-                        <th style="padding: 12px;">الكود</th>
-                        <th style="padding: 12px;">الاسم</th>
-                        <th style="padding: 12px;">القسم</th>
-                        <th style="padding: 12px;">الوقت</th>
-                        <th style="padding: 12px;">التحقق</th>
+                        <th style="padding: 12px;">${T("الكود")}</th>
+                        <th style="padding: 12px;">${T("الاسم")}</th>
+                        <th style="padding: 12px;">${T("القسم")}</th>
+                        <th style="padding: 12px;">${T("الوقت")}</th>
+                        <th style="padding: 12px;">${T("التحقق")}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -6247,21 +6377,21 @@ async function loadAdminDrill(isSilent = false) {
                             <td style="padding: 12px;">${att.time}</td>
                             <td style="padding: 12px;">
                                 <button class="um-btn ${att.verified ? 'del' : 'pass'}" onclick="toggleDrlVerification('${drill.id}', '${escapeAttr(att.rawCode)}', ${!att.verified})" style="padding:5px 10px; font-size:0.85rem; border-radius:5px;">
-                                  ${att.verified ? '❌ إلغاء' : '✅ تأكيد'}
+                                  ${att.verified ? T('❌ إلغاء') : T('✅ تأكيد')}
                                 </button>
                             </td>
                         </tr>
-                    `).join('') : `<tr><td colspan="5" style="text-align: center; padding: 20px;">لا يوجد حضور حتى الآن.</td></tr>`}
+                    `).join('') : `<tr><td colspan="5" style="text-align: center; padding: 20px;">${T("لا يوجد حضور حتى الآن.")}</td></tr>`}
                 </tbody>
             </table>
         </div>
     </div>
     
     <div style="padding: 20px; background: #f8f9fa; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
-        <button onclick="navigateWithAuth('/api/drills/export/${drill.id}')" style="background: #16A34A; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold;">📊 تصدير Excel</button>
-        <button onclick="addManualDrlAttendee('${drill.id}')" style="background: #0F172A; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold;">➕ إضافة حضور يدوي</button>
-        <button onclick="openDrillReportModal('${drill.id}')" style="background: var(--amber); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold;">📝 إنشاء / تعديل الريبورت</button>
-        <button onclick="closeDrillSession('${drill.id}')" style="background: #DC2626; color: white; border: none; padding: 12px 30px; border-radius: 8px; cursor: pointer; font-weight: bold;">🛑 إنهاء وإغلاق التجربة</button>
+        <button onclick="navigateWithAuth('/api/drills/export/${drill.id}')" style="background: #16A34A; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold;">${T("📊 تصدير Excel")}</button>
+        <button onclick="addManualDrlAttendee('${drill.id}')" style="background: #0F172A; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold;">${T("➕ إضافة حضور يدوي")}</button>
+        <button onclick="openDrillReportModal('${drill.id}')" style="background: var(--amber); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold;">${T("📝 إنشاء / تعديل الريبورت")}</button>
+        <button onclick="closeDrillSession('${drill.id}')" style="background: #DC2626; color: white; border: none; padding: 12px 30px; border-radius: 8px; cursor: pointer; font-weight: bold;">${T("🛑 إنهاء وإغلاق التجربة")}</button>
     </div>
 </div>
 `;
@@ -6270,7 +6400,7 @@ async function loadAdminDrill(isSilent = false) {
 
     // ── Past / Closed Drills History ─────────────────────────────
     if (closedDrills.length > 0) {
-      html += '<h4 style="margin-top:24px;">سجل تجارب الطوارئ السابقة</h4>';
+      html += T('<h4 style="margin-top:24px;">سجل تجارب الطوارئ السابقة</h4>');
       closedDrills.slice(0, 15).forEach(drl => {
         const drill = { id: drl.id }; // to match the user's template variable
         const attCount = (drl.attendees || []).length;
@@ -6280,22 +6410,22 @@ async function loadAdminDrill(isSilent = false) {
         <div class="ticket" style="margin-bottom:8px;">
           <div class="ticket-body" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
             <div>
-              <div style="font-weight:700;">${escapeHtml(drl.title)} ${isLegacy ? '<span style="font-size:11px; background:#e2e8f0; color:#334155; padding:2px 6px; border-radius:4px;">بيانات مستوردة</span>' : ''}</div>
-              <div style="font-size:12px; color:var(--muted);">${escapeHtml(drl.date || '')} | 📍 ${escapeHtml(drl.location || '')} | حضور مؤكد: ${attVerified} / ${attCount}</div>
+              <div style="font-weight:700;">${escapeHtml(drl.title)} ${isLegacy ? T('<span style="font-size:11px; background:#e2e8f0; color:#334155; padding:2px 6px; border-radius:4px;">بيانات مستوردة</span>') : ''}</div>
+              <div style="font-size:12px; color:var(--muted);">${escapeHtml(drl.date || '')} | 📍 ${escapeHtml(drl.location || '')} ${T("| حضور مؤكد:")} ${attVerified} / ${attCount}</div>
             </div>
             <div style="display:flex; gap:6px; flex-wrap:wrap;">
-              <button onclick="toggleDrlAttendeesView('${drl.id}')" style="background:#0F172A; color:#fff; border:none; padding:5px 15px; border-radius:5px; cursor:pointer; font-size:0.9rem;">👥 الحضور</button>
-              <button onclick="navigateWithAuth('/api/drills/export/${drill.id}')" style="background: #16A34A; color: white; border: none; padding: 5px 15px; border-radius: 5px; cursor: pointer; font-size: 0.9rem;">📊 تصدير Excel</button>
-              <button onclick="openDrillReportModal('${drl.id}')" style="background:var(--amber); color:#fff; border:none; padding:5px 15px; border-radius:5px; cursor:pointer; font-size:0.9rem;">📝 الريبورت</button>
-              <button class="um-btn del" onclick="deleteDrillSession('${drl.id}')" style="padding:6px 12px; font-size:12px;">🗑️ حذف</button>
+              <button onclick="toggleDrlAttendeesView('${drl.id}')" style="background:#0F172A; color:#fff; border:none; padding:5px 15px; border-radius:5px; cursor:pointer; font-size:0.9rem;">${T("👥 الحضور")}</button>
+              <button onclick="navigateWithAuth('/api/drills/export/${drill.id}')" style="background: #16A34A; color: white; border: none; padding: 5px 15px; border-radius: 5px; cursor: pointer; font-size: 0.9rem;">${T("📊 تصدير Excel")}</button>
+              <button onclick="openDrillReportModal('${drl.id}')" style="background:var(--amber); color:#fff; border:none; padding:5px 15px; border-radius:5px; cursor:pointer; font-size:0.9rem;">${T("📝 الريبورت")}</button>
+              <button class="um-btn del" onclick="deleteDrillSession('${drl.id}')" style="padding:6px 12px; font-size:12px;">${T("🗑️ حذف")}</button>
             </div>
           </div>
           <div id="drlAttWrap_${drl.id}" style="display:none; padding:0 16px 16px;">
-            ${isLegacy ? `<div style="font-size:12px; color:#b45309; background:#fffbeb; border:1px solid #fde68a; padding:8px; border-radius:6px; margin-bottom:8px;">⚠️ هذه تجربة قديمة مستوردة من تقارير ورقية سابقة، ولا يوجد لها سجل حضور رقمي (بأكواد الموظفين) — الأسماء المذكورة أدناه (إن وجدت) مأخوذة من نص التقرير الأصلي فقط.</div>` : ''}
+            ${isLegacy ? `<div style="font-size:12px; color:#b45309; background:#fffbeb; border:1px solid #fde68a; padding:8px; border-radius:6px; margin-bottom:8px;">${T("⚠️ هذه تجربة قديمة مستوردة من تقارير ورقية سابقة، ولا يوجد لها سجل حضور رقمي (بأكواد الموظفين) — الأسماء المذكورة أدناه (إن وجدت) مأخوذة من نص التقرير الأصلي فقط.")}</div>` : ''}
             <div style="overflow-x:auto;">
               <table style="width:100%; border-collapse:collapse; text-align:right; font-size:13px;">
                 <thead><tr style="background:#0F172A; color:#fff;">
-                  <th style="padding:8px;">الكود</th><th style="padding:8px;">الاسم</th><th style="padding:8px;">القسم</th><th style="padding:8px;">الوقت</th><th style="padding:8px;">التحقق</th>
+                  <th style="padding:8px;">${T("الكود")}</th><th style="padding:8px;">${T("الاسم")}</th><th style="padding:8px;">${T("القسم")}</th><th style="padding:8px;">${T("الوقت")}</th><th style="padding:8px;">${T("التحقق")}</th>
                 </tr></thead>
                 <tbody>
                   ${attCount > 0 ? (drl.attendees || []).map(a => `
@@ -6303,9 +6433,9 @@ async function loadAdminDrill(isSilent = false) {
                       <td style="padding:8px;">${escapeHtml(a.empCode || '—')}</td>
                       <td style="padding:8px;">${escapeHtml(a.name || '')}</td>
                       <td style="padding:8px;">${escapeHtml(a.department || '')}</td>
-                      <td style="padding:8px;">${a.attendedAt ? new Date(a.attendedAt).toLocaleString('ar-EG') : '—'}</td>
+                      <td style="padding:8px;">${a.attendedAt ? new Date(a.attendedAt).toLocaleString(LOC()) : '—'}</td>
                       <td style="padding:8px;">${a.verified ? '✅' : '—'}</td>
-                    </tr>`).join('') : `<tr><td colspan="5" style="text-align:center; padding:14px;">لا يوجد سجل حضور لهذه التجربة.</td></tr>`}
+                    </tr>`).join('') : `<tr><td colspan="5" style="text-align:center; padding:14px;">${T("لا يوجد سجل حضور لهذه التجربة.")}</td></tr>`}
                 </tbody>
               </table>
             </div>
@@ -6331,7 +6461,7 @@ async function createDrillSession() {
   const msgEl = document.getElementById('drl_createMsg');
 
   if (!title || !date || !startTime || !endTime || !location) {
-    msgEl.textContent = 'البيانات الأساسية (العنوان، المكان، التاريخ، الوقت) مطلوبة';
+    msgEl.textContent = T('البيانات الأساسية (العنوان، المكان، التاريخ، الوقت) مطلوبة');
     msgEl.className = 'wl-msg error show';
     return;
   }
@@ -6346,22 +6476,22 @@ async function createDrillSession() {
     });
     const data = await res.json();
     if (res.ok) {
-      msgEl.textContent = `تم الإنشاء! الرمز السري للجلسة: ${sessionPin}`;
+      msgEl.textContent = `${T("تم الإنشاء! الرمز السري للجلسة:")} ${sessionPin}`;
       msgEl.className = 'wl-msg success show';
       document.getElementById('drl_title').value = '';
       loadAdminDrill(true);
     } else {
-      msgEl.textContent = data.error || 'فشل الإنشاء';
+      msgEl.textContent = data.error || T('فشل الإنشاء');
       msgEl.className = 'wl-msg error show';
     }
   } catch(e) {
-    msgEl.textContent = 'خطأ اتصال';
+    msgEl.textContent = T('خطأ اتصال');
     msgEl.className = 'wl-msg error show';
   }
 }
 
 async function closeDrillSession(id) {
-  if (!confirm('هل أنت متأكد من إنهاء وإغلاق التجربة؟ (لن يتمكن العمال من تسجيل الحضور بعد ذلك)')) return;
+  if (!confirm(T('هل أنت متأكد من إنهاء وإغلاق التجربة؟ (لن يتمكن العمال من تسجيل الحضور بعد ذلك)'))) return;
   try {
     const res = await authFetch(`/api/drills/${id}/close`, { method: 'PUT' });
     if (res.ok) loadAdminDrill(true);
@@ -6369,7 +6499,7 @@ async function closeDrillSession(id) {
 }
 
 async function deleteDrillSession(id) {
-  if (!confirm('هل أنت متأكد من حذف التجربة نهائياً؟')) return;
+  if (!confirm(T('هل أنت متأكد من حذف التجربة نهائياً؟'))) return;
   try {
     const res = await authFetch(`/api/drills/${id}`, { method: 'DELETE' });
     if (res.ok) loadAdminDrill(true);
@@ -6393,7 +6523,7 @@ window.exportDrillExcel = async function(id) {
     link.remove();
     window.URL.revokeObjectURL(url);
   } catch(e) {
-    showToast('\u0641\u0634\u0644 \u062a\u0635\u062f\u064a\u0631 \u0627\u0644\u0645\u0644\u0641. \u062d\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.', 'error');
+    showToast(T('\u0641\u0634\u0644 \u062a\u0635\u062f\u064a\u0631 \u0627\u0644\u0645\u0644\u0641. \u062d\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.'), 'error');
   }
 };
 
@@ -6412,7 +6542,7 @@ async function toggleDrlVerification(id, empCode, verified) {
 // موبايل مثلاً) — بإدخال الكود الوظيفي فقط؛ الاسم والقسم بيتسحبوا تلقائيًا
 // من قاعدة الموظفين.
 async function addManualDrlAttendee(id) {
-  const empCode = window.prompt('من فضلك أدخل الكود الوظيفي للموظف المطلوب تسجيل حضوره:');
+  const empCode = window.prompt(T('من فضلك أدخل الكود الوظيفي للموظف المطلوب تسجيل حضوره:'));
   if (!empCode || !empCode.trim()) return;
   try {
     const res = await authFetch(`/api/drills/${id}/add-attendee`, {
@@ -6424,10 +6554,10 @@ async function addManualDrlAttendee(id) {
     if (res.ok) {
       loadAdminDrill(true);
     } else {
-      showToast(data.error || 'تعذّر تسجيل الحضور', 'error');
+      showToast(data.error || T('تعذّر تسجيل الحضور'), 'error');
     }
   } catch(e) {
-    showToast('لا يوجد اتصال بالسيرفر', 'error');
+    showToast(T('لا يوجد اتصال بالسيرفر'), 'error');
   }
 }
 
@@ -6452,7 +6582,7 @@ async function openDrillReportModal(drillId) {
     if (!res.ok) throw new Error('failed');
     data = await res.json();
   } catch (e) {
-    showToast('تعذر تحميل بيانات الريبورت', 'error');
+    showToast(T('تعذر تحميل بيانات الريبورت'), 'error');
     return;
   }
   const r = data.report || {};
@@ -6466,66 +6596,66 @@ async function openDrillReportModal(drillId) {
   overlay.innerHTML = `
     <div style="background:#fff; width:100%; max-width:720px; border-radius:12px; overflow:hidden; box-shadow:0 10px 40px rgba(0,0,0,0.3);">
       <div style="background:var(--amber); color:#fff; padding:16px 20px; display:flex; justify-content:space-between; align-items:center;">
-        <div style="font-weight:700; font-size:1.1rem;">📝 ريبورت التجربة: ${escapeHtml(drl.title || '')}</div>
+        <div style="font-weight:700; font-size:1.1rem;">${T("📝 ريبورت التجربة:")} ${escapeHtml(drl.title || '')}</div>
         <button onclick="document.getElementById('drlReportModalOverlay').remove()" style="background:transparent; border:none; color:#fff; font-size:1.4rem; cursor:pointer;">×</button>
       </div>
       <div style="padding:20px; max-height:75vh; overflow:auto;">
         <div class="field" style="margin-bottom:12px;">
-          <label style="font-weight:700; display:block; margin-bottom:4px;">وصف الحادث/السيناريو (بين قوسين)</label>
-          <input type="text" id="drf_scenario" value="${escapeAttr(r.scenario || '')}" placeholder="مثال: سقوط زيت اثناء النقل" style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:6px;">
+          <label style="font-weight:700; display:block; margin-bottom:4px;">${T("وصف الحادث/السيناريو (بين قوسين)")}</label>
+          <input type="text" id="drf_scenario" value="${escapeAttr(r.scenario || '')}" placeholder="${T("مثال: سقوط زيت اثناء النقل")}" style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:6px;">
         </div>
         <div class="field" style="margin-bottom:12px;">
-          <label style="font-weight:700; display:block; margin-bottom:4px;">الغرض من التجربة</label>
+          <label style="font-weight:700; display:block; margin-bottom:4px;">${T("الغرض من التجربة")}</label>
           <textarea id="drf_purpose" rows="4" style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:6px;">${escapeHtml(r.purpose || '')}</textarea>
         </div>
         <div class="field" style="margin-bottom:12px;">
-          <label style="font-weight:700; display:block; margin-bottom:4px;">تفاصيل تنفيذ التجربة (سطر لكل خطوة)</label>
-          <textarea id="drf_steps" rows="6" placeholder="- تم إجراء التجربة ب...&#10;- قام العامل ... بـ ...&#10;- ..." style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:6px;">${escapeHtml(arrToLines(r.narrativeSteps))}</textarea>
+          <label style="font-weight:700; display:block; margin-bottom:4px;">${T("تفاصيل تنفيذ التجربة (سطر لكل خطوة)")}</label>
+          <textarea id="drf_steps" rows="6" placeholder="${T("- تم إجراء التجربة ب...&#10;- قام العامل ... بـ ...&#10;- ...")}" style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:6px;">${escapeHtml(arrToLines(r.narrativeSteps))}</textarea>
         </div>
         <div class="field" style="margin-bottom:12px;">
-          <label style="font-weight:700; display:block; margin-bottom:4px;">مقدمة نتيجة التجربة (اختياري)</label>
+          <label style="font-weight:700; display:block; margin-bottom:4px;">${T("مقدمة نتيجة التجربة (اختياري)")}</label>
           <input type="text" id="drf_resultIntro" value="${escapeAttr(r.resultIntro || '')}" style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:6px;">
         </div>
         <div class="field" style="margin-bottom:12px;">
-          <label style="font-weight:700; display:block; margin-bottom:4px;">نقاط نتيجة التجربة (سطر لكل نقطة)</label>
+          <label style="font-weight:700; display:block; margin-bottom:4px;">${T("نقاط نتيجة التجربة (سطر لكل نقطة)")}</label>
           <textarea id="drf_results" rows="5" style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:6px;">${escapeHtml(arrToLines(r.resultPoints))}</textarea>
         </div>
         <div class="field" style="margin-bottom:12px;">
-          <label style="font-weight:700; display:block; margin-bottom:4px;">الإيجابيات (سطر لكل نقطة)</label>
+          <label style="font-weight:700; display:block; margin-bottom:4px;">${T("الإيجابيات (سطر لكل نقطة)")}</label>
           <textarea id="drf_positives" rows="4" style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:6px;">${escapeHtml(arrToLines(r.positives))}</textarea>
         </div>
         <div class="field" style="margin-bottom:12px;">
-          <label style="font-weight:700; display:block; margin-bottom:4px;">السلبيات (سطر لكل نقطة، اتركه فارغاً لو لا يوجد)</label>
+          <label style="font-weight:700; display:block; margin-bottom:4px;">${T("السلبيات (سطر لكل نقطة، اتركه فارغاً لو لا يوجد)")}</label>
           <textarea id="drf_negatives" rows="3" style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:6px;">${escapeHtml(arrToLines(r.negatives))}</textarea>
         </div>
         <div class="field" style="margin-bottom:12px;">
-          <label style="font-weight:700; display:block; margin-bottom:4px;">نقاط للتحسين (سطر لكل نقطة)</label>
+          <label style="font-weight:700; display:block; margin-bottom:4px;">${T("نقاط للتحسين (سطر لكل نقطة)")}</label>
           <textarea id="drf_improvements" rows="3" style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:6px;">${escapeHtml(arrToLines(r.improvements))}</textarea>
         </div>
         <div class="field" style="margin-bottom:12px;">
-          <label style="font-weight:700; display:block; margin-bottom:4px;">عبارة الشكر الختامية (اختياري)</label>
+          <label style="font-weight:700; display:block; margin-bottom:4px;">${T("عبارة الشكر الختامية (اختياري)")}</label>
           <textarea id="drf_thanks" rows="2" style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:6px;">${escapeHtml(r.thanksNote || '')}</textarea>
         </div>
         <div class="row2" style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
           <div class="field">
-            <label style="font-weight:700; display:block; margin-bottom:4px;">صفة المسؤول الموقّع</label>
-            <input type="text" id="drf_respTitle" value="${escapeAttr(r.responsibleTitle || 'مسئول البيئة والسلامة')}" style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:6px;">
+            <label style="font-weight:700; display:block; margin-bottom:4px;">${T("صفة المسؤول الموقّع")}</label>
+            <input type="text" id="drf_respTitle" value="${escapeAttr(r.responsibleTitle || T('مسئول البيئة والسلامة'))}" style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:6px;">
           </div>
           <div class="field">
-            <label style="font-weight:700; display:block; margin-bottom:4px;">اسم المسؤول الموقّع</label>
+            <label style="font-weight:700; display:block; margin-bottom:4px;">${T("اسم المسؤول الموقّع")}</label>
             <input type="text" id="drf_respName" value="${escapeAttr(r.responsibleName || '')}" style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:6px;">
           </div>
         </div>
         <div class="field" style="margin-bottom:4px;">
-          <label style="font-weight:700; display:block; margin-bottom:4px;">تاريخ التوقيع</label>
+          <label style="font-weight:700; display:block; margin-bottom:4px;">${T("تاريخ التوقيع")}</label>
           <input type="text" id="drf_sigDate" value="${escapeAttr(r.signatureDate || drl.date || '')}" style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:6px;">
         </div>
         <div id="drf_msg" style="margin-top:10px; font-size:13px;"></div>
       </div>
       <div style="padding:14px 20px; background:#f8f9fa; border-top:1px solid #eee; display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
-        <button onclick="document.getElementById('drlReportModalOverlay').remove()" style="background:#e2e8f0; color:#0f172a; border:none; padding:10px 18px; border-radius:8px; cursor:pointer; font-weight:700;">إغلاق</button>
-        <button onclick="saveDrillReport('${drillId}')" style="background:#0F172A; color:#fff; border:none; padding:10px 18px; border-radius:8px; cursor:pointer; font-weight:700;">💾 حفظ الريبورت</button>
-        <button onclick="downloadDrillReport('${drillId}')" style="background:#16A34A; color:#fff; border:none; padding:10px 18px; border-radius:8px; cursor:pointer; font-weight:700;">⬇️ تحميل Word (بنفس التصميم)</button>
+        <button onclick="document.getElementById('drlReportModalOverlay').remove()" style="background:#e2e8f0; color:#0f172a; border:none; padding:10px 18px; border-radius:8px; cursor:pointer; font-weight:700;">${T("إغلاق")}</button>
+        <button onclick="saveDrillReport('${drillId}')" style="background:#0F172A; color:#fff; border:none; padding:10px 18px; border-radius:8px; cursor:pointer; font-weight:700;">${T("💾 حفظ الريبورت")}</button>
+        <button onclick="downloadDrillReport('${drillId}')" style="background:#16A34A; color:#fff; border:none; padding:10px 18px; border-radius:8px; cursor:pointer; font-weight:700;">${T("⬇️ تحميل Word (بنفس التصميم)")}</button>
       </div>
     </div>
   `;
@@ -6559,14 +6689,14 @@ async function saveDrillReport(drillId) {
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok) {
-      msgEl.textContent = '✅ تم حفظ الريبورت بنجاح';
+      msgEl.textContent = T('✅ تم حفظ الريبورت بنجاح');
       msgEl.style.color = '#16A34A';
     } else {
-      msgEl.textContent = data.error || 'فشل الحفظ';
+      msgEl.textContent = data.error || T('فشل الحفظ');
       msgEl.style.color = '#DC2626';
     }
   } catch (e) {
-    msgEl.textContent = 'لا يوجد اتصال بالسيرفر';
+    msgEl.textContent = T('لا يوجد اتصال بالسيرفر');
     msgEl.style.color = '#DC2626';
   }
 }
@@ -6786,16 +6916,16 @@ function timeAgo(isoString) {
   const date = new Date(isoString);
   const seconds = Math.floor((new Date() - date) / 1000);
   let interval = seconds / 31536000;
-  if (interval > 1) return Math.floor(interval) + " سنة";
+  if (interval > 1) return Math.floor(interval) + T(" سنة");
   interval = seconds / 2592000;
-  if (interval > 1) return Math.floor(interval) + " شهر";
+  if (interval > 1) return Math.floor(interval) + T(" شهر");
   interval = seconds / 86400;
-  if (interval > 1) return Math.floor(interval) + " يوم";
+  if (interval > 1) return Math.floor(interval) + T(" يوم");
   interval = seconds / 3600;
-  if (interval >= 1) return "منذ " + Math.floor(interval) + " ساعة";
+  if (interval >= 1) return T("منذ ") + Math.floor(interval) + T(" ساعة");
   interval = seconds / 60;
-  if (interval >= 1) return "منذ " + Math.floor(interval) + " دقيقة";
-  return "الآن";
+  if (interval >= 1) return T("منذ ") + Math.floor(interval) + T(" دقيقة");
+  return T("الآن");
 }
 
 function getIdentifier() {
@@ -6835,16 +6965,16 @@ function renderNotifications() {
         <div class="notif-icon-wrap">${iconEmoji}</div>
         <div class="notif-content">
           <div class="notif-title-row">
-            <h4 class="notif-title"><span class="pulse-dot" style="display:${isUnread ? 'inline-block' : 'none'};"></span>${escapeHtml(n.title)}</h4>
+            <h4 class="notif-title"><span class="pulse-dot" style="display:${isUnread ? 'inline-block' : 'none'};"></span>${escapeHtml(T(n.title))}</h4>
             <span class="notif-time">${timeAgo(n.createdAt)}</span>
           </div>
-          <p class="notif-message">${escapeHtml(n.message)}</p>
+          <p class="notif-message">${escapeHtml(T(n.message))}</p>
         </div>
       </li>
     `;
   }).join('');
 
-  listEl.innerHTML = filteredNotifications.length === 0 ? '<li style="padding:16px; text-align:center; color:var(--muted);">لا توجد إشعارات</li>' : html;
+  listEl.innerHTML = filteredNotifications.length === 0 ? T('<li style="padding:16px; text-align:center; color:var(--muted);">لا توجد إشعارات</li>') : html;
   
   if (unreadCount > 0) {
     badgeEl.textContent = unreadCount;
@@ -6921,8 +7051,8 @@ function showAppToast(title, message, onClick) {
   toast.innerHTML = `
     <div style="font-size: 24px;">🔔</div>
     <div style="flex:1;">
-      <div style="font-weight:700; margin-bottom:4px; font-size:14px;">${escapeHtml(title)}</div>
-      <div style="font-size:12px; color:var(--muted);">${escapeHtml(message)}</div>
+      <div style="font-weight:700; margin-bottom:4px; font-size:14px;">${escapeHtml(T(title))}</div>
+      <div style="font-size:12px; color:var(--muted);">${escapeHtml(T(message))}</div>
     </div>
   `;
   if (onClick) {
@@ -6974,10 +7104,10 @@ async function globalSyncData() {
       if (typeof loadWorkerTraining === 'function') await loadWorkerTraining();
     }
     
-    showToast('تم تحديث البيانات بنجاح ✅', 'success');
+    showToast(T('تم تحديث البيانات بنجاح ✅'), 'success');
   } catch (err) {
     console.error("Critical Sync Failure:", err);
-    showToast('خطأ أثناء التحديث', 'error');
+    showToast(T('خطأ أثناء التحديث'), 'error');
   } finally {
     if (btn) btn.classList.remove('spin');
   }
@@ -6987,50 +7117,50 @@ async function globalSyncData() {
 // 🗑️ LECTURE TRASH SYSTEM
 // ============================================================
 async function softDeleteTraining(id) {
-  if (!confirm('هل أنت متأكد من نقل المحاضرة إلى سلة المحذوفات؟')) return;
+  if (!confirm(T('هل أنت متأكد من نقل المحاضرة إلى سلة المحذوفات؟'))) return;
   try {
     const res = await authFetch('/api/trainings/' + id, { method: 'DELETE' });
     if (res.ok) {
-      showToast('تم النقل إلى سلة المحذوفات', 'success');
+      showToast(T('تم النقل إلى سلة المحذوفات'), 'success');
       loadAdminTraining(true);
     } else {
       const data = await res.json();
-      showToast(data.error || 'فشل الحذف', 'error');
+      showToast(data.error || T('فشل الحذف'), 'error');
     }
   } catch (e) {
-    showToast('خطأ اتصال', 'error');
+    showToast(T('خطأ اتصال'), 'error');
   }
 }
 
 async function restoreTraining(id) {
-  if (!confirm('هل أنت متأكد من استعادة المحاضرة؟ سيعود رصيد الساعات للموظفين.')) return;
+  if (!confirm(T('هل أنت متأكد من استعادة المحاضرة؟ سيعود رصيد الساعات للموظفين.'))) return;
   try {
     const res = await authFetch('/api/trainings/' + id + '/restore', { method: 'PUT' });
     if (res.ok) {
-      showToast('تمت استعادة المحاضرة', 'success');
+      showToast(T('تمت استعادة المحاضرة'), 'success');
       loadAdminTraining(true);
     } else {
       const data = await res.json();
-      showToast(data.error || 'فشل الاستعادة', 'error');
+      showToast(data.error || T('فشل الاستعادة'), 'error');
     }
   } catch (e) {
-    showToast('خطأ اتصال', 'error');
+    showToast(T('خطأ اتصال'), 'error');
   }
 }
 
 async function permanentDeleteTraining(id) {
-  try {  if (!confirm('تنبيه هام ⚠️: هل أنت متأكد من حذف المحاضرة نهائياً؟ لا يمكن التراجع عن هذا الإجراء!')) return;
+  try {  if (!confirm(T('تنبيه هام ⚠️: هل أنت متأكد من حذف المحاضرة نهائياً؟ لا يمكن التراجع عن هذا الإجراء!'))) return;
 
     const res = await authFetch('/api/trainings/' + id + '/permanent', { method: 'DELETE' });
     if (res.ok) {
-      showToast('تم الحذف نهائياً', 'success');
+      showToast(T('تم الحذف نهائياً'), 'success');
       loadAdminTraining(true);
     } else {
       const data = await res.json();
-      showToast(data.error || 'فشل الحذف النهائي', 'error');
+      showToast(data.error || T('فشل الحذف النهائي'), 'error');
     }
   } catch (e) {
-    showToast('خطأ اتصال', 'error');
+    showToast(T('خطأ اتصال'), 'error');
   }
 }
 
@@ -7093,7 +7223,7 @@ const _dashCenterTextPlugin = {
     ctx.textBaseline = 'middle';
     ctx.font = '800 26px Cairo, sans-serif';
     ctx.fillStyle = '#1f2937';
-    ctx.fillText(opts.total.toLocaleString('en-US'), cx, cy - 10);
+    ctx.fillText(opts.total.toLocaleString(LOC()), cx, cy - 10);
     ctx.font = '600 12px Cairo, sans-serif';
     ctx.fillStyle = '#94a3b8';
     ctx.fillText(opts.label, cx, cy + 14);
@@ -7152,7 +7282,7 @@ function _animateCounter(el, target, duration = 700) {
   let current = start;
   const tick = () => {
     current = Math.min(current + step, target);
-    el.textContent = Math.round(current).toLocaleString('en-US');
+    el.textContent = Math.round(current).toLocaleString(LOC());
     if (current < target) requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
@@ -7166,7 +7296,7 @@ async function loadDashboard() {
   container.innerHTML = `
     <div class="dash-loading">
       <div class="dash-loading-spinner"></div>
-      <div>جارِ تحميل لوحة التحكم…</div>
+      <div>${T("جارِ تحميل لوحة التحكم…")}</div>
     </div>`;
 
   try {
@@ -7224,7 +7354,7 @@ async function loadDashboard() {
 
   } catch (err) {
     console.error('Dashboard load error', err);
-    container.innerHTML = `<div class="dash-empty">⚠️ تعذّر تحميل الإحصائيات. تحقق من الاتصال وأعد المحاولة.</div>`;
+    container.innerHTML = `<div class="dash-empty">${T("⚠️ تعذّر تحميل الإحصائيات. تحقق من الاتصال وأعد المحاولة.")}</div>`;
   }
 }
 
@@ -7295,20 +7425,20 @@ window.dashClearEmpFilter = function() {
 // ── Export the currently-loaded dashboard data to an Excel workbook ──
 function _dashExportStatusText(status) {
   const map = {
-    open: 'مفتوح', resolved: 'محلول', rejected: 'مرفوض',
-    approved: 'موافق', pending: 'انتظار', active: 'نشطة', closed: 'مغلقة/منتهية'
+    open: T('مفتوح'), resolved: T('محلول'), rejected: 'مرفوض',
+    approved: T('موافق'), pending: T('انتظار'), active: T('نشطة'), closed: T('مغلقة/منتهية')
   };
   return map[status] || (status || '—');
 }
 
 window.exportDashboardExcel = function() {
   if (typeof XLSX === 'undefined') {
-    showToast('تعذّر تحميل مكتبة التصدير، حاول تحديث الصفحة', 'error');
+    showToast(T('تعذّر تحميل مكتبة التصدير، حاول تحديث الصفحة'), 'error');
     return;
   }
   const data = _dashLastData;
   if (!data) {
-    showToast('لا توجد بيانات محمّلة للتصدير بعد', 'error');
+    showToast(T('لا توجد بيانات محمّلة للتصدير بعد'), 'error');
     return;
   }
   const { permits, hazards, trainings, drills, meta } = data;
@@ -7317,71 +7447,71 @@ window.exportDashboardExcel = function() {
 
   // ── Summary sheet ──
   const roleLabel = {
-    super_admin: 'مدير النظام — كل الأقسام',
-    hse_admin:   'مشرف السلامة — كل الأقسام',
-    dept_admin:  `مشرف قسم ${meta.scopeDept || ''}`,
-    worker:      'إحصائيات شخصية',
+    super_admin: T('مدير النظام — كل الأقسام'),
+    hse_admin:   T('مشرف السلامة — كل الأقسام'),
+    dept_admin:  `${T("مشرف قسم")} ${meta.scopeDept || ''}`,
+    worker:      T('إحصائيات شخصية'),
   }[meta.role] || meta.role;
   const summaryRows = [
-    { 'البند': 'نطاق التقرير', 'القيمة': roleLabel },
-    { 'البند': 'من تاريخ', 'القيمة': meta.dateFrom || 'الكل' },
-    { 'البند': 'إلى تاريخ', 'القيمة': meta.dateTo || 'الكل' },
-    { 'البند': 'تاريخ إنشاء التقرير', 'القيمة': new Date(meta.generatedAt || Date.now()).toLocaleString('ar-EG') },
+    { 'البند': T('نطاق التقرير'), 'القيمة': roleLabel },
+    { 'البند': T('من تاريخ'), 'القيمة': meta.dateFrom || 'الكل' },
+    { 'البند': T('إلى تاريخ'), 'القيمة': meta.dateTo || 'الكل' },
+    { 'البند': T('تاريخ إنشاء التقرير'), 'القيمة': new Date(meta.generatedAt || Date.now()).toLocaleString(LOC()) },
     { 'البند': '—', 'القيمة': '—' },
-    { 'البند': 'إجمالي تصاريح العمل', 'القيمة': permits.total },
-    { 'البند': '  ↳ موافق عليها', 'القيمة': permits.byStatus.approved },
-    { 'البند': '  ↳ قيد الانتظار', 'القيمة': permits.byStatus.pending },
-    { 'البند': '  ↳ مرفوضة', 'القيمة': permits.byStatus.rejected },
-    { 'البند': 'إجمالي بلاغات الخطورة', 'القيمة': hazards.total },
-    { 'البند': '  ↳ مفتوحة', 'القيمة': hazards.byStatus.open },
-    { 'البند': '  ↳ محلولة', 'القيمة': hazards.byStatus.resolved },
-    { 'البند': 'إجمالي المحاضرات التدريبية', 'القيمة': trainings.total },
-    { 'البند': '  ↳ إجمالي الحضور', 'القيمة': trainings.totalAttendees },
-    { 'البند': '  ↳ إجمالي الساعات', 'القيمة': trainings.totalHours },
-    { 'البند': 'إجمالي تجارب الطوارئ', 'القيمة': drills.total },
-    { 'البند': '  ↳ إجمالي الحضور', 'القيمة': drills.totalAttendees },
+    { 'البند': T('إجمالي تصاريح العمل'), 'القيمة': permits.total },
+    { 'البند': T('  ↳ موافق عليها'), 'القيمة': permits.byStatus.approved },
+    { 'البند': T('  ↳ قيد الانتظار'), 'القيمة': permits.byStatus.pending },
+    { 'البند': T('  ↳ مرفوضة'), 'القيمة': permits.byStatus.rejected },
+    { 'البند': T('إجمالي بلاغات الخطورة'), 'القيمة': hazards.total },
+    { 'البند': T('  ↳ مفتوحة'), 'القيمة': hazards.byStatus.open },
+    { 'البند': T('  ↳ محلولة'), 'القيمة': hazards.byStatus.resolved },
+    { 'البند': T('إجمالي المحاضرات التدريبية'), 'القيمة': trainings.total },
+    { 'البند': T('  ↳ إجمالي الحضور'), 'القيمة': trainings.totalAttendees },
+    { 'البند': T('  ↳ إجمالي الساعات'), 'القيمة': trainings.totalHours },
+    { 'البند': T('إجمالي تجارب الطوارئ'), 'القيمة': drills.total },
+    { 'البند': T('  ↳ إجمالي الحضور'), 'القيمة': drills.totalAttendees },
   ];
   const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
   wsSummary['!cols'] = [{ wch: 30 }, { wch: 30 }];
-  XLSX.utils.book_append_sheet(wb, wsSummary, 'ملخص');
+  XLSX.utils.book_append_sheet(wb, wsSummary, T('ملخص'));
 
   // ── Permits sheet ──
   const permitRows = (permits.list || []).map(p => ({
-    'النوع': p.title, 'التاريخ': p.date ? new Date(p.date).toLocaleDateString('ar-EG') : '—',
+    'النوع': p.title, 'التاريخ': p.date ? new Date(p.date).toLocaleDateString(LOC()) : '—',
     'الحالة': _dashExportStatusText(p.status)
   }));
   const wsPermits = XLSX.utils.json_to_sheet(permitRows.length ? permitRows : [{ 'لا توجد بيانات': '' }]);
   wsPermits['!cols'] = [{ wch: 25 }, { wch: 18 }, { wch: 15 }];
-  XLSX.utils.book_append_sheet(wb, wsPermits, 'تصاريح العمل');
+  XLSX.utils.book_append_sheet(wb, wsPermits, T('تصاريح العمل'));
 
   // ── Hazards sheet ──
   const hazardRows = (hazards.list || []).map(h => ({
-    'الوصف': h.title, 'التاريخ': h.date ? new Date(h.date).toLocaleDateString('ar-EG') : '—',
+    'الوصف': h.title, 'التاريخ': h.date ? new Date(h.date).toLocaleDateString(LOC()) : '—',
     'الحالة': _dashExportStatusText(h.status), 'القسم': h.department || ''
   }));
   const wsHazards = XLSX.utils.json_to_sheet(hazardRows.length ? hazardRows : [{ 'لا توجد بيانات': '' }]);
   wsHazards['!cols'] = [{ wch: 30 }, { wch: 18 }, { wch: 15 }, { wch: 20 }];
-  XLSX.utils.book_append_sheet(wb, wsHazards, 'بلاغات الخطورة');
+  XLSX.utils.book_append_sheet(wb, wsHazards, T('بلاغات الخطورة'));
 
   // ── Trainings sheet ──
   const trainingRows = (trainings.list || []).map(t => ({
-    'العنوان': t.title, 'التاريخ': t.date ? new Date(t.date).toLocaleDateString('ar-EG') : '—',
+    'العنوان': t.title, 'التاريخ': t.date ? new Date(t.date).toLocaleDateString(LOC()) : '—',
     'عدد الساعات': t.hours, 'المدرب': t.trainer || ''
   }));
   const wsTrainings = XLSX.utils.json_to_sheet(trainingRows.length ? trainingRows : [{ 'لا توجد بيانات': '' }]);
   wsTrainings['!cols'] = [{ wch: 30 }, { wch: 18 }, { wch: 14 }, { wch: 20 }];
-  XLSX.utils.book_append_sheet(wb, wsTrainings, 'التدريب');
+  XLSX.utils.book_append_sheet(wb, wsTrainings, T('التدريب'));
 
   // ── Drills sheet ──
   const drillRows = (drills.list || []).map(d => ({
-    'العنوان': d.title, 'التاريخ': d.date ? new Date(d.date).toLocaleDateString('ar-EG') : '—',
+    'العنوان': d.title, 'التاريخ': d.date ? new Date(d.date).toLocaleDateString(LOC()) : '—',
     'الحالة': _dashExportStatusText(d.status), 'الموقع': d.location || ''
   }));
   const wsDrills = XLSX.utils.json_to_sheet(drillRows.length ? drillRows : [{ 'لا توجد بيانات': '' }]);
   wsDrills['!cols'] = [{ wch: 30 }, { wch: 18 }, { wch: 15 }, { wch: 20 }];
-  XLSX.utils.book_append_sheet(wb, wsDrills, 'تجارب الطوارئ');
+  XLSX.utils.book_append_sheet(wb, wsDrills, T('تجارب الطوارئ'));
 
-  XLSX.writeFile(wb, `لوحة_التحكم_${dateStr}.xlsx`);
+  XLSX.writeFile(wb, `${T("لوحة_التحكم_")}${dateStr}.xlsx`);
 };
 
 /**
@@ -7394,52 +7524,52 @@ window.exportDashboardExcel = function() {
 window.exportDashboardExcelWithCharts = async function() {
   const data = _dashLastData;
   if (!data) {
-    showToast('لا توجد بيانات محمّلة للتصدير بعد', 'error');
+    showToast(T('لا توجد بيانات محمّلة للتصدير بعد'), 'error');
     return;
   }
   const btn = document.getElementById('dashExportChartsBtn');
   const origHtml = btn ? btn.innerHTML : '';
-  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span> جارِ التجهيز…'; }
+  if (btn) { btn.disabled = true; btn.innerHTML = T('<span class="btn-spinner"></span> جارِ التجهيز…'); }
 
   try {
     const { permits, hazards, trainings, drills, meta } = data;
     const roleLabel = {
-      super_admin: 'مدير النظام — كل الأقسام',
-      hse_admin:   'مشرف السلامة — كل الأقسام',
-      dept_admin:  `مشرف قسم ${meta.scopeDept || ''}`,
-      worker:      'إحصائيات شخصية',
+      super_admin: T('مدير النظام — كل الأقسام'),
+      hse_admin:   T('مشرف السلامة — كل الأقسام'),
+      dept_admin:  `${T("مشرف قسم")} ${meta.scopeDept || ''}`,
+      worker:      T('إحصائيات شخصية'),
     }[meta.role] || meta.role;
 
     const summaryRows = [
-      { label: 'نطاق التقرير', value: roleLabel },
-      { label: 'من تاريخ', value: meta.dateFrom || 'الكل' },
-      { label: 'إلى تاريخ', value: meta.dateTo || 'الكل' },
-      { label: 'تاريخ إنشاء التقرير', value: new Date(meta.generatedAt || Date.now()).toLocaleString('ar-EG') },
-      { label: 'إجمالي تصاريح العمل', value: permits.total },
-      { label: '  ↳ موافق عليها', value: permits.byStatus.approved },
-      { label: '  ↳ قيد الانتظار', value: permits.byStatus.pending },
-      { label: '  ↳ مرفوضة', value: permits.byStatus.rejected },
-      { label: 'إجمالي بلاغات الخطورة', value: hazards.total },
-      { label: '  ↳ مفتوحة', value: hazards.byStatus.open },
-      { label: '  ↳ محلولة', value: hazards.byStatus.resolved },
-      { label: 'إجمالي المحاضرات التدريبية', value: trainings.total },
-      { label: '  ↳ إجمالي الحضور', value: trainings.totalAttendees },
-      { label: 'إجمالي تجارب الطوارئ', value: drills.total },
-      { label: '  ↳ إجمالي الحضور', value: drills.totalAttendees },
+      { label: T('نطاق التقرير'), value: roleLabel },
+      { label: T('من تاريخ'), value: meta.dateFrom || 'الكل' },
+      { label: T('إلى تاريخ'), value: meta.dateTo || 'الكل' },
+      { label: T('تاريخ إنشاء التقرير'), value: new Date(meta.generatedAt || Date.now()).toLocaleString(LOC()) },
+      { label: T('إجمالي تصاريح العمل'), value: permits.total },
+      { label: T('  ↳ موافق عليها'), value: permits.byStatus.approved },
+      { label: T('  ↳ قيد الانتظار'), value: permits.byStatus.pending },
+      { label: T('  ↳ مرفوضة'), value: permits.byStatus.rejected },
+      { label: T('إجمالي بلاغات الخطورة'), value: hazards.total },
+      { label: T('  ↳ مفتوحة'), value: hazards.byStatus.open },
+      { label: T('  ↳ محلولة'), value: hazards.byStatus.resolved },
+      { label: T('إجمالي المحاضرات التدريبية'), value: trainings.total },
+      { label: T('  ↳ إجمالي الحضور'), value: trainings.totalAttendees },
+      { label: T('إجمالي تجارب الطوارئ'), value: drills.total },
+      { label: T('  ↳ إجمالي الحضور'), value: drills.totalAttendees },
     ];
-    const permitRows = (permits.list || []).map(p => ([p.title, p.date ? new Date(p.date).toLocaleDateString('ar-EG') : '—', _dashExportStatusText(p.status)]));
-    const hazardRows = (hazards.list || []).map(h => ([h.title, h.date ? new Date(h.date).toLocaleDateString('ar-EG') : '—', _dashExportStatusText(h.status), h.department || '']));
-    const trainingRows = (trainings.list || []).map(t => ([t.title, t.date ? new Date(t.date).toLocaleDateString('ar-EG') : '—', t.hours, t.trainer || '']));
-    const drillRows = (drills.list || []).map(d => ([d.title, d.date ? new Date(d.date).toLocaleDateString('ar-EG') : '—', _dashExportStatusText(d.status), d.location || '']));
+    const permitRows = (permits.list || []).map(p => ([p.title, p.date ? new Date(p.date).toLocaleDateString(LOC()) : '—', _dashExportStatusText(p.status)]));
+    const hazardRows = (hazards.list || []).map(h => ([h.title, h.date ? new Date(h.date).toLocaleDateString(LOC()) : '—', _dashExportStatusText(h.status), h.department || '']));
+    const trainingRows = (trainings.list || []).map(t => ([t.title, t.date ? new Date(t.date).toLocaleDateString(LOC()) : '—', t.hours, t.trainer || '']));
+    const drillRows = (drills.list || []).map(d => ([d.title, d.date ? new Date(d.date).toLocaleDateString(LOC()) : '—', _dashExportStatusText(d.status), d.location || '']));
 
     // ── Capture every currently-rendered chart canvas as a PNG ──
     const chartMeta = [
-      ['chartPermitStatus', 'حالة تصاريح العمل'],
-      ['chartPermitType', 'تصاريح العمل حسب النوع'],
-      ['chartHazardSeverity', 'بلاغات الخطورة حسب الشدة'],
-      ['chartMonthly', 'الاتجاه الشهري'],
-      ['chartDrillStatus', 'حالة تجارب الطوارئ'],
-      ['chartTrainingsMonthly', 'المحاضرات التدريبية شهريًا'],
+      ['chartPermitStatus', T('حالة تصاريح العمل')],
+      ['chartPermitType', T('تصاريح العمل حسب النوع')],
+      ['chartHazardSeverity', T('بلاغات الخطورة حسب الشدة')],
+      ['chartMonthly', T('الاتجاه الشهري')],
+      ['chartDrillStatus', T('حالة تجارب الطوارئ')],
+      ['chartTrainingsMonthly', T('المحاضرات التدريبية شهريًا')],
     ];
     const charts = [];
     chartMeta.forEach(([id, title]) => {
@@ -7450,7 +7580,7 @@ window.exportDashboardExcelWithCharts = async function() {
     });
 
     if (charts.length === 0) {
-      showToast('لا توجد رسوم بيانية ظاهرة حاليًا على الشاشة للتصدير', 'error');
+      showToast(T('لا توجد رسوم بيانية ظاهرة حاليًا على الشاشة للتصدير'), 'error');
       return;
     }
 
@@ -7461,22 +7591,22 @@ window.exportDashboardExcelWithCharts = async function() {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      showToast(err.error || 'فشل إنشاء ملف Excel', 'error');
+      showToast(err.error || T('فشل إنشاء ملف Excel'), 'error');
       return;
     }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `لوحة_التحكم_بالرسوم_${new Date().toISOString().split('T')[0]}.xlsx`;
+    a.download = `${T("لوحة_التحكم_بالرسوم_")}${new Date().toISOString().split('T')[0]}.xlsx`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-    showToast('تم تصدير الملف بنجاح ✓', 'success');
+    showToast(T('تم تصدير الملف بنجاح ✓'), 'success');
   } catch (e) {
     console.error('exportDashboardExcelWithCharts error', e);
-    showToast('خطأ في الاتصال بالسيرفر', 'error');
+    showToast(T('خطأ في الاتصال بالسيرفر'), 'error');
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
   }
@@ -7511,20 +7641,20 @@ function _dashExecSnapshotHTML(data) {
       <div class="dash-exec-grid">
         <div class="dash-exec-card">
           <span class="dash-exec-icon">${dicon('doc', 28)}</span>
-          <div class="dash-exec-value">${(permits.total || 0).toLocaleString('en-US')}</div>
-          <div class="dash-exec-label">إجمالي تصاريح العمل</div>
+          <div class="dash-exec-value">${(permits.total || 0).toLocaleString(LOC())}</div>
+          <div class="dash-exec-label">${T("إجمالي تصاريح العمل")}</div>
         </div>
         <div class="dash-exec-card">
           <span class="dash-exec-icon">${dicon('target', 28)}</span>
           <div class="dash-exec-value" id="execCompliancePct">…</div>
-          <div class="dash-exec-label">نسبة الالتزام بأهداف السلامة</div>
+          <div class="dash-exec-label">${T("نسبة الالتزام بأهداف السلامة")}</div>
           <div class="dash-exec-sub" id="execComplianceSub"></div>
         </div>
         <div class="dash-exec-card">
           <span class="dash-exec-icon">${dicon('check', 28)}</span>
-          <div class="dash-exec-value">${paperSaved.toLocaleString('en-US')}</div>
-          <div class="dash-exec-label">ورقة تم توفيرها</div>
-          <div class="dash-exec-sub">ورقة واحدة لكل تصريح/بلاغ، وورقتان لكل محاضرة/تجربة طوارئ (كشف حضور)</div>
+          <div class="dash-exec-value">${paperSaved.toLocaleString(LOC())}</div>
+          <div class="dash-exec-label">${T("ورقة تم توفيرها")}</div>
+          <div class="dash-exec-sub">${T("ورقة واحدة لكل تصريح/بلاغ، وورقتان لكل محاضرة/تجربة طوارئ (كشف حضور)")}</div>
         </div>
       </div>
     </div>`;
@@ -7533,22 +7663,22 @@ function _dashExecSnapshotHTML(data) {
 function _dashHeroAndFilters(meta, opts) {
   opts = opts || {};
   const roleLabel = meta.viewingEmployee
-    ? `عرض بيانات موظف واحد: ${meta.viewingEmployee.name || meta.viewingEmployee.empCode || ''}`
+    ? `${T("عرض بيانات موظف واحد:")} ${meta.viewingEmployee.name || meta.viewingEmployee.empCode || ''}`
     : ({
-        super_admin: _dashDeptFilter ? `مدير النظام — قسم ${_dashDeptFilter}` : 'مدير النظام — كل الأقسام',
-        hse_admin:   _dashDeptFilter ? `مشرف السلامة — قسم ${_dashDeptFilter}` : 'مشرف السلامة — كل الأقسام',
-        dept_admin:  `مشرف قسم ${meta.scopeDept || ''} — بيانات القسم`,
-        worker:      'إحصائياتك الشخصية',
-      }[meta.role] || 'لوحة التحكم');
+        super_admin: _dashDeptFilter ? `${T("مدير النظام — قسم")} ${_dashDeptFilter}` : T('مدير النظام — كل الأقسام'),
+        hse_admin:   _dashDeptFilter ? `${T("مشرف السلامة — قسم")} ${_dashDeptFilter}` : T('مشرف السلامة — كل الأقسام'),
+        dept_admin:  `${T("مشرف قسم")} ${meta.scopeDept || ''} ${T("— بيانات القسم")}`,
+        worker:      T('إحصائياتك الشخصية'),
+      }[meta.role] || T('لوحة التحكم'));
 
-  const now = new Date().toLocaleDateString('ar-EG-u-nu-latn', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const now = new Date().toLocaleDateString(LOC_LATN(), { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
   const quickBtns = [
-    { label: 'آخر 7 أيام',  days: 7  },
-    { label: 'آخر 30 يوم',  days: 30 },
-    { label: 'آخر 3 أشهر',  days: 90 },
-    { label: 'آخر 6 أشهر',  days: 180 },
-    { label: 'آخر سنة',     days: 365 },
+    { label: T('آخر 7 أيام'),  days: 7  },
+    { label: T('آخر 30 يوم'),  days: 30 },
+    { label: T('آخر 3 أشهر'),  days: 90 },
+    { label: T('آخر 6 أشهر'),  days: 180 },
+    { label: T('آخر سنة'),     days: 365 },
   ].map(b => `<button class="dash-quick-btn${_dashQuickDays === b.days ? ' active' : ''}" data-days="${b.days}" onclick="dashApplyQuick(${b.days})">${b.label}</button>`).join('');
 
   const showEmpFilter = opts.showEmpFilter !== false;
@@ -7564,38 +7694,38 @@ function _dashHeroAndFilters(meta, opts) {
     <div class="dash-hero">
       <div class="dash-hero-row">
         <div>
-          <h1 class="dash-hero-title">${dicon('bars', 24)} لوحة التحكم والإحصائيات</h1>
+          <h1 class="dash-hero-title">${dicon('bars', 24)} ${T("لوحة التحكم والإحصائيات")}</h1>
           <p class="dash-hero-sub">${escapeHtml(roleLabel)} &nbsp;·&nbsp; ${now}</p>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <span class="dash-hero-badge">HSE Platform · Elsewedy Polymers</span>
-          ${meta.role !== 'worker' ? `<button class="dash-refresh-btn" onclick="exportDashboardExcel()">${dicon('download', 15)} تصدير Excel</button>` : ''}
-          ${meta.role !== 'worker' ? `<button class="dash-refresh-btn" id="dashExportChartsBtn" onclick="exportDashboardExcelWithCharts()">📊 تصدير بالرسوم البيانية</button>` : ''}
-          <button class="dash-refresh-btn" onclick="dashRefresh()">${dicon('refresh', 15)} تحديث</button>
+          ${meta.role !== 'worker' ? `<button class="dash-refresh-btn" onclick="exportDashboardExcel()">${dicon('download', 15)} ${T("تصدير Excel")}</button>` : ''}
+          ${meta.role !== 'worker' ? `<button class="dash-refresh-btn" id="dashExportChartsBtn" onclick="exportDashboardExcelWithCharts()">${T("📊 تصدير بالرسوم البيانية")}</button>` : ''}
+          <button class="dash-refresh-btn" onclick="dashRefresh()">${dicon('refresh', 15)} ${T("تحديث")}</button>
         </div>
       </div>
       ${opts.execSnapshot || ''}
     </div>
 
     <div class="dash-filter-bar">
-      <span class="dash-filter-label">الفترة الزمنية:</span>
+      <span class="dash-filter-label">${T("الفترة الزمنية:")}</span>
       ${quickBtns}
       <div class="dash-filter-divider"></div>
-      <input type="date" id="dashFromDate" class="dash-date-input" value="${_dashFromDate}" placeholder="من">
-      <input type="date" id="dashToDate"   class="dash-date-input" value="${_dashToDate}"   placeholder="إلى">
+      <input type="date" id="dashFromDate" class="dash-date-input" value="${_dashFromDate}" placeholder="${T("من")}">
+      <input type="date" id="dashToDate"   class="dash-date-input" value="${_dashToDate}"   placeholder="${T("إلى")}">
       ${showEmpFilter ? `
       <div class="dash-filter-divider"></div>
-      <input type="text" id="dashEmpFilter" class="dash-emp-input" placeholder="🔍 فلتر بالكود الوظيفي..." value="${_dashEmpFilter}" style="direction:ltr;">
+      <input type="text" id="dashEmpFilter" class="dash-emp-input" placeholder="${T("🔍 فلتر بالكود الوظيفي...")}" value="${_dashEmpFilter}" style="direction:ltr;">
       ` : ''}
       ${showDeptFilter ? `
       <div class="dash-filter-divider"></div>
       <select id="dashDeptFilter" class="dash-emp-input">
-        <option value="">-- كل الأقسام --</option>
+        <option value="">${T("-- كل الأقسام --")}</option>
         ${deptOptionsHtml}
       </select>
-      ${_dashDeptFilter ? `<button class="dash-refresh-btn" onclick="dashClearDeptFilter()" title="عرض كل الأقسام">✖ إلغاء فلتر القسم</button>` : ''}
+      ${_dashDeptFilter ? `<button class="dash-refresh-btn" onclick="dashClearDeptFilter()" title="${T("عرض كل الأقسام")}">${T("✖ إلغاء فلتر القسم")}</button>` : ''}
       ` : ''}
-      <button class="dash-apply-btn" onclick="dashApplyFilters()">تطبيق الفلتر</button>
+      <button class="dash-apply-btn" onclick="dashApplyFilters()">${T("تطبيق الفلتر")}</button>
     </div>
   `;
 }
@@ -7603,13 +7733,13 @@ function _dashHeroAndFilters(meta, opts) {
 // ── Small helper: status badge pill ────────────────────────────
 function _dashStatusPill(status) {
   const map = {
-    open:      { cls: 'red',    label: '🔴 مفتوح' },
-    resolved:  { cls: 'green',  label: '🟢 مغلق' },
-    rejected:  { cls: 'red',    label: '⛔ مرفوض' },
-    approved:  { cls: 'green',  label: '✔ موافق' },
-    pending:   { cls: 'yellow', label: '⏳ انتظار' },
-    active:    { cls: 'yellow', label: '🟡 نشطة' },
-    closed:    { cls: 'green',  label: '🟢 منتهية' },
+    open:      { cls: 'red',    label: T('🔴 مفتوح') },
+    resolved:  { cls: 'green',  label: T('🟢 مغلق') },
+    rejected:  { cls: 'red',    label: T('⛔ مرفوض') },
+    approved:  { cls: 'green',  label: T('✔ موافق') },
+    pending:   { cls: 'yellow', label: T('⏳ انتظار') },
+    active:    { cls: 'yellow', label: T('🟡 نشطة') },
+    closed:    { cls: 'green',  label: T('🟢 منتهية') },
   };
   const s = map[status] || { cls: 'blue', label: status || '—' };
   return `<span class="dash-kpi-pill ${s.cls}">${s.label}</span>`;
@@ -7617,7 +7747,7 @@ function _dashStatusPill(status) {
 
 function _dashFmtDate(d) {
   if (!d) return '—';
-  try { return new Date(d).toLocaleDateString('ar-EG-u-nu-latn', { year: 'numeric', month: 'short', day: 'numeric' }); }
+  try { return new Date(d).toLocaleDateString(LOC_LATN(), { year: 'numeric', month: 'short', day: 'numeric' }); }
   catch (e) { return '—'; }
 }
 
@@ -7629,7 +7759,7 @@ function _dashListCard(opts) {
       <div class="dash-chart-title">${icon} <span>${title}</span></div>
       <div class="dash-list-card-body">
         ${(!items || items.length === 0)
-          ? `<div class="dash-empty">${emptyMsg || 'لا توجد بيانات في هذه الفترة'}</div>`
+          ? `<div class="dash-empty">${emptyMsg || T('لا توجد بيانات في هذه الفترة')}</div>`
           : items.slice(0, 12).map(renderRow).join('')}
       </div>
     </div>`;
@@ -7648,12 +7778,12 @@ function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
   const isAdminViewingOne = !!isSingleEmployeeView && role !== 'worker';
   const isDept = role === 'dept_admin' && !isAdminViewingOne;
 
-  const trainLabel   = isDept ? 'محاضرات القسم' : isAdminViewingOne ? 'محاضرات الموظف التدريبية' : 'محاضراتك التدريبية';
-  const hoursLabel   = isDept ? 'إجمالي ساعات التدريب (القسم)' : isAdminViewingOne ? 'إجمالي ساعات تدريب الموظف' : 'إجمالي ساعات تدريبك';
-  const hazLabel     = isDept ? 'بلاغات خطورة القسم' : isAdminViewingOne ? 'بلاغات الموظف عن مخاطر' : 'بلاغاتك عن مخاطر';
-  const drillLabel   = isDept ? 'تجارب طوارئ القسم' : isAdminViewingOne ? 'تجارب الطوارئ التي حضرها الموظف' : 'تجارب الطوارئ التي حضرتها';
-  const permitLabel  = isDept ? 'تصاريح عمل القسم' : isAdminViewingOne ? 'تصاريح عمل الموظف' : 'تصاريح عملك';
-  const penaltyLabel = isDept ? 'جزاءات القسم' : isAdminViewingOne ? 'الجزاءات على الموظف' : 'الجزاءات عليك';
+  const trainLabel   = isDept ? T('محاضرات القسم') : isAdminViewingOne ? T('محاضرات الموظف التدريبية') : T('محاضراتك التدريبية');
+  const hoursLabel   = isDept ? T('إجمالي ساعات التدريب (القسم)') : isAdminViewingOne ? T('إجمالي ساعات تدريب الموظف') : T('إجمالي ساعات تدريبك');
+  const hazLabel     = isDept ? T('بلاغات خطورة القسم') : isAdminViewingOne ? T('بلاغات الموظف عن مخاطر') : T('بلاغاتك عن مخاطر');
+  const drillLabel   = isDept ? T('تجارب طوارئ القسم') : isAdminViewingOne ? T('تجارب الطوارئ التي حضرها الموظف') : T('تجارب الطوارئ التي حضرتها');
+  const permitLabel  = isDept ? T('تصاريح عمل القسم') : isAdminViewingOne ? T('تصاريح عمل الموظف') : T('تصاريح عملك');
+  const penaltyLabel = isDept ? T('جزاءات القسم') : isAdminViewingOne ? T('الجزاءات على الموظف') : T('الجزاءات عليك');
 
   // Identity banner — shown only when an admin/HSE/dept_admin drilled into one
   // employee, so it's clear whose data is on screen and gives a one-click way
@@ -7663,13 +7793,13 @@ function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
         <span style="color:var(--amber);">${dicon('person', 26)}</span>
         <div>
-          <div style="font-weight:800;font-size:15px;">${escapeHtml(viewingEmp && viewingEmp.name || 'موظف غير معروف')}</div>
+          <div style="font-weight:800;font-size:15px;">${escapeHtml(viewingEmp && viewingEmp.name || T('موظف غير معروف'))}</div>
           <div style="font-size:12.5px;color:var(--muted);margin-top:2px;">
-            ${viewingEmp && viewingEmp.jobTitle ? `${escapeHtml(viewingEmp.jobTitle)} · ` : ''}${viewingEmp && viewingEmp.department ? `${escapeHtml(viewingEmp.department)} · ` : ''}كود: ${escapeHtml(viewingEmp && viewingEmp.empCode || '')}
+            ${viewingEmp && viewingEmp.jobTitle ? `${escapeHtml(viewingEmp.jobTitle)} · ` : ''}${viewingEmp && viewingEmp.department ? `${escapeHtml(viewingEmp.department)} · ` : ''}${T("كود:")} ${escapeHtml(viewingEmp && viewingEmp.empCode || '')}
           </div>
         </div>
       </div>
-      <button class="dash-refresh-btn" onclick="dashClearEmpFilter()">⬅ رجوع للوحة التحكم العامة</button>
+      <button class="dash-refresh-btn" onclick="dashClearEmpFilter()">${T("⬅ رجوع للوحة التحكم العامة")}</button>
     </div>
   ` : '';
 
@@ -7682,35 +7812,35 @@ function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
   const hazRemaining   = Math.max(0, EMP_TARGET_HAZARDS - hazSoFar);
 
   const myTargetSection = (!isDept) ? `
-      <div class="dash-section-title">${dicon('target', 17)} تارجتك (تدريب ${EMP_TARGET_TRAIN_HOURS} ساعات / ${EMP_TARGET_HAZARDS} بلاغ خطورة)</div>
+      <div class="dash-section-title">${dicon('target', 17)} ${T("تارجتك (تدريب")} ${EMP_TARGET_TRAIN_HOURS} ${T("ساعات /")} ${EMP_TARGET_HAZARDS} ${T("بلاغ خطورة)")}</div>
       <div class="dash-chart-grid">
         <div class="dash-chart-card">
-          <div class="dash-chart-title">${dicon('cap', 17)} <span>ساعات التدريب</span></div>
+          <div class="dash-chart-title">${dicon('cap', 17)} <span>${T("ساعات التدريب")}</span></div>
           <div style="padding:12px 4px;">
             <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">
-              <span>${trainHoursSoFar.toLocaleString('en-US')} من ${EMP_TARGET_TRAIN_HOURS} ساعة</span>
+              <span>${trainHoursSoFar.toLocaleString(LOC())} ${T("من")} ${EMP_TARGET_TRAIN_HOURS} ${T("ساعة")}</span>
               <span style="font-weight:700;">${trainPct}%</span>
             </div>
             <div style="background:var(--paper-line);height:10px;border-radius:5px;overflow:hidden;">
               <div style="height:100%;width:${trainPct}%;background:${trainPct >= 100 ? '#16A34A' : 'var(--amber)'};"></div>
             </div>
             <div style="margin-top:8px;font-size:12px;color:var(--muted);">
-              ${trainRemaining > 0 ? `متبقّي <b>${trainRemaining}</b> ساعة تدريب علشان توصل للتارجت` : '🎉 وصلت لتارجت التدريب!'}
+              ${trainRemaining > 0 ? `${T("متبقّي")} <b>${trainRemaining}</b> ${T("ساعة تدريب علشان توصل للتارجت")}` : T('🎉 وصلت لتارجت التدريب!')}
             </div>
           </div>
         </div>
         <div class="dash-chart-card">
-          <div class="dash-chart-title">${dicon('alert', 17)} <span>بلاغات الخطورة</span></div>
+          <div class="dash-chart-title">${dicon('alert', 17)} <span>${T("بلاغات الخطورة")}</span></div>
           <div style="padding:12px 4px;">
             <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">
-              <span>${hazSoFar} من ${EMP_TARGET_HAZARDS} بلاغ</span>
+              <span>${hazSoFar} ${T("من")} ${EMP_TARGET_HAZARDS} ${T("بلاغ")}</span>
               <span style="font-weight:700;">${hazPct}%</span>
             </div>
             <div style="background:var(--paper-line);height:10px;border-radius:5px;overflow:hidden;">
               <div style="height:100%;width:${hazPct}%;background:${hazPct >= 100 ? '#16A34A' : '#D97706'};"></div>
             </div>
             <div style="margin-top:8px;font-size:12px;color:var(--muted);">
-              ${hazRemaining > 0 ? `متبقّي <b>${hazRemaining}</b> بلاغ خطورة علشان توصل للتارجت` : '🎉 وصلت لتارجت البلاغات!'}
+              ${hazRemaining > 0 ? `${T("متبقّي")} <b>${hazRemaining}</b> ${T("بلاغ خطورة علشان توصل للتارجت")}` : T('🎉 وصلت لتارجت البلاغات!')}
             </div>
           </div>
         </div>
@@ -7730,7 +7860,7 @@ function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
           <div class="dash-kpi-value" id="kpiTrainingTotal">0</div>
           <div class="dash-kpi-label">${trainLabel}</div>
           <div class="dash-kpi-sub">
-            <span class="dash-kpi-pill blue">⏱ ${(trainings.totalHours || 0).toLocaleString('en-US')} ساعة</span>
+            <span class="dash-kpi-pill blue">⏱ ${(trainings.totalHours || 0).toLocaleString(LOC())} ${T("ساعة")}</span>
           </div>
         </div>
         <div class="dash-kpi-card accent-5">
@@ -7738,8 +7868,8 @@ function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
           <div class="dash-kpi-value" id="kpiHazardTotal">0</div>
           <div class="dash-kpi-label">${hazLabel}</div>
           <div class="dash-kpi-sub">
-            <span class="dash-kpi-pill red">مفتوح: ${hazards.byStatus.open}</span>
-            <span class="dash-kpi-pill green">مغلق: ${hazards.byStatus.resolved}</span>
+            <span class="dash-kpi-pill red">${T("مفتوح:")} ${hazards.byStatus.open}</span>
+            <span class="dash-kpi-pill green">${T("مغلق:")} ${hazards.byStatus.resolved}</span>
           </div>
         </div>
         <div class="dash-kpi-card accent-3">
@@ -7747,8 +7877,8 @@ function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
           <div class="dash-kpi-value" id="kpiDrillTotal">0</div>
           <div class="dash-kpi-label">${drillLabel}</div>
           <div class="dash-kpi-sub">
-            <span class="dash-kpi-pill green">مغلقة: ${drills.closed}</span>
-            <span class="dash-kpi-pill yellow">نشطة: ${drills.active}</span>
+            <span class="dash-kpi-pill green">${T("مغلقة:")} ${drills.closed}</span>
+            <span class="dash-kpi-pill yellow">${T("نشطة:")} ${drills.active}</span>
           </div>
         </div>
         <div class="dash-kpi-card accent-1">
@@ -7756,8 +7886,8 @@ function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
           <div class="dash-kpi-value" id="kpiPermitTotal">0</div>
           <div class="dash-kpi-label">${permitLabel}</div>
           <div class="dash-kpi-sub">
-            <span class="dash-kpi-pill green">موافق: ${permits.byStatus.approved}</span>
-            <span class="dash-kpi-pill yellow">انتظار: ${permits.byStatus.pending}</span>
+            <span class="dash-kpi-pill green">${T("موافق:")} ${permits.byStatus.approved}</span>
+            <span class="dash-kpi-pill yellow">${T("انتظار:")} ${permits.byStatus.pending}</span>
           </div>
         </div>
         <div class="dash-kpi-card accent-2">
@@ -7765,7 +7895,7 @@ function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
           <div class="dash-kpi-value" id="kpiPenaltyTotal">0</div>
           <div class="dash-kpi-label">${penaltyLabel}</div>
           <div class="dash-kpi-sub">
-            <span class="dash-kpi-pill ${penalties.total > 0 ? 'red' : 'green'}">${penalties.total > 0 ? penalties.total + ' جزاء' : 'لا يوجد'}</span>
+            <span class="dash-kpi-pill ${penalties.total > 0 ? 'red' : 'green'}">${penalties.total > 0 ? penalties.total + T(' جزاء') : T('لا يوجد')}</span>
           </div>
         </div>
       </div>
@@ -7774,59 +7904,59 @@ function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
 
       ${isDept ? `
       <!-- Department-wide target compliance -->
-      <div class="dash-section-title">${dicon('target', 17)} نسبة التزام القسم بالأهداف — ${_dashGetCurrentQuarterInfo().label} (تدريب ${EMP_TARGET_TRAIN_HOURS}س سنويًا / ${EMP_TARGET_HAZARDS} بلاغ خطورة سنويًا لكل موظف)</div>
+      <div class="dash-section-title">${dicon('target', 17)} ${T("نسبة التزام القسم بالأهداف —")} ${_dashGetCurrentQuarterInfo().label} ${T("(تدريب")} ${EMP_TARGET_TRAIN_HOURS}${T("س سنويًا /")} ${EMP_TARGET_HAZARDS} ${T("بلاغ خطورة سنويًا لكل موظف)")}</div>
       <div class="dash-kpi-grid">
         <div class="dash-kpi-card accent-3">
           <span class="dash-kpi-icon">${dicon('cap', 26)}</span>
           <div class="dash-kpi-value" id="kpiDeptTrainAchievedPct">…</div>
-          <div class="dash-kpi-label">حققوا تارجت التدريب للربع الحالي</div>
+          <div class="dash-kpi-label">${T("حققوا تارجت التدريب للربع الحالي")}</div>
           <div class="dash-kpi-sub" id="kpiDeptTrainAchievedSub"></div>
         </div>
         <div class="dash-kpi-card accent-5">
           <span class="dash-kpi-icon">${dicon('alert', 26)}</span>
           <div class="dash-kpi-value" id="kpiDeptHazardTargetPct">…</div>
-          <div class="dash-kpi-label">حققوا تارجت بلاغات الخطورة (${EMP_TARGET_HAZARDS} بلاغ)</div>
+          <div class="dash-kpi-label">${T("حققوا تارجت بلاغات الخطورة (")}${EMP_TARGET_HAZARDS} ${T("بلاغ)")}</div>
           <div class="dash-kpi-sub" id="kpiDeptHazardTargetSub"></div>
         </div>
       </div>
       ` : ''}
 
       <!-- Status donuts -->
-      <div class="dash-section-title">${dicon('trend', 17)} نظرة عامة على الحالة</div>
+      <div class="dash-section-title">${dicon('trend', 17)} ${T("نظرة عامة على الحالة")}</div>
       <div class="dash-chart-grid">
         <div class="dash-chart-card">
-          <div class="dash-chart-title">${dicon('alert', 17)} <span>بلاغات الخطورة — الحالة</span></div>
-          <div class="dash-chart-wrap">${hazards.total === 0 ? '<div class="dash-empty">لا توجد بلاغات في هذه الفترة</div>' : '<canvas id="chartPersonalHazard"></canvas>'}</div>
+          <div class="dash-chart-title">${dicon('alert', 17)} <span>${T("بلاغات الخطورة — الحالة")}</span></div>
+          <div class="dash-chart-wrap">${hazards.total === 0 ? T('<div class="dash-empty">لا توجد بلاغات في هذه الفترة</div>') : '<canvas id="chartPersonalHazard"></canvas>'}</div>
         </div>
         <div class="dash-chart-card">
-          <div class="dash-chart-title">${dicon('doc', 17)} <span>تصاريح العمل — الحالة</span></div>
-          <div class="dash-chart-wrap">${permits.total === 0 ? '<div class="dash-empty">لا توجد تصاريح في هذه الفترة</div>' : '<canvas id="chartPersonalPermit"></canvas>'}</div>
+          <div class="dash-chart-title">${dicon('doc', 17)} <span>${T("تصاريح العمل — الحالة")}</span></div>
+          <div class="dash-chart-wrap">${permits.total === 0 ? T('<div class="dash-empty">لا توجد تصاريح في هذه الفترة</div>') : '<canvas id="chartPersonalPermit"></canvas>'}</div>
         </div>
         <div class="dash-chart-card">
-          <div class="dash-chart-title">${dicon('siren', 17)} <span>تجارب الطوارئ — الحالة</span></div>
-          <div class="dash-chart-wrap">${drills.total === 0 ? '<div class="dash-empty">لا توجد تجارب طوارئ في هذه الفترة</div>' : '<canvas id="chartPersonalDrill"></canvas>'}</div>
+          <div class="dash-chart-title">${dicon('siren', 17)} <span>${T("تجارب الطوارئ — الحالة")}</span></div>
+          <div class="dash-chart-wrap">${drills.total === 0 ? T('<div class="dash-empty">لا توجد تجارب طوارئ في هذه الفترة</div>') : '<canvas id="chartPersonalDrill"></canvas>'}</div>
         </div>
       </div>
 
       <!-- Detail lists -->
-      <div class="dash-section-title">${dicon('book', 17)} التفاصيل</div>
+      <div class="dash-section-title">${dicon('book', 17)} ${T("التفاصيل")}</div>
       <div class="dash-chart-grid">
         ${_dashListCard({
-          icon: dicon('cap', 17), title: `${trainLabel} — الأسماء والمواعيد`,
-          items: trainings.list, emptyMsg: 'لا توجد محاضرات مسجلة في هذه الفترة',
+          icon: dicon('cap', 17), title: `${trainLabel} ${T("— الأسماء والمواعيد")}`,
+          items: trainings.list, emptyMsg: T('لا توجد محاضرات مسجلة في هذه الفترة'),
           renderRow: t => `
             <div class="dash-list-row">
               <div class="dash-list-main">
                 <div class="dash-list-title">${escapeHtml(t.title)}</div>
                 <div class="dash-list-meta">${_dashFmtDate(t.date)}${t.trainer ? ' · ' + escapeHtml(t.trainer) : ''}</div>
               </div>
-              <span class="dash-kpi-pill blue">${t.hours} س</span>
+              <span class="dash-kpi-pill blue">${t.hours} ${T("س")}</span>
             </div>`
         })}
 
         ${_dashListCard({
-          icon: dicon('alert', 17), title: `${hazLabel} — الأسماء والحالة`,
-          items: hazards.list, emptyMsg: 'لا توجد بلاغات مسجلة في هذه الفترة',
+          icon: dicon('alert', 17), title: `${hazLabel} ${T("— الأسماء والحالة")}`,
+          items: hazards.list, emptyMsg: T('لا توجد بلاغات مسجلة في هذه الفترة'),
           renderRow: h => `
             <div class="dash-list-row">
               <div class="dash-list-main">
@@ -7838,8 +7968,8 @@ function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
         })}
 
         ${_dashListCard({
-          icon: dicon('siren', 17), title: `${drillLabel} — الأسماء والحالة`,
-          items: drills.list, emptyMsg: 'لا توجد تجارب طوارئ مسجلة في هذه الفترة',
+          icon: dicon('siren', 17), title: `${drillLabel} ${T("— الأسماء والحالة")}`,
+          items: drills.list, emptyMsg: T('لا توجد تجارب طوارئ مسجلة في هذه الفترة'),
           renderRow: d => `
             <div class="dash-list-row">
               <div class="dash-list-main">
@@ -7851,8 +7981,8 @@ function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
         })}
 
         ${_dashListCard({
-          icon: dicon('doc', 17), title: `${permitLabel} — الأنواع والحالة`,
-          items: permits.list, emptyMsg: 'لا توجد تصاريح عمل مسجلة في هذه الفترة',
+          icon: dicon('doc', 17), title: `${permitLabel} ${T("— الأنواع والحالة")}`,
+          items: permits.list, emptyMsg: T('لا توجد تصاريح عمل مسجلة في هذه الفترة'),
           renderRow: p => `
             <div class="dash-list-row">
               <div class="dash-list-main">
@@ -7864,8 +7994,8 @@ function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
         })}
 
         ${_dashListCard({
-          icon: dicon('scale', 17), title: `${penaltyLabel} — الأسباب والتواريخ`,
-          items: penalties.list, emptyMsg: 'لا توجد جزاءات مسجلة في هذه الفترة',
+          icon: dicon('scale', 17), title: `${penaltyLabel} ${T("— الأسباب والتواريخ")}`,
+          items: penalties.list, emptyMsg: T('لا توجد جزاءات مسجلة في هذه الفترة'),
           renderRow: p => `
             <div class="dash-list-row">
               <div class="dash-list-main">
@@ -7906,7 +8036,7 @@ function renderPersonalCharts(data) {
     _dashCharts['chartPersonalHazard'] = new Chart(ctxH, {
       type: 'doughnut',
       data: {
-        labels: ['مفتوح', 'مغلق', 'مرفوض'],
+        labels: [T('مفتوح'), 'مغلق', 'مرفوض'],
         datasets: [{ data: [hazards.byStatus.open, hazards.byStatus.resolved, hazards.byStatus.rejected],
           backgroundColor: ['#DC2626','#16A34A','#94a3b8'], borderWidth: 2, borderColor: '#fff' }]
       },
@@ -7921,7 +8051,7 @@ function renderPersonalCharts(data) {
     _dashCharts['chartPersonalPermit'] = new Chart(ctxP, {
       type: 'doughnut',
       data: {
-        labels: ['موافق', 'انتظار', 'مرفوض'],
+        labels: [T('موافق'), T('انتظار'), 'مرفوض'],
         datasets: [{ data: [permits.byStatus.approved, permits.byStatus.pending, permits.byStatus.rejected],
           backgroundColor: ['#16A34A','#D97706','#DC2626'], borderWidth: 2, borderColor: '#fff' }]
       },
@@ -7936,7 +8066,7 @@ function renderPersonalCharts(data) {
     _dashCharts['chartPersonalDrill'] = new Chart(ctxD, {
       type: 'pie',
       data: {
-        labels: ['نشط', 'مغلق'],
+        labels: [T('نشط'), 'مغلق'],
         datasets: [{ data: [drills.active, drills.closed], backgroundColor: ['#D97706','#16A34A'], borderWidth: 2, borderColor: '#fff' }]
       },
       options: { responsive: true, maintainAspectRatio: false,
@@ -7956,10 +8086,10 @@ async function renderMyPenalties() {
   const listEl = document.getElementById('myPenaltiesList');
   if (!listEl) return;
   if (!currentEmployee) {
-    listEl.innerHTML = `<div class="empty"><div class="icon">🔒</div>سجّل دخولك أولاً لعرض الجزاءات</div>`;
+    listEl.innerHTML = `<div class="empty"><div class="icon">🔒</div>${T("سجّل دخولك أولاً لعرض الجزاءات")}</div>`;
     return;
   }
-  listEl.innerHTML = '<div class="loading">جارِ تحميل الجزاءات…</div>';
+  listEl.innerHTML = T('<div class="loading">جارِ تحميل الجزاءات…</div>');
 
   try {
     const code = encodeURIComponent(currentEmployee.empCode || currentEmployee.code || '');
@@ -7969,25 +8099,25 @@ async function renderMyPenalties() {
     const penalties = data.penalties || [];
 
     if (penalties.length === 0) {
-      listEl.innerHTML = `<div class="empty"><div class="icon">✅</div>لا يوجد أي جزاءات مسجلة عليك</div>`;
+      listEl.innerHTML = `<div class="empty"><div class="icon">✅</div>${T("لا يوجد أي جزاءات مسجلة عليك")}</div>`;
       return;
     }
 
     listEl.innerHTML = penalties.map(p => `
       <div class="sup-card" style="margin-bottom:12px;border-right:4px solid var(--danger);">
         <div class="sup-top">
-          <div><div class="hz-status-badge hz-high">⚖️ جزاء</div></div>
+          <div><div class="hz-status-badge hz-high">${T("⚖️ جزاء")}</div></div>
           <div class="tnum">${escapeHtml(p.date || '')}</div>
         </div>
         <div style="margin:10px 0;font-size:14px;line-height:1.6;">${escapeHtml(p.reason || '')}</div>
         <div class="meta-grid">
-          <div><span>مشرف السيفتي</span>${escapeHtml(p.issuedBy || '—')}</div>
+          <div><span>${T("مشرف السيفتي")}</span>${escapeHtml(p.issuedBy || '—')}</div>
         </div>
       </div>
     `).join('');
   } catch (e) {
     console.error(e);
-    listEl.innerHTML = `<div class="empty"><div class="icon">⚠️</div>تعذّر تحميل الجزاءات، حاول مجدداً</div>`;
+    listEl.innerHTML = `<div class="empty"><div class="icon">⚠️</div>${T("تعذّر تحميل الجزاءات، حاول مجدداً")}</div>`;
   }
 }
 
@@ -8006,7 +8136,7 @@ async function renderPenaltiesAdmin() {
   if (btnsEl) btnsEl.style.display = canManage ? 'flex' : 'none';
   if (noticeEl) noticeEl.style.display = canManage ? 'none' : 'block';
 
-  listEl.innerHTML = '<div class="loading">جارِ تحميل الجزاءات…</div>';
+  listEl.innerHTML = T('<div class="loading">جارِ تحميل الجزاءات…</div>');
 
   try {
     const res = await authFetch('/api/penalties');
@@ -8015,7 +8145,7 @@ async function renderPenaltiesAdmin() {
     penaltiesAdminCache = (data.penalties || []).filter(p => p.status !== 'deleted');
 
     if (penaltiesAdminCache.length === 0) {
-      listEl.innerHTML = `<div class="empty"><div class="icon">✅</div>لا توجد أي جزاءات مسجلة حالياً</div>`;
+      listEl.innerHTML = `<div class="empty"><div class="icon">✅</div>${T("لا توجد أي جزاءات مسجلة حالياً")}</div>`;
       return;
     }
 
@@ -8028,27 +8158,27 @@ async function renderPenaltiesAdmin() {
           <div class="tnum">${escapeHtml(p.date || '')}</div>
         </div>
         <div class="meta-grid">
-          <div><span>الكود الوظيفي</span>${escapeHtml(p.empCode || '')}</div>
-          <div><span>الوظيفة</span>${escapeHtml(p.jobTitle || '—')}</div>
-          <div><span>القسم</span>${escapeHtml(p.department || '—')}</div>
-          <div><span>مشرف السيفتي</span>${escapeHtml(p.issuedBy || '—')}</div>
+          <div><span>${T("الكود الوظيفي")}</span>${escapeHtml(p.empCode || '')}</div>
+          <div><span>${T("الوظيفة")}</span>${escapeHtml(p.jobTitle || '—')}</div>
+          <div><span>${T("القسم")}</span>${escapeHtml(p.department || '—')}</div>
+          <div><span>${T("مشرف السيفتي")}</span>${escapeHtml(p.issuedBy || '—')}</div>
         </div>
         <div style="margin:10px 0;font-size:14px;line-height:1.6;">${escapeHtml(p.reason || '')}</div>
         ${canManage ? `
         <div style="display:flex;gap:8px;">
-          <button class="logout-btn" style="flex:1;color:var(--danger);border-color:var(--danger);" onclick="openDeletePenaltyModal('${p.id}')">🗑️ حذف الجزاء</button>
+          <button class="logout-btn" style="flex:1;color:var(--danger);border-color:var(--danger);" onclick="openDeletePenaltyModal('${p.id}')">${T("🗑️ حذف الجزاء")}</button>
         </div>` : ''}
       </div>
     `).join('');
   } catch (e) {
     console.error(e);
-    listEl.innerHTML = `<div class="empty"><div class="icon">⚠️</div>تعذّر تحميل الجزاءات، حاول مجدداً</div>`;
+    listEl.innerHTML = `<div class="empty"><div class="icon">⚠️</div>${T("تعذّر تحميل الجزاءات، حاول مجدداً")}</div>`;
   }
 }
 
 // ── Add penalty modal ─────────────────────────────────────────
 function openAddPenaltyModal() {
-  if (!_canManagePenalties()) { showToast('لا تملك صلاحية إضافة جزاء', 'error'); return; }
+  if (!_canManagePenalties()) { showToast(T('لا تملك صلاحية إضافة جزاء'), 'error'); return; }
   document.getElementById('pen_empCode').value = '';
   document.getElementById('pen_date').value = new Date().toISOString().slice(0, 10);
   document.getElementById('pen_reason').value = '';
@@ -8069,7 +8199,7 @@ async function submitAddPenalty() {
   msgEl.className = 'um-msg';
 
   if (!empCode || !reason) {
-    msgEl.textContent = 'من فضلك أدخل الكود الوظيفي وسبب الجزاء';
+    msgEl.textContent = T('من فضلك أدخل الكود الوظيفي وسبب الجزاء');
     msgEl.className = 'um-msg error show';
     return;
   }
@@ -8082,25 +8212,25 @@ async function submitAddPenalty() {
     });
     const data = await res.json();
     if (res.ok) {
-      msgEl.textContent = '✅ تم إضافة الجزاء بنجاح';
+      msgEl.textContent = T('✅ تم إضافة الجزاء بنجاح');
       msgEl.className = 'um-msg success show';
       setTimeout(() => {
         closeAddPenaltyModal();
         renderPenaltiesAdmin();
       }, 800);
     } else {
-      msgEl.textContent = data.error || 'فشل إضافة الجزاء';
+      msgEl.textContent = data.error || T('فشل إضافة الجزاء');
       msgEl.className = 'um-msg error show';
     }
   } catch (e) {
-    msgEl.textContent = 'خطأ في الاتصال بالسيرفر';
+    msgEl.textContent = T('خطأ في الاتصال بالسيرفر');
     msgEl.className = 'um-msg error show';
   }
 }
 
 // ── Delete penalty modal ──────────────────────────────────────
 function openDeletePenaltyModal(id) {
-  if (!_canManagePenalties()) { showToast('لا تملك صلاحية حذف الجزاء', 'error'); return; }
+  if (!_canManagePenalties()) { showToast(T('لا تملك صلاحية حذف الجزاء'), 'error'); return; }
   penaltyToDelete = id;
   document.getElementById('deletePenaltyReason').value = '';
   const msg = document.getElementById('deletePenaltyMsg');
@@ -8117,7 +8247,7 @@ async function confirmDeletePenalty() {
   msgEl.className = 'um-msg';
 
   if (!reason) {
-    msgEl.textContent = 'من فضلك أدخل سبب الحذف';
+    msgEl.textContent = T('من فضلك أدخل سبب الحذف');
     msgEl.className = 'um-msg error show';
     return;
   }
@@ -8130,18 +8260,18 @@ async function confirmDeletePenalty() {
     });
     const data = await res.json();
     if (res.ok) {
-      msgEl.textContent = '✅ تم حذف الجزاء';
+      msgEl.textContent = T('✅ تم حذف الجزاء');
       msgEl.className = 'um-msg success show';
       setTimeout(() => {
         closeDeletePenaltyModal();
         renderPenaltiesAdmin();
       }, 800);
     } else {
-      msgEl.textContent = data.error || 'فشل حذف الجزاء';
+      msgEl.textContent = data.error || T('فشل حذف الجزاء');
       msgEl.className = 'um-msg error show';
     }
   } catch (e) {
-    msgEl.textContent = 'خطأ في الاتصال بالسيرفر';
+    msgEl.textContent = T('خطأ في الاتصال بالسيرفر');
     msgEl.className = 'um-msg error show';
   }
 }
@@ -8156,7 +8286,7 @@ async function uploadPenaltiesExcel(event) {
     const dataUrl = e.target.result;
     const base64Data = dataUrl.split(',')[1];
 
-    showToast('جاري رفع الشيت واستيراد الجزاءات...', 'info');
+    showToast(T('جاري رفع الشيت واستيراد الجزاءات...'), 'info');
 
     try {
       const res = await authFetch('/api/penalties/upload-excel', {
@@ -8166,14 +8296,14 @@ async function uploadPenaltiesExcel(event) {
       });
       const json = await res.json();
       if (json.success) {
-        showToast(`تم استيراد ${json.count} جزاء بنجاح!` + (json.skipped ? ` (تم تخطي ${json.skipped} صف بدون سبب)` : ''), 'success');
+        showToast(`${T("تم استيراد")} ${json.count} ${T("جزاء بنجاح!")}` + (json.skipped ? ` ${T("(تم تخطي")} ${json.skipped} ${T("صف بدون سبب)")}` : ''), 'success');
         renderPenaltiesAdmin();
       } else {
-        showToast(json.message || 'حدث خطأ أثناء الرفع', 'error');
+        showToast(json.message || T('حدث خطأ أثناء الرفع'), 'error');
       }
     } catch (err) {
       console.error(err);
-      showToast('خطأ في الاتصال بالخادم', 'error');
+      showToast(T('خطأ في الاتصال بالخادم'), 'error');
     }
 
     event.target.value = '';
@@ -8194,7 +8324,7 @@ window.exportPenaltiesExcel = function () {
   }));
 
   if (rows.length === 0) {
-    showToast('لا توجد جزاءات للتصدير', 'error');
+    showToast(T('لا توجد جزاءات للتصدير'), 'error');
     return;
   }
 
@@ -8202,11 +8332,11 @@ window.exportPenaltiesExcel = function () {
     const ws = XLSX.utils.json_to_sheet(rows);
     ws['!cols'] = [{ wch: 12 }, { wch: 28 }, { wch: 18 }, { wch: 22 }, { wch: 14 }, { wch: 45 }, { wch: 20 }];
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'الجزاءات');
-    XLSX.writeFile(wb, `الجزاءات_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, T('الجزاءات'));
+    XLSX.writeFile(wb, `${T("الجزاءات_")}${new Date().toISOString().split('T')[0]}.xlsx`);
   } catch (e) {
     console.error(e);
-    showToast('تعذّر تصدير الملف', 'error');
+    showToast(T('تعذّر تصدير الملف'), 'error');
   }
 };
 
@@ -8227,124 +8357,122 @@ function renderDashboardHTML(container, data) {
         <div class="dash-kpi-card accent-1">
           <span class="dash-kpi-icon">${dicon('doc', 26)}</span>
           <div class="dash-kpi-value" id="kpiPermitTotal">0</div>
-          <div class="dash-kpi-label">تصاريح العمل</div>
+          <div class="dash-kpi-label">${T("تصاريح العمل")}</div>
           <div class="dash-kpi-sub">
-            <span class="dash-kpi-pill green">✔ موافق: ${permits.byStatus.approved}</span>
-            <span class="dash-kpi-pill yellow">⏳ انتظار: ${permits.byStatus.pending}</span>
-            <span class="dash-kpi-pill red">✖ مرفوض: ${permits.byStatus.rejected}</span>
+            <span class="dash-kpi-pill green">${T("✔ موافق:")} ${permits.byStatus.approved}</span>
+            <span class="dash-kpi-pill yellow">${T("⏳ انتظار:")} ${permits.byStatus.pending}</span>
+            <span class="dash-kpi-pill red">${T("✖ مرفوض:")} ${permits.byStatus.rejected}</span>
           </div>
         </div>
         <div class="dash-kpi-card accent-5">
           <span class="dash-kpi-icon">${dicon('alert', 26)}</span>
           <div class="dash-kpi-value" id="kpiHazardTotal">0</div>
-          <div class="dash-kpi-label">بلاغات الخطورة</div>
+          <div class="dash-kpi-label">${T("بلاغات الخطورة")}</div>
           <div class="dash-kpi-sub">
-            <span class="dash-kpi-pill red">مفتوح: ${hazards.byStatus.open}</span>
-            <span class="dash-kpi-pill green">محلول: ${hazards.byStatus.resolved}</span>
+            <span class="dash-kpi-pill red">${T("مفتوح:")} ${hazards.byStatus.open}</span>
+            <span class="dash-kpi-pill green">${T("محلول:")} ${hazards.byStatus.resolved}</span>
           </div>
         </div>
         <div class="dash-kpi-card accent-4">
           <span class="dash-kpi-icon">${dicon('cap', 26)}</span>
           <div class="dash-kpi-value" id="kpiTrainingTotal">0</div>
-          <div class="dash-kpi-label">المحاضرات التدريبية</div>
+          <div class="dash-kpi-label">${T("المحاضرات التدريبية")}</div>
           <div class="dash-kpi-sub">
-            <span class="dash-kpi-pill blue">حضور: ${trainings.totalAttendees}</span>
-            <span class="dash-kpi-pill blue">⏱ ${(trainings.totalHours || 0).toLocaleString('en-US')} ساعة</span>
+            <span class="dash-kpi-pill blue">${T("حضور:")} ${trainings.totalAttendees}</span>
+            <span class="dash-kpi-pill blue">⏱ ${(trainings.totalHours || 0).toLocaleString(LOC())} ${T("ساعة")}</span>
           </div>
         </div>
         <div class="dash-kpi-card accent-3">
           <span class="dash-kpi-icon">${dicon('siren', 26)}</span>
           <div class="dash-kpi-value" id="kpiDrillTotal">0</div>
-          <div class="dash-kpi-label">تجارب الطوارئ</div>
+          <div class="dash-kpi-label">${T("تجارب الطوارئ")}</div>
           <div class="dash-kpi-sub">
-            <span class="dash-kpi-pill blue">إجمالي الحضور: ${drills.totalAttendees}</span>
-            <span class="dash-kpi-pill green">مغلقة: ${drills.closed}</span>
+            <span class="dash-kpi-pill blue">${T("إجمالي الحضور:")} ${drills.totalAttendees}</span>
+            <span class="dash-kpi-pill green">${T("مغلقة:")} ${drills.closed}</span>
           </div>
         </div>
         <div class="dash-kpi-card accent-2">
           <span class="dash-kpi-icon">${dicon('scale', 26)}</span>
           <div class="dash-kpi-value" id="kpiPenaltyTotal">0</div>
-          <div class="dash-kpi-label">الجزاءات</div>
+          <div class="dash-kpi-label">${T("الجزاءات")}</div>
           <div class="dash-kpi-sub">
-            <span class="dash-kpi-pill ${penalties.total > 0 ? 'red' : 'green'}">${penalties.total} جزاء</span>
+            <span class="dash-kpi-pill ${penalties.total > 0 ? 'red' : 'green'}">${penalties.total} ${T("جزاء")}</span>
           </div>
         </div>
       </div>
 
       <!-- Company-wide target compliance -->
-      <div class="dash-section-title">${dicon('target', 17)} نسبة الالتزام بالأهداف — ${_dashGetCurrentQuarterInfo().label} (تدريب ${EMP_TARGET_TRAIN_HOURS}س سنويًا / ${EMP_TARGET_HAZARDS} بلاغ خطورة سنويًا لكل موظف)</div>
+      <div class="dash-section-title">${dicon('target', 17)} ${T("نسبة الالتزام بالأهداف —")} ${_dashGetCurrentQuarterInfo().label} ${T("(تدريب")} ${EMP_TARGET_TRAIN_HOURS}${T("س سنويًا /")} ${EMP_TARGET_HAZARDS} ${T("بلاغ خطورة سنويًا لكل موظف)")}</div>
       <div class="dash-kpi-grid">
         <div class="dash-kpi-card accent-3">
           <span class="dash-kpi-icon">${dicon('cap', 26)}</span>
           <div class="dash-kpi-value" id="kpiTrainAchievedPct">…</div>
-          <div class="dash-kpi-label">حققوا تارجت التدريب للربع الحالي</div>
+          <div class="dash-kpi-label">${T("حققوا تارجت التدريب للربع الحالي")}</div>
           <div class="dash-kpi-sub" id="kpiTrainAchievedSub"></div>
         </div>
         <div class="dash-kpi-card accent-5">
           <span class="dash-kpi-icon">${dicon('alert', 26)}</span>
           <div class="dash-kpi-value" id="kpiHazardTargetPct">…</div>
-          <div class="dash-kpi-label">حققوا تارجت بلاغات الخطورة (${EMP_TARGET_HAZARDS} بلاغ)</div>
+          <div class="dash-kpi-label">${T("حققوا تارجت بلاغات الخطورة (")}${EMP_TARGET_HAZARDS} ${T("بلاغ)")}</div>
           <div class="dash-kpi-sub" id="kpiHazardTargetSub"></div>
         </div>
       </div>
 
-      <!-- Speed & department leaderboard (من /api/executive/overview) — نظرة
-           على مستوى الشركة كلها، فتظهر فقط لـ super_admin/hse_admin؛ أدمن
-           القسم يبقى مقصورًا على بيانات قسمه فقط في باقي الصفحة. -->
+      <${T("!-- Speed & department leaderboard (من /api/executive/overview) — نظرة\n           على مستوى الشركة كلها، فتظهر فقط لـ super_admin/hse_admin؛ أدمن\n           القسم يبقى مقصورًا على بيانات قسمه فقط في باقي الصفحة. --")}>
       ${(meta.role === 'super_admin' || meta.role === 'hse_admin') ? `
-      <div class="dash-section-title">${dicon('trend', 17)} كفاءة النظام مقارنة بالورقي</div>
+      <div class="dash-section-title">${dicon('trend', 17)} ${T("كفاءة النظام مقارنة بالورقي")}</div>
       <div class="dash-kpi-grid" id="dashSpeedKpis">
         <div class="dash-kpi-card">
           <span class="dash-kpi-icon">${dicon('doc', 26)}</span>
           <div class="dash-kpi-value" id="kpiAvgApproval">…</div>
-          <div class="dash-kpi-label">متوسط زمن اعتماد التصريح</div>
+          <div class="dash-kpi-label">${T("متوسط زمن اعتماد التصريح")}</div>
         </div>
         <div class="dash-kpi-card">
           <span class="dash-kpi-icon">${dicon('alert', 26)}</span>
           <div class="dash-kpi-value" id="kpiAvgClosure">…</div>
-          <div class="dash-kpi-label">متوسط زمن إغلاق البلاغ</div>
+          <div class="dash-kpi-label">${T("متوسط زمن إغلاق البلاغ")}</div>
         </div>
       </div>
 
-      <div class="dash-section-title">${dicon('bars', 17)} ترتيب الأقسام حسب الالتزام بالسلامة</div>
+      <div class="dash-section-title">${dicon('bars', 17)} ${T("ترتيب الأقسام حسب الالتزام بالسلامة")}</div>
       <div class="exec-leaderboard" id="dashDeptLeaderboard" style="margin-bottom:24px;">
-        <div class="loading">جارِ التحميل…</div>
+        <div class="loading">${T("جارِ التحميل…")}</div>
       </div>
       ` : ''}
 
       <!-- Charts Row 1: Status pies -->
-      <div class="dash-section-title">${dicon('trend', 17)} توزيع الإحصائيات</div>
+      <div class="dash-section-title">${dicon('trend', 17)} ${T("توزيع الإحصائيات")}</div>
       <div class="dash-chart-grid">
         <div class="dash-chart-card">
-          <div class="dash-chart-title">${dicon('doc', 17)} <span>تصاريح العمل — حسب الحالة</span></div>
+          <div class="dash-chart-title">${dicon('doc', 17)} <span>${T("تصاريح العمل — حسب الحالة")}</span></div>
           <div class="dash-chart-wrap"><canvas id="chartPermitStatus"></canvas></div>
         </div>
         <div class="dash-chart-card">
-          <div class="dash-chart-title">${dicon('bars', 17)} <span>تصاريح العمل — حسب النوع</span></div>
+          <div class="dash-chart-title">${dicon('bars', 17)} <span>${T("تصاريح العمل — حسب النوع")}</span></div>
           <div class="dash-chart-wrap"><canvas id="chartPermitType"></canvas></div>
         </div>
         <div class="dash-chart-card">
-          <div class="dash-chart-title">${dicon('alert', 17)} <span>بلاغات الخطورة — حسب الشدة</span></div>
+          <div class="dash-chart-title">${dicon('alert', 17)} <span>${T("بلاغات الخطورة — حسب الشدة")}</span></div>
           <div class="dash-chart-wrap"><canvas id="chartHazardSeverity"></canvas></div>
         </div>
       </div>
 
       <!-- Charts Row 2: Time series -->
-      <div class="dash-section-title">${dicon('calendar', 17)} الاتجاهات الشهرية (آخر 12 شهر)</div>
+      <div class="dash-section-title">${dicon('calendar', 17)} ${T("الاتجاهات الشهرية (آخر 12 شهر)")}</div>
       <div class="dash-chart-grid">
         <div class="dash-chart-card span-2">
-          <div class="dash-chart-title">${dicon('trend', 17)} <span>تصاريح وبلاغات — شهرياً</span></div>
+          <div class="dash-chart-title">${dicon('trend', 17)} <span>${T("تصاريح وبلاغات — شهرياً")}</span></div>
           <div class="dash-chart-wrap tall"><canvas id="chartMonthly"></canvas></div>
         </div>
       </div>
 
       <!-- Charts Row 3: Training topics + Drills -->
-      <div class="dash-section-title">${dicon('cap', 17)} التدريب وتجارب الطوارئ</div>
+      <div class="dash-section-title">${dicon('cap', 17)} ${T("التدريب وتجارب الطوارئ")}</div>
       <div class="dash-chart-grid">
         <div class="dash-chart-card">
-          <div class="dash-chart-title">${dicon('book', 17)} <span>أكثر الموضوعات تدريباً</span></div>
+          <div class="dash-chart-title">${dicon('book', 17)} <span>${T("أكثر الموضوعات تدريباً")}</span></div>
           <div id="dashTopicsList" class="dash-topic-list" style="padding:8px 0;min-height:180px;">
-            ${trainings.topTopics.length === 0 ? '<div class="dash-empty">لا توجد بيانات</div>' :
+            ${trainings.topTopics.length === 0 ? T('<div class="dash-empty">لا توجد بيانات</div>') :
               trainings.topTopics.map((t, i) => {
                 const max = trainings.topTopics[0].count || 1;
                 const pct = Math.round((t.count / max) * 100);
@@ -8358,21 +8486,21 @@ function renderDashboardHTML(container, data) {
           </div>
         </div>
         <div class="dash-chart-card">
-          <div class="dash-chart-title">${dicon('siren', 17)} <span>تجارب الطوارئ — الحالة</span></div>
+          <div class="dash-chart-title">${dicon('siren', 17)} <span>${T("تجارب الطوارئ — الحالة")}</span></div>
           <div class="dash-chart-wrap"><canvas id="chartDrillStatus"></canvas></div>
         </div>
         <div class="dash-chart-card">
-          <div class="dash-chart-title">${dicon('bars', 17)} <span>التدريبات والتجارب — شهرياً</span></div>
+          <div class="dash-chart-title">${dicon('bars', 17)} <span>${T("التدريبات والتجارب — شهرياً")}</span></div>
           <div class="dash-chart-wrap"><canvas id="chartTrainingsMonthly"></canvas></div>
         </div>
       </div>
 
       <!-- Penalties -->
-      <div class="dash-section-title">${dicon('scale', 17)} الجزاءات</div>
+      <div class="dash-section-title">${dicon('scale', 17)} ${T("الجزاءات")}</div>
       <div class="dash-chart-grid">
         ${_dashListCard({
-          icon: dicon('scale', 17), title: 'أحدث الجزاءات — الأسماء والأسباب',
-          items: penalties.list, emptyMsg: 'لا توجد جزاءات مسجلة في هذه الفترة',
+          icon: dicon('scale', 17), title: T('أحدث الجزاءات — الأسماء والأسباب'),
+          items: penalties.list, emptyMsg: T('لا توجد جزاءات مسجلة في هذه الفترة'),
           renderRow: p => `
             <div class="dash-list-row">
               <div class="dash-list-main">
@@ -8417,8 +8545,8 @@ async function _dashLoadSpeedAndLeaderboard() {
     const res = await authFetch('/api/executive/overview');
     if (!res.ok) throw new Error('fetch failed');
     const d = await res.json();
-    if (approvalEl) approvalEl.textContent = d.permits && d.permits.avgApprovalDays != null ? `${d.permits.avgApprovalDays} يوم` : '—';
-    if (closureEl)  closureEl.textContent  = d.hazards && d.hazards.avgClosureDays != null ? `${d.hazards.avgClosureDays} يوم` : '—';
+    if (approvalEl) approvalEl.textContent = d.permits && d.permits.avgApprovalDays != null ? `${d.permits.avgApprovalDays} ${T("يوم")}` : '—';
+    if (closureEl)  closureEl.textContent  = d.hazards && d.hazards.avgClosureDays != null ? `${d.hazards.avgClosureDays} ${T("يوم")}` : '—';
 
     if (boardEl) {
       const board = (d.departmentLeaderboard || []).slice(0, 8);
@@ -8434,13 +8562,13 @@ async function _dashLoadSpeedAndLeaderboard() {
           </div>
           <div class="exec-leaderboard-score">${b.score}</div>
         </div>
-      `).join('') : '<div class="empty" style="padding:20px"><div class="icon">📊</div>لا توجد بيانات كافية بعد</div>';
+      `).join('') : T('<div class="empty" style="padding:20px"><div class="icon">📊</div>لا توجد بيانات كافية بعد</div>');
     }
   } catch (e) {
     console.error('_dashLoadSpeedAndLeaderboard error', e);
     if (approvalEl) approvalEl.textContent = '—';
     if (closureEl) closureEl.textContent = '—';
-    if (boardEl) boardEl.innerHTML = '<div class="empty" style="padding:20px;color:var(--danger);">فشل التحميل</div>';
+    if (boardEl) boardEl.innerHTML = T('<div class="empty" style="padding:20px;color:var(--danger);">فشل التحميل</div>');
   }
 }
 
@@ -8460,7 +8588,7 @@ function _dashGetCurrentQuarterInfo() {
   const quarterIdx = Math.floor(now.getMonth() / 3); // 0..3
   const quartersElapsed = quarterIdx + 1;             // 1, 2, 3, or 4
   const yearStart = new Date(now.getFullYear(), 0, 1);
-  const quarterNames = ['الربع الأول (يناير–مارس)', 'الربع الثاني (أبريل–يونيو)', 'الربع الثالث (يوليو–سبتمبر)', 'الربع الرابع (أكتوبر–ديسمبر)'];
+  const quarterNames = [T('الربع الأول (يناير–مارس)'), T('الربع الثاني (أبريل–يونيو)'), T('الربع الثالث (يوليو–سبتمبر)'), T('الربع الرابع (أكتوبر–ديسمبر)')];
   return {
     yearStart,
     quartersElapsed,
@@ -8510,8 +8638,8 @@ async function _dashLoadTargetCompliance(scopeDept, ids) {
 
     pctTrainAchEl.textContent = `${trainAchPct}%`;
     pctHazEl.textContent      = `${hazPct}%`;
-    if (subTrainAchEl) subTrainAchEl.innerHTML = `<span class="dash-kpi-pill green">${trainAchieved} من ${total} موظف</span> <span class="dash-kpi-pill blue">تارجت ${q.label}: ${q.targetHours}س</span>`;
-    if (subHazEl)       subHazEl.innerHTML     = `<span class="dash-kpi-pill green">${hazAchieved} من ${total} موظف</span> <span class="dash-kpi-pill blue">تارجت ${q.label}: ${q.targetHazards} بلاغ</span>`;
+    if (subTrainAchEl) subTrainAchEl.innerHTML = `<span class="dash-kpi-pill green">${trainAchieved} ${T("من")} ${total} ${T("موظف")}</span> <span class="dash-kpi-pill blue">${T("تارجت")} ${q.label}: ${q.targetHours}${T("س")}</span>`;
+    if (subHazEl)       subHazEl.innerHTML     = `<span class="dash-kpi-pill green">${hazAchieved} ${T("من")} ${total} ${T("موظف")}</span> <span class="dash-kpi-pill blue">${T("تارجت")} ${q.label}: ${q.targetHazards} ${T("بلاغ")}</span>`;
 
     // Executive hero headline: single overall compliance number = average of
     // the two target-achievement rates above (training targets + hazard
@@ -8519,7 +8647,7 @@ async function _dashLoadTargetCompliance(scopeDept, ids) {
     if (pctOverallEl) {
       const overallPct = total ? Math.round((trainAchPct + hazPct) / 2) : 0;
       pctOverallEl.textContent = `${overallPct}%`;
-      if (subOverallEl) subOverallEl.innerHTML = `تدريب ${trainAchPct}% · بلاغات خطورة ${hazPct}%`;
+      if (subOverallEl) subOverallEl.innerHTML = `${T("تدريب")} ${trainAchPct}${T("% · بلاغات خطورة")} ${hazPct}%`;
     }
   } catch (err) {
     console.error('Target compliance load error', err);
@@ -8558,7 +8686,7 @@ function renderDashboardCharts(data) {
     _dashCharts['chartPermitStatus'] = new Chart(ctxPS, {
       type: 'doughnut',
       data: {
-        labels: ['موافق', 'انتظار', 'مرفوض'],
+        labels: [T('موافق'), T('انتظار'), 'مرفوض'],
         datasets: [{ data: psData,
           backgroundColor: ['#16A34A','#D97706','#DC2626'],
           hoverBackgroundColor: ['#15803d','#b45309','#b91c1c'],
@@ -8570,9 +8698,9 @@ function renderDashboardCharts(data) {
           legend: { position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, padding: 18, usePointStyle: true, pointStyle: 'circle', font: { size: 12, weight: '600' } } },
           tooltip: { ..._tip, callbacks: { label: (ctx) => {
             const pct = psTotal ? Math.round((ctx.parsed / psTotal) * 100) : 0;
-            return ` ${ctx.label}: ${ctx.parsed.toLocaleString('en-US')} (${pct}%)`;
+            return ` ${ctx.label}: ${ctx.parsed.toLocaleString(LOC())} (${pct}%)`;
           } } },
-          _dashCenterText: { enabled: true, total: psTotal, label: 'إجمالي التصاريح' },
+          _dashCenterText: { enabled: true, total: psTotal, label: T('إجمالي التصاريح') },
         }
       }
     });
@@ -8586,7 +8714,7 @@ function renderDashboardCharts(data) {
     // and give each type a fixed, consistent color.
     const typeEntries = Object.entries(permits.byType).sort((a, b) => b[1] - a[1]);
     const typeKeys   = typeEntries.map(e => e[0]);
-    const typeLabels = typeKeys.map(k => PERMIT_TYPE_LABELS[k] || k);
+    const typeLabels = typeKeys.map(k => T(PERMIT_TYPE_LABELS[k] || k));
     const typeVals   = typeEntries.map(e => e[1]);
     const typeColors = typeKeys.map((k, i) => PERMIT_TYPE_COLORS[k] || PALETTE[i % PALETTE.length]);
     // Give the wrapper a bit more room when there are more bars to show.
@@ -8597,7 +8725,7 @@ function renderDashboardCharts(data) {
       type: 'bar',
       data: {
         labels: typeLabels,
-        datasets: [{ label: 'عدد التصاريح', data: typeVals,
+        datasets: [{ label: T('عدد التصاريح'), data: typeVals,
           backgroundColor: typeColors, hoverBackgroundColor: typeColors,
           borderRadius: 6, borderSkipped: false,
           barPercentage: 0.6, categoryPercentage: 0.7 }]
@@ -8607,12 +8735,12 @@ function renderDashboardCharts(data) {
         layout: { padding: { left: 4, right: 12, top: 4, bottom: 4 } },
         plugins: {
           legend: { display: false },
-          tooltip: { ..._tip, callbacks: { label: (ctx) => ` ${ctx.parsed.x.toLocaleString('en-US')} تصريح` } },
+          tooltip: { ..._tip, callbacks: { label: (ctx) => ` ${ctx.parsed.x.toLocaleString(LOC())} ${T("تصريح")}` } },
         },
         scales: {
           x: { grid: { color: '#EFEFEF', drawTicks: false }, border: { display: false },
             ticks: { precision: 0, maxTicksLimit: 6, font: { size: 11 },
-              callback: (v) => Number(v).toLocaleString('en-US') } },
+              callback: (v) => Number(v).toLocaleString(LOC()) } },
           y: { grid: { display: false }, border: { display: false },
             ticks: { font: { size: 12, weight: '600' }, color: '#334155' } }
         }
@@ -8630,7 +8758,7 @@ function renderDashboardCharts(data) {
     _dashCharts['chartHazardSeverity'] = new Chart(ctxHS, {
       type: 'doughnut',
       data: {
-        labels: ['منخفض', 'متوسط', 'عالي', 'حرج'],
+        labels: [T('منخفض'), T('متوسط'), T('عالي'), T('حرج')],
         datasets: [{ data: hsData,
           backgroundColor: ['#16A34A','#D97706','#DC2626','#7C1D1D'],
           hoverBackgroundColor: ['#15803d','#b45309','#b91c1c','#5c1414'],
@@ -8642,9 +8770,9 @@ function renderDashboardCharts(data) {
           legend: { position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, padding: 14, usePointStyle: true, pointStyle: 'circle', font: { size: 12, weight: '600' } } },
           tooltip: { ..._tip, callbacks: { label: (ctx) => {
             const pct = hsTotal ? Math.round((ctx.parsed / hsTotal) * 100) : 0;
-            return ` ${ctx.label}: ${ctx.parsed.toLocaleString('en-US')} (${pct}%)`;
+            return ` ${ctx.label}: ${ctx.parsed.toLocaleString(LOC())} (${pct}%)`;
           } } },
-          _dashCenterText: { enabled: true, total: hsTotal, label: 'إجمالي البلاغات' },
+          _dashCenterText: { enabled: true, total: hsTotal, label: T('إجمالي البلاغات') },
         }
       }
     });
@@ -8657,17 +8785,17 @@ function renderDashboardCharts(data) {
     const months = Object.keys(permits.monthly);
     const monthLabels = months.map(m => {
       const [y, mo] = m.split('-');
-      return new Date(+y, +mo - 1).toLocaleDateString('ar-EG-u-nu-latn', { month: 'short', year: '2-digit' });
+      return new Date(+y, +mo - 1).toLocaleDateString(LOC_LATN(), { month: 'short', year: '2-digit' });
     });
     _dashCharts['chartMonthly'] = new Chart(ctxM, {
       type: 'line',
       data: {
         labels: monthLabels,
         datasets: [
-          { label: 'تصاريح العمل', data: Object.values(permits.monthly),
+          { label: T('تصاريح العمل'), data: Object.values(permits.monthly),
             borderColor: '#1A1A1A', backgroundColor: 'rgba(26,26,26,0.06)',
             fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#1A1A1A' },
-          { label: 'بلاغات الخطورة', data: Object.values(hazards.monthly),
+          { label: T('بلاغات الخطورة'), data: Object.values(hazards.monthly),
             borderColor: '#DC2626', backgroundColor: 'rgba(239,68,68,0.06)',
             fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#DC2626' },
         ]
@@ -8690,7 +8818,7 @@ function renderDashboardCharts(data) {
     _dashCharts['chartDrillStatus'] = new Chart(ctxDS, {
       type: 'pie',
       data: {
-        labels: ['نشط', 'مغلق'],
+        labels: [T('نشط'), 'مغلق'],
         datasets: [{ data: [drills.active, drills.closed],
           backgroundColor: ['#D97706','#16A34A'],
           borderWidth: 2, borderColor: '#fff' }]
@@ -8708,16 +8836,16 @@ function renderDashboardCharts(data) {
     const tMonths = Object.keys(trainings.monthly);
     const tLabels = tMonths.map(m => {
       const [y, mo] = m.split('-');
-      return new Date(+y, +mo - 1).toLocaleDateString('ar-EG-u-nu-latn', { month: 'short' });
+      return new Date(+y, +mo - 1).toLocaleDateString(LOC_LATN(), { month: 'short' });
     });
     _dashCharts['chartTrainingsMonthly'] = new Chart(ctxTM, {
       type: 'bar',
       data: {
         labels: tLabels,
         datasets: [
-          { label: 'التدريبات', data: Object.values(trainings.monthly),
+          { label: T('التدريبات'), data: Object.values(trainings.monthly),
             backgroundColor: 'rgba(245,158,11,0.8)', borderRadius: 4 },
-          { label: 'تجارب الطوارئ', data: Object.values(drills.monthly),
+          { label: T('تجارب الطوارئ'), data: Object.values(drills.monthly),
             backgroundColor: 'rgba(239,68,68,0.75)', borderRadius: 4 },
         ]
       },
@@ -8797,19 +8925,19 @@ function renderInspectionCategoryPicker() {
   if (!root) return;
   root.innerHTML = `
     <div class="insp-hero">
-      <div class="insp-hero-title">🦺 الفحص الشهري</div>
-      <div class="insp-hero-sub">اختر برنامج الفحص للبدء — سلامة المعدات وحواجز الحماية بالمصنع</div>
+      <div class="insp-hero-title">${T("🦺 الفحص الشهري")}</div>
+      <div class="insp-hero-sub">${T("اختر برنامج الفحص للبدء — سلامة المعدات وحواجز الحماية بالمصنع")}</div>
     </div>
     <div class="insp-category-grid">
       <div class="insp-category-card" onclick="inspSelectCategory('P1')">
         <div class="insp-cat-icon">P1</div>
-        <div class="insp-cat-title">برنامج P1</div>
-        <div class="insp-cat-sub">33 بند فحص</div>
+        <div class="insp-cat-title">${T("برنامج P1")}</div>
+        <div class="insp-cat-sub">${T("33 بند فحص")}</div>
       </div>
       <div class="insp-category-card" onclick="inspSelectCategory('P2')">
         <div class="insp-cat-icon">P2</div>
-        <div class="insp-cat-title">برنامج P2</div>
-        <div class="insp-cat-sub">27 بند فحص</div>
+        <div class="insp-cat-title">${T("برنامج P2")}</div>
+        <div class="insp-cat-sub">${T("27 بند فحص")}</div>
       </div>
     </div>
   `;
@@ -8839,7 +8967,7 @@ function inspYearMonthPickerHtml() {
       ${years.map(y => `<option value="${y}" ${y === inspState.year ? 'selected' : ''}>${y}</option>`).join('')}
     </select>
     <select id="inspMonth" class="insp-status-select" onchange="inspOnYearMonthChange()">
-      ${ARABIC_MONTHS.map((m,i) => `<option value="${i+1}" ${i+1===inspState.month ? 'selected':''}>${m}</option>`).join('')}
+      ${ARABIC_MONTHS.map((m,i) => `<option value="${i+1}" ${i+1===inspState.month ? 'selected':''}>${T(m)}</option>`).join('')}
     </select>
   `;
 }
@@ -8861,12 +8989,12 @@ async function renderInspectionSections() {
   root.innerHTML = `
     <div class="insp-toolbar">
       <div class="insp-toolbar-left">
-        <button class="btn btn-secondary btn-sm" type="button" onclick="inspBackToCategory()">→ رجوع</button>
-        <div class="insp-breadcrumb">الفحص الشهري / <b>برنامج ${escapeHtml(inspState.category)}</b></div>
+        <button class="btn btn-secondary btn-sm" type="button" onclick="inspBackToCategory()">${T("→ رجوع")}</button>
+        <div class="insp-breadcrumb">${T("الفحص الشهري /")} <b>${T("برنامج")} ${escapeHtml(inspState.category)}</b></div>
       </div>
       <div class="insp-toolbar-left">
         ${inspYearMonthPickerHtml()}
-        <button class="btn btn-primary btn-sm" type="button" onclick="inspOpenAddSectionModal()">+ إضافة قسم</button>
+        <button class="btn btn-primary btn-sm" type="button" onclick="inspOpenAddSectionModal()">${T("+ إضافة قسم")}</button>
       </div>
     </div>
     <div class="kpi-grid" id="inspSectionsKpis">
@@ -8876,7 +9004,7 @@ async function renderInspectionSections() {
       <div class="skeleton skeleton-card"></div>
     </div>
     <div class="insp-sections-grid" id="inspSectionsGrid">
-      <div class="loading-inline"><span class="btn-spinner"></span> جارِ تحميل الأقسام…</div>
+      <div class="loading-inline"><span class="btn-spinner"></span> ${T("جارِ تحميل الأقسام…")}</div>
     </div>
   `;
   try {
@@ -8897,57 +9025,57 @@ async function renderInspectionSections() {
       <div class="kpi-card kpi-success">
         <div class="kpi-card-top"><span class="kpi-icon">✅</span></div>
         <div class="kpi-value">${totalCompliant}</div>
-        <div class="kpi-label">مطابق</div>
+        <div class="kpi-label">${T("مطابق")}</div>
       </div>
       <div class="kpi-card kpi-danger">
         <div class="kpi-card-top"><span class="kpi-icon">⛔</span></div>
         <div class="kpi-value">${totalNonCompliant}</div>
-        <div class="kpi-label">غير مطابق</div>
+        <div class="kpi-label">${T("غير مطابق")}</div>
       </div>
       <div class="kpi-card kpi-warning">
         <div class="kpi-card-top"><span class="kpi-icon">⏳</span></div>
         <div class="kpi-value">${totalPending}</div>
-        <div class="kpi-label">لم يتم الفحص</div>
+        <div class="kpi-label">${T("لم يتم الفحص")}</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-card-top"><span class="kpi-icon">📊</span></div>
         <div class="kpi-value">${overallPct !== null ? overallPct + '%' : '—'}</div>
-        <div class="kpi-label">نسبة المطابقة الإجمالية</div>
-        <div class="kpi-sub">${totalItems} صنف عبر ${sections.length} قسم</div>
+        <div class="kpi-label">${T("نسبة المطابقة الإجمالية")}</div>
+        <div class="kpi-sub">${totalItems} ${T("صنف عبر")} ${sections.length} ${T("قسم")}</div>
       </div>
     `;
 
     const gridEl = document.getElementById('inspSectionsGrid');
     if (!gridEl) return;
     if (sections.length === 0) {
-      gridEl.innerHTML = '<div class="empty"><div class="icon">🦺</div>لا توجد أقسام بعد — أضف قسمًا جديدًا</div>';
+      gridEl.innerHTML = T('<div class="empty"><div class="icon">🦺</div>لا توجد أقسام بعد — أضف قسمًا جديدًا</div>');
       return;
     }
     gridEl.innerHTML = sections.map(s => `
       <div class="insp-section-card">
         <div onclick="inspOpenSection('${s.id}')">
           <div class="insp-section-name">${escapeHtml(s.name)}</div>
-          <div class="insp-section-meta"><span>${s.itemCount} صنف</span><span>${s.compliancePct !== null && s.compliancePct !== undefined ? s.compliancePct + '%' : '—'}</span></div>
+          <div class="insp-section-meta"><span>${s.itemCount} ${T("صنف")}</span><span>${s.compliancePct !== null && s.compliancePct !== undefined ? s.compliancePct + '%' : '—'}</span></div>
           <div class="insp-section-bar"><div class="insp-section-bar-fill" style="width:${s.compliancePct || 0}%"></div></div>
         </div>
-        <button class="insp-section-del" type="button" onclick="event.stopPropagation();inspDeleteSection('${s.id}')" title="حذف القسم">🗑 حذف</button>
+        <button class="insp-section-del" type="button" onclick="event.stopPropagation();inspDeleteSection('${s.id}')" title="${T("حذف القسم")}">${T("🗑 حذف")}</button>
       </div>
     `).join('');
   } catch(e) {
     console.error('Inspection sections load error', e);
     const gridEl = document.getElementById('inspSectionsGrid');
-    if (gridEl) gridEl.innerHTML = '<div class="empty" style="color:var(--danger);">فشل تحميل الأقسام</div>';
+    if (gridEl) gridEl.innerHTML = T('<div class="empty" style="color:var(--danger);">فشل تحميل الأقسام</div>');
   }
 }
 
 function inspOpenAddSectionModal() {
   openAppModal(`
-    <h3>+ إضافة قسم فحص جديد (${escapeHtml(inspState.category)})</h3>
-    <div class="app-modal-field"><label>اسم القسم *</label><input id="inspNewSectionName" type="text" placeholder="مثال: طفايات الحريق" /></div>
+    <h3>${T("+ إضافة قسم فحص جديد (")}${escapeHtml(inspState.category)})</h3>
+    <div class="app-modal-field"><label>${T("اسم القسم *")}</label><input id="inspNewSectionName" type="text" placeholder="${T("مثال: طفايات الحريق")}" /></div>
     <div class="app-modal-error" id="inspSectionModalError"></div>
     <div class="app-modal-actions">
-      <button class="btn btn-secondary" type="button" onclick="closeAppModal()">إلغاء</button>
-      <button class="btn btn-primary" type="button" id="inspSectionModalSubmit" onclick="inspSubmitAddSection()">إضافة</button>
+      <button class="btn btn-secondary" type="button" onclick="closeAppModal()">${T("إلغاء")}</button>
+      <button class="btn btn-primary" type="button" id="inspSectionModalSubmit" onclick="inspSubmitAddSection()">${T("إضافة")}</button>
     </div>
   `);
 }
@@ -8957,7 +9085,7 @@ async function inspSubmitAddSection() {
   const name = nameEl ? nameEl.value.trim() : '';
   const errEl = document.getElementById('inspSectionModalError');
   errEl.style.display = 'none';
-  if (!name) { errEl.textContent = 'اسم القسم مطلوب'; errEl.style.display = 'block'; return; }
+  if (!name) { errEl.textContent = T('اسم القسم مطلوب'); errEl.style.display = 'block'; return; }
   const btn = document.getElementById('inspSectionModalSubmit');
   const orig = btn.textContent;
   btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span>';
@@ -8968,15 +9096,15 @@ async function inspSubmitAddSection() {
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok) {
-      showToast('تمت إضافة القسم بنجاح ✓', 'success');
+      showToast(T('تمت إضافة القسم بنجاح ✓'), 'success');
       closeAppModal();
       renderInspectionSections();
     } else {
-      errEl.textContent = data.error || 'فشل إضافة القسم'; errEl.style.display = 'block';
+      errEl.textContent = data.error || T('فشل إضافة القسم'); errEl.style.display = 'block';
       btn.disabled = false; btn.textContent = orig;
     }
   } catch(e) {
-    errEl.textContent = 'خطأ في الاتصال بالسيرفر'; errEl.style.display = 'block';
+    errEl.textContent = T('خطأ في الاتصال بالسيرفر'); errEl.style.display = 'block';
     btn.disabled = false; btn.textContent = orig;
   }
 }
@@ -8984,20 +9112,20 @@ async function inspSubmitAddSection() {
 async function inspDeleteSection(sectionId) {
   const s = (window._inspSectionsCache || []).find(x => x.id === sectionId);
   if (!s) return;
-  const warn = s.itemCount > 0 ? ` يحتوي ${s.itemCount} صنف — سيتم حذف كل الأصناف وسجلات الفحص الخاصة به نهائيًا.` : '';
-  if (!confirm(`هل تريد حذف قسم "${s.name}"؟${warn}`)) return;
+  const warn = s.itemCount > 0 ? ` ${T("يحتوي")} ${s.itemCount} ${T("صنف — سيتم حذف كل الأصناف وسجلات الفحص الخاصة به نهائيًا.")}` : '';
+  if (!confirm(`${T("هل تريد حذف قسم")} "${s.name}"${T("؟")}${warn}`)) return;
   try {
     const url = `/api/inspections/sections/${sectionId}` + (s.itemCount > 0 ? '?cascade=true' : '');
     const res = await authFetch(url, { method: 'DELETE' });
     if (res.ok) {
-      showToast('تم حذف القسم', 'success');
+      showToast(T('تم حذف القسم'), 'success');
       renderInspectionSections();
     } else {
       const data = await res.json().catch(() => ({}));
-      showToast(data.error || 'فشل حذف القسم', 'error');
+      showToast(data.error || T('فشل حذف القسم'), 'error');
     }
   } catch(e) {
-    showToast('خطأ في الاتصال بالسيرفر', 'error');
+    showToast(T('خطأ في الاتصال بالسيرفر'), 'error');
   }
 }
 
@@ -9025,8 +9153,8 @@ async function renderInspectionSectionDetail() {
   root.innerHTML = `
     <div class="insp-toolbar">
       <div class="insp-toolbar-left">
-        <button class="btn btn-secondary btn-sm" type="button" onclick="inspBackToSections()">→ رجوع للأقسام</button>
-        <div class="insp-breadcrumb">الفحص الشهري / ${escapeHtml(inspState.category)} / <b>${escapeHtml(inspState.sectionName)}</b></div>
+        <button class="btn btn-secondary btn-sm" type="button" onclick="inspBackToSections()">${T("→ رجوع للأقسام")}</button>
+        <div class="insp-breadcrumb">${T("الفحص الشهري /")} ${escapeHtml(inspState.category)} / <b>${escapeHtml(inspState.sectionName)}</b></div>
       </div>
       <div class="insp-toolbar-left">
         ${inspYearMonthPickerHtml()}
@@ -9040,31 +9168,31 @@ async function renderInspectionSectionDetail() {
 
     <div class="adv-filter-box">
       <div class="adv-filter-head">
-        <div class="adv-filter-title">🔍 فلترة وأدوات</div>
+        <div class="adv-filter-title">${T("🔍 فلترة وأدوات")}</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn btn-secondary btn-sm" type="button" onclick="inspExport('items')">⬇ تصدير سجل الأصناف</button>
-          <button class="btn btn-secondary btn-sm" type="button" onclick="inspExport('monthly')">⬇ تصدير فحص الشهر</button>
-          <button class="btn btn-dark btn-sm" type="button" onclick="document.getElementById('inspLegacyExcelInput').click()">📥 رفع سجل قديم (Excel)</button>
+          <button class="btn btn-secondary btn-sm" type="button" onclick="inspExport('items')">${T("⬇ تصدير سجل الأصناف")}</button>
+          <button class="btn btn-secondary btn-sm" type="button" onclick="inspExport('monthly')">${T("⬇ تصدير فحص الشهر")}</button>
+          <button class="btn btn-dark btn-sm" type="button" onclick="document.getElementById('inspLegacyExcelInput').click()">${T("📥 رفع سجل قديم (Excel)")}</button>
           <input type="file" id="inspLegacyExcelInput" accept=".xlsx" style="display:none" onchange="inspImportLegacyExcel(event)" />
-          <button class="btn btn-primary btn-sm" type="button" onclick="inspOpenAddItemModal()">+ إضافة صنف</button>
+          <button class="btn btn-primary btn-sm" type="button" onclick="inspOpenAddItemModal()">${T("+ إضافة صنف")}</button>
         </div>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <input id="inspFilterQ" type="text" placeholder="بحث برقم/اسم/قسم/مكان الصنف…" class="form-input" style="flex:1;min-width:200px;padding:9px 12px;border-radius:10px;border:1px solid var(--paper-line);" oninput="inspDebouncedFilter()" />
+        <input id="inspFilterQ" type="text" placeholder="${T("بحث برقم/اسم/قسم/مكان الصنف…")}" class="form-input" style="flex:1;min-width:200px;padding:9px 12px;border-radius:10px;border:1px solid var(--paper-line);" oninput="inspDebouncedFilter()" />
         <select id="inspFilterDept" class="insp-status-select" onchange="inspApplyFilters()">
-          <option value="">كل الأقسام/الأماكن</option>
+          <option value="">${T("كل الأقسام/الأماكن")}</option>
         </select>
         <select id="inspFilterStatus" class="insp-status-select" onchange="inspApplyFilters()">
-          <option value="">كل الحالات</option>
-          <option value="مطابق">مطابق</option>
-          <option value="غير مطابق">غير مطابق</option>
-          <option value="لم يتم الفحص">لم يتم الفحص</option>
+          <option value="">${T("كل الحالات")}</option>
+          <option value="مطابق">${T("مطابق")}</option>
+          <option value="غير مطابق">${T("غير مطابق")}</option>
+          <option value="لم يتم الفحص">${T("لم يتم الفحص")}</option>
         </select>
       </div>
     </div>
 
     <div id="inspItemsTableWrap">
-      <div class="loading-inline"><span class="btn-spinner"></span> جارِ تحميل الأصناف…</div>
+      <div class="loading-inline"><span class="btn-spinner"></span> ${T("جارِ تحميل الأصناف…")}</div>
     </div>
   `;
   await inspLoadItems();
@@ -9082,7 +9210,7 @@ async function inspImportLegacyExcel(event) {
   const reader = new FileReader();
   reader.onload = async (e) => {
     const base64Data = e.target.result.split(',')[1];
-    showToast('جارِ استيراد السجل القديم…', 'info');
+    showToast(T('جارِ استيراد السجل القديم…'), 'info');
     try {
       const res = await authFetch(`/api/inspections/sections/${inspState.sectionId}/import-legacy-excel`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -9091,16 +9219,16 @@ async function inspImportLegacyExcel(event) {
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.success) {
         showToast(
-          `تم الاستيراد ✓ — ${data.itemsCreated} صنف جديد، ${data.recordsCreated} سجل جديد، ${data.recordsUpdated} سجل محدَّث (${data.sheetsParsed} ورقة)`,
+          `${T("تم الاستيراد ✓ —")} ${data.itemsCreated} ${T("صنف جديد،")} ${data.recordsCreated} ${T("سجل جديد،")} ${data.recordsUpdated} ${T("سجل محدَّث (")}${data.sheetsParsed} ${T("ورقة)")}`,
           'success'
         );
         inspLoadItems();
       } else {
-        showToast(data.error || 'فشل استيراد الملف', 'error');
+        showToast(data.error || T('فشل استيراد الملف'), 'error');
       }
     } catch (err) {
       console.error('inspImportLegacyExcel error', err);
-      showToast('خطأ في الاتصال بالسيرفر', 'error');
+      showToast(T('خطأ في الاتصال بالسيرفر'), 'error');
     }
     event.target.value = '';
   };
@@ -9110,7 +9238,7 @@ async function inspImportLegacyExcel(event) {
 async function inspLoadItems() {
   const wrap = document.getElementById('inspItemsTableWrap');
   if (!wrap || !inspState.sectionId) return;
-  wrap.innerHTML = '<div class="loading-inline"><span class="btn-spinner"></span> جارِ تحميل الأصناف…</div>';
+  wrap.innerHTML = T('<div class="loading-inline"><span class="btn-spinner"></span> جارِ تحميل الأصناف…</div>');
   try {
     const params = new URLSearchParams({ year: inspState.year, month: inspState.month });
     if (inspState.filters.department) params.set('department', inspState.filters.department);
@@ -9124,10 +9252,10 @@ async function inspLoadItems() {
 
     const kpisEl = document.getElementById('inspDetailKpis');
     if (kpisEl) kpisEl.innerHTML = `
-      <div class="kpi-card kpi-success"><div class="kpi-card-top"><span class="kpi-icon">✅</span></div><div class="kpi-value">${stats.compliant||0}</div><div class="kpi-label">مطابق</div></div>
-      <div class="kpi-card kpi-danger"><div class="kpi-card-top"><span class="kpi-icon">⛔</span></div><div class="kpi-value">${stats.nonCompliant||0}</div><div class="kpi-label">غير مطابق</div></div>
-      <div class="kpi-card kpi-warning"><div class="kpi-card-top"><span class="kpi-icon">⏳</span></div><div class="kpi-value">${stats.pending||0}</div><div class="kpi-label">لم يتم الفحص</div></div>
-      <div class="kpi-card"><div class="kpi-card-top"><span class="kpi-icon">📊</span></div><div class="kpi-value">${stats.compliancePct !== null && stats.compliancePct !== undefined ? stats.compliancePct + '%' : '—'}</div><div class="kpi-label">نسبة المطابقة</div><div class="kpi-sub">${stats.itemCount||0} صنف</div></div>
+      <div class="kpi-card kpi-success"><div class="kpi-card-top"><span class="kpi-icon">✅</span></div><div class="kpi-value">${stats.compliant||0}</div><div class="kpi-label">${T("مطابق")}</div></div>
+      <div class="kpi-card kpi-danger"><div class="kpi-card-top"><span class="kpi-icon">⛔</span></div><div class="kpi-value">${stats.nonCompliant||0}</div><div class="kpi-label">${T("غير مطابق")}</div></div>
+      <div class="kpi-card kpi-warning"><div class="kpi-card-top"><span class="kpi-icon">⏳</span></div><div class="kpi-value">${stats.pending||0}</div><div class="kpi-label">${T("لم يتم الفحص")}</div></div>
+      <div class="kpi-card"><div class="kpi-card-top"><span class="kpi-icon">📊</span></div><div class="kpi-value">${stats.compliancePct !== null && stats.compliancePct !== undefined ? stats.compliancePct + '%' : '—'}</div><div class="kpi-label">${T("نسبة المطابقة")}</div><div class="kpi-sub">${stats.itemCount||0} ${T("صنف")}</div></div>
     `;
 
     // Populate department filter options once per section load (kept across
@@ -9145,21 +9273,21 @@ async function inspLoadItems() {
     renderInspItemsTable(data.items || []);
   } catch(e) {
     console.error('Inspection items load error', e);
-    wrap.innerHTML = '<div class="empty" style="color:var(--danger);">فشل تحميل الأصناف</div>';
+    wrap.innerHTML = T('<div class="empty" style="color:var(--danger);">فشل تحميل الأصناف</div>');
   }
 }
 
 function inspStatusBadge(status) {
-  if (status === 'مطابق') return `<span class="badge badge-success">✅ مطابق</span>`;
-  if (status === 'غير مطابق') return `<span class="badge badge-danger">⛔ غير مطابق</span>`;
-  return `<span class="badge badge-neutral">⏳ لم يتم الفحص</span>`;
+  if (status === 'مطابق') return `<span class="badge badge-success">${T("✅ مطابق")}</span>`;
+  if (status === 'غير مطابق') return `<span class="badge badge-danger">${T("⛔ غير مطابق")}</span>`;
+  return `<span class="badge badge-neutral">${T("⏳ لم يتم الفحص")}</span>`;
 }
 
 function renderInspItemsTable(items) {
   const wrap = document.getElementById('inspItemsTableWrap');
   if (!wrap) return;
   if (items.length === 0) {
-    wrap.innerHTML = '<div class="empty"><div class="icon">🦺</div>لا توجد أصناف مطابقة — أضف صنفًا جديدًا أو عدّل الفلاتر</div>';
+    wrap.innerHTML = T('<div class="empty"><div class="icon">🦺</div>لا توجد أصناف مطابقة — أضف صنفًا جديدًا أو عدّل الفلاتر</div>');
     return;
   }
   wrap.innerHTML = `
@@ -9167,8 +9295,8 @@ function renderInspItemsTable(items) {
       <table class="data-table">
         <thead>
           <tr>
-            <th>#</th><th>رقم/كود</th><th>الاسم/النوع</th><th>القسم</th><th>المكان</th>
-            <th>الحالة</th><th>الملاحظات</th><th>تاريخ الفحص</th><th>القائم بالفحص</th><th>إجراءات</th>
+            <th>#</th><th>${T("رقم/كود")}</th><th>${T("الاسم/النوع")}</th><th>${T("القسم")}</th><th>${T("المكان")}</th>
+            <th>${T("الحالة")}</th><th>${T("الملاحظات")}</th><th>${T("تاريخ الفحص")}</th><th>${T("القائم بالفحص")}</th><th>${T("إجراءات")}</th>
           </tr>
         </thead>
         <tbody>
@@ -9185,10 +9313,10 @@ function renderInspItemsTable(items) {
               <td>${escapeHtml((it.record && it.record.inspector) || '—')}</td>
               <td>
                 <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">
-                  <button class="btn btn-primary btn-sm" type="button" onclick="inspOpenRecordModal('${it.id}')">تسجيل فحص</button>
-                  <button class="btn btn-secondary btn-sm" type="button" onclick="inspOpenEditItemModal('${it.id}')" title="تعديل بيانات الصنف">✏️</button>
-                  ${it.record ? `<button class="btn btn-danger-outline btn-sm" type="button" onclick="inspDeleteRecord('${it.record.id}')" title="حذف نتيجة فحص الشهر">حذف الفحص</button>` : ''}
-                  <button class="btn btn-danger-outline btn-sm" type="button" onclick="inspDeleteItem('${it.id}')" title="حذف الصنف نهائيًا">🗑</button>
+                  <button class="btn btn-primary btn-sm" type="button" onclick="inspOpenRecordModal('${it.id}')">${T("تسجيل فحص")}</button>
+                  <button class="btn btn-secondary btn-sm" type="button" onclick="inspOpenEditItemModal('${it.id}')" title="${T("تعديل بيانات الصنف")}">✏️</button>
+                  ${it.record ? `<button class="btn btn-danger-outline btn-sm" type="button" onclick="inspDeleteRecord('${it.record.id}')" title="${T("حذف نتيجة فحص الشهر")}">${T("حذف الفحص")}</button>` : ''}
+                  <button class="btn btn-danger-outline btn-sm" type="button" onclick="inspDeleteItem('${it.id}')" title="${T("حذف الصنف نهائيًا")}">🗑</button>
                 </div>
               </td>
             </tr>
@@ -9222,15 +9350,15 @@ function inspExport(type) {
 // ────────────────────────────────────────────────────────────
 function inspOpenAddItemModal() {
   openAppModal(`
-    <h3>+ إضافة صنف جديد</h3>
-    <div class="app-modal-field"><label>رقم/كود الصنف</label><input id="inspItemNumber" type="text" placeholder="مثال: 1" /></div>
-    <div class="app-modal-field"><label>الاسم/النوع *</label><input id="inspItemName" type="text" placeholder="مثال: طفاية 6 كجم Dry Powder" /></div>
-    <div class="app-modal-field"><label>القسم</label><input id="inspItemDept" type="text" placeholder="مثال: المبنى الإداري" /></div>
-    <div class="app-modal-field"><label>المكان</label><input id="inspItemLocation" type="text" placeholder="مثال: الاستقبال بجوار السلم" /></div>
+    <h3>${T("+ إضافة صنف جديد")}</h3>
+    <div class="app-modal-field"><label>${T("رقم/كود الصنف")}</label><input id="inspItemNumber" type="text" placeholder="${T("مثال: 1")}" /></div>
+    <div class="app-modal-field"><label>${T("الاسم/النوع *")}</label><input id="inspItemName" type="text" placeholder="${T("مثال: طفاية 6 كجم Dry Powder")}" /></div>
+    <div class="app-modal-field"><label>${T("القسم")}</label><input id="inspItemDept" type="text" placeholder="${T("مثال: المبنى الإداري")}" /></div>
+    <div class="app-modal-field"><label>${T("المكان")}</label><input id="inspItemLocation" type="text" placeholder="${T("مثال: الاستقبال بجوار السلم")}" /></div>
     <div class="app-modal-error" id="inspItemModalError"></div>
     <div class="app-modal-actions">
-      <button class="btn btn-secondary" type="button" onclick="closeAppModal()">إلغاء</button>
-      <button class="btn btn-primary" type="button" id="inspItemModalSubmit" onclick="inspSubmitAddItem()">إضافة</button>
+      <button class="btn btn-secondary" type="button" onclick="closeAppModal()">${T("إلغاء")}</button>
+      <button class="btn btn-primary" type="button" id="inspItemModalSubmit" onclick="inspSubmitAddItem()">${T("إضافة")}</button>
     </div>
   `);
   setTimeout(() => { const el = document.getElementById('inspItemName'); if (el) el.focus(); }, 50);
@@ -9241,7 +9369,7 @@ async function inspSubmitAddItem() {
   const name = nameEl ? nameEl.value.trim() : '';
   const errEl = document.getElementById('inspItemModalError');
   errEl.style.display = 'none';
-  if (!name) { errEl.textContent = 'اسم/نوع الصنف مطلوب'; errEl.style.display = 'block'; return; }
+  if (!name) { errEl.textContent = T('اسم/نوع الصنف مطلوب'); errEl.style.display = 'block'; return; }
   const btn = document.getElementById('inspItemModalSubmit');
   const orig = btn.textContent;
   btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span>';
@@ -9257,15 +9385,15 @@ async function inspSubmitAddItem() {
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok) {
-      showToast('تمت إضافة الصنف بنجاح ✓', 'success');
+      showToast(T('تمت إضافة الصنف بنجاح ✓'), 'success');
       closeAppModal();
       inspLoadItems();
     } else {
-      errEl.textContent = data.error || 'فشل إضافة الصنف'; errEl.style.display = 'block';
+      errEl.textContent = data.error || T('فشل إضافة الصنف'); errEl.style.display = 'block';
       btn.disabled = false; btn.textContent = orig;
     }
   } catch(e) {
-    errEl.textContent = 'خطأ في الاتصال بالسيرفر'; errEl.style.display = 'block';
+    errEl.textContent = T('خطأ في الاتصال بالسيرفر'); errEl.style.display = 'block';
     btn.disabled = false; btn.textContent = orig;
   }
 }
@@ -9274,15 +9402,15 @@ function inspOpenEditItemModal(itemId) {
   const it = (window._inspItemsCache || []).find(x => x.id === itemId);
   if (!it) return;
   openAppModal(`
-    <h3>✏️ تعديل بيانات الصنف</h3>
-    <div class="app-modal-field"><label>رقم/كود الصنف</label><input id="inspEditItemNumber" type="text" value="${escapeHtml(it.itemNumber||'')}" /></div>
-    <div class="app-modal-field"><label>الاسم/النوع *</label><input id="inspEditItemName" type="text" value="${escapeHtml(it.name||'')}" /></div>
-    <div class="app-modal-field"><label>القسم</label><input id="inspEditItemDept" type="text" value="${escapeHtml(it.department||'')}" /></div>
-    <div class="app-modal-field"><label>المكان</label><input id="inspEditItemLocation" type="text" value="${escapeHtml(it.location||'')}" /></div>
+    <h3>${T("✏️ تعديل بيانات الصنف")}</h3>
+    <div class="app-modal-field"><label>${T("رقم/كود الصنف")}</label><input id="inspEditItemNumber" type="text" value="${escapeHtml(it.itemNumber||'')}" /></div>
+    <div class="app-modal-field"><label>${T("الاسم/النوع *")}</label><input id="inspEditItemName" type="text" value="${escapeHtml(it.name||'')}" /></div>
+    <div class="app-modal-field"><label>${T("القسم")}</label><input id="inspEditItemDept" type="text" value="${escapeHtml(it.department||'')}" /></div>
+    <div class="app-modal-field"><label>${T("المكان")}</label><input id="inspEditItemLocation" type="text" value="${escapeHtml(it.location||'')}" /></div>
     <div class="app-modal-error" id="inspEditItemModalError"></div>
     <div class="app-modal-actions">
-      <button class="btn btn-secondary" type="button" onclick="closeAppModal()">إلغاء</button>
-      <button class="btn btn-primary" type="button" id="inspEditItemModalSubmit" onclick="inspSubmitEditItem('${itemId}')">حفظ</button>
+      <button class="btn btn-secondary" type="button" onclick="closeAppModal()">${T("إلغاء")}</button>
+      <button class="btn btn-primary" type="button" id="inspEditItemModalSubmit" onclick="inspSubmitEditItem('${itemId}')">${T("حفظ")}</button>
     </div>
   `);
 }
@@ -9292,7 +9420,7 @@ async function inspSubmitEditItem(itemId) {
   const name = nameEl ? nameEl.value.trim() : '';
   const errEl = document.getElementById('inspEditItemModalError');
   errEl.style.display = 'none';
-  if (!name) { errEl.textContent = 'اسم/نوع الصنف مطلوب'; errEl.style.display = 'block'; return; }
+  if (!name) { errEl.textContent = T('اسم/نوع الصنف مطلوب'); errEl.style.display = 'block'; return; }
   const btn = document.getElementById('inspEditItemModalSubmit');
   const orig = btn.textContent;
   btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span>';
@@ -9308,33 +9436,33 @@ async function inspSubmitEditItem(itemId) {
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok) {
-      showToast('تم حفظ التعديل ✓', 'success');
+      showToast(T('تم حفظ التعديل ✓'), 'success');
       closeAppModal();
       inspLoadItems();
     } else {
-      errEl.textContent = data.error || 'فشل الحفظ'; errEl.style.display = 'block';
+      errEl.textContent = data.error || T('فشل الحفظ'); errEl.style.display = 'block';
       btn.disabled = false; btn.textContent = orig;
     }
   } catch(e) {
-    errEl.textContent = 'خطأ في الاتصال بالسيرفر'; errEl.style.display = 'block';
+    errEl.textContent = T('خطأ في الاتصال بالسيرفر'); errEl.style.display = 'block';
     btn.disabled = false; btn.textContent = orig;
   }
 }
 
 async function inspDeleteItem(itemId) {
   const it = (window._inspItemsCache || []).find(x => x.id === itemId);
-  if (!confirm(`هل تريد حذف الصنف "${it ? it.name : ''}"؟ سيتم حذف كل سجلات فحصه الشهرية أيضًا.`)) return;
+  if (!confirm(`${T("هل تريد حذف الصنف")} "${it ? it.name : ''}"${T("؟ سيتم حذف كل سجلات فحصه الشهرية أيضًا.")}`)) return;
   try {
     const res = await authFetch(`/api/inspections/items/${itemId}`, { method: 'DELETE' });
     if (res.ok) {
-      showToast('تم حذف الصنف', 'success');
+      showToast(T('تم حذف الصنف'), 'success');
       inspLoadItems();
     } else {
       const data = await res.json().catch(() => ({}));
-      showToast(data.error || 'فشل حذف الصنف', 'error');
+      showToast(data.error || T('فشل حذف الصنف'), 'error');
     }
   } catch(e) {
-    showToast('خطأ في الاتصال بالسيرفر', 'error');
+    showToast(T('خطأ في الاتصال بالسيرفر'), 'error');
   }
 }
 
@@ -9347,22 +9475,22 @@ function inspOpenRecordModal(itemId) {
   const rec = it.record;
   const defaultInspector = rec && rec.inspector ? rec.inspector : (typeof currentUserName !== 'undefined' ? (currentUserName || '') : '');
   openAppModal(`
-    <h3>تسجيل نتيجة فحص — ${escapeHtml(it.name)}</h3>
-    <p style="color:var(--muted);font-size:12.5px;margin:-10px 0 16px;">${ARABIC_MONTHS[inspState.month-1]} ${inspState.year}</p>
+    <h3>${T("تسجيل نتيجة فحص —")} ${escapeHtml(it.name)}</h3>
+    <p style="color:var(--muted);font-size:12.5px;margin:-10px 0 16px;">${T(ARABIC_MONTHS[inspState.month-1])} ${inspState.year}</p>
     <div class="app-modal-field">
-      <label>نتيجة الفحص *</label>
+      <label>${T("نتيجة الفحص *")}</label>
       <select id="inspRecStatus">
-        <option value="مطابق" ${rec && rec.status==='مطابق' ? 'selected':''}>✅ مطابق</option>
-        <option value="غير مطابق" ${rec && rec.status==='غير مطابق' ? 'selected':''}>⛔ غير مطابق</option>
+        <option value="مطابق" ${rec && rec.status==='مطابق' ? 'selected':''}>${T("✅ مطابق")}</option>
+        <option value="غير مطابق" ${rec && rec.status==='غير مطابق' ? 'selected':''}>${T("⛔ غير مطابق")}</option>
       </select>
     </div>
-    <div class="app-modal-field"><label>تاريخ الفحص</label><input id="inspRecDate" type="date" value="${rec && rec.inspectionDate ? escapeHtml(String(rec.inspectionDate).slice(0,10)) : new Date().toISOString().slice(0,10)}" /></div>
-    <div class="app-modal-field"><label>القائم بالفحص</label><input id="inspRecInspector" type="text" value="${escapeHtml(defaultInspector)}" /></div>
-    <div class="app-modal-field"><label>الملاحظات</label><textarea id="inspRecNotes">${escapeHtml((rec && rec.notes) || '')}</textarea></div>
+    <div class="app-modal-field"><label>${T("تاريخ الفحص")}</label><input id="inspRecDate" type="date" value="${rec && rec.inspectionDate ? escapeHtml(String(rec.inspectionDate).slice(0,10)) : new Date().toISOString().slice(0,10)}" /></div>
+    <div class="app-modal-field"><label>${T("القائم بالفحص")}</label><input id="inspRecInspector" type="text" value="${escapeHtml(defaultInspector)}" /></div>
+    <div class="app-modal-field"><label>${T("الملاحظات")}</label><textarea id="inspRecNotes">${escapeHtml((rec && rec.notes) || '')}</textarea></div>
     <div class="app-modal-error" id="inspRecModalError"></div>
     <div class="app-modal-actions">
-      <button class="btn btn-secondary" type="button" onclick="closeAppModal()">إلغاء</button>
-      <button class="btn btn-primary" type="button" id="inspRecModalSubmit" onclick="inspSubmitRecord('${itemId}')">حفظ نتيجة الفحص</button>
+      <button class="btn btn-secondary" type="button" onclick="closeAppModal()">${T("إلغاء")}</button>
+      <button class="btn btn-primary" type="button" id="inspRecModalSubmit" onclick="inspSubmitRecord('${itemId}')">${T("حفظ نتيجة الفحص")}</button>
     </div>
   `);
 }
@@ -9387,32 +9515,32 @@ async function inspSubmitRecord(itemId) {
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok) {
-      showToast('تم حفظ نتيجة الفحص ✓', 'success');
+      showToast(T('تم حفظ نتيجة الفحص ✓'), 'success');
       closeAppModal();
       inspLoadItems();
     } else {
-      errEl.textContent = data.error || 'فشل الحفظ'; errEl.style.display = 'block';
+      errEl.textContent = data.error || T('فشل الحفظ'); errEl.style.display = 'block';
       btn.disabled = false; btn.textContent = orig;
     }
   } catch(e) {
-    errEl.textContent = 'خطأ في الاتصال بالسيرفر'; errEl.style.display = 'block';
+    errEl.textContent = T('خطأ في الاتصال بالسيرفر'); errEl.style.display = 'block';
     btn.disabled = false; btn.textContent = orig;
   }
 }
 
 async function inspDeleteRecord(recordId) {
-  if (!confirm('هل تريد حذف نتيجة الفحص لهذا الشهر؟ سيعود الصنف لحالة "لم يتم الفحص".')) return;
+  if (!confirm(T('هل تريد حذف نتيجة الفحص لهذا الشهر؟ سيعود الصنف لحالة "لم يتم الفحص".'))) return;
   try {
     const res = await authFetch(`/api/inspections/records/${recordId}`, { method: 'DELETE' });
     if (res.ok) {
-      showToast('تم حذف نتيجة الفحص', 'success');
+      showToast(T('تم حذف نتيجة الفحص'), 'success');
       inspLoadItems();
     } else {
       const data = await res.json().catch(() => ({}));
-      showToast(data.error || 'فشل الحذف', 'error');
+      showToast(data.error || T('فشل الحذف'), 'error');
     }
   } catch(e) {
-    showToast('خطأ في الاتصال بالسيرفر', 'error');
+    showToast(T('خطأ في الاتصال بالسيرفر'), 'error');
   }
 }
 
@@ -9449,44 +9577,44 @@ async function renderAuditLog() {
   root.innerHTML = `
     ${isSuperAdmin ? `
     <div class="ticket" style="margin-bottom:20px;">
-      <div class="ticket-head"><div><div class="ttype">💾 النسخ الاحتياطي واسترجاع البيانات</div></div></div>
+      <div class="ticket-head"><div><div class="ttype">${T("💾 النسخ الاحتياطي واسترجاع البيانات")}</div></div></div>
       <div class="ticket-body" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-        <button class="btn btn-primary" type="button" onclick="downloadFullBackup()">⬇ تنزيل نسخة احتياطية كاملة</button>
+        <button class="btn btn-primary" type="button" onclick="downloadFullBackup()">${T("⬇ تنزيل نسخة احتياطية كاملة")}</button>
         <label class="btn btn-secondary" style="cursor:pointer;margin:0;">
-          ⬆ استرجاع من نسخة احتياطية
+          ${T("⬆ استرجاع من نسخة احتياطية")}
           <input type="file" id="backupRestoreInput" accept=".json" style="display:none" onchange="restoreFullBackup(event)" />
         </label>
-        <span style="font-size:12px;color:var(--muted);">النسخة الاحتياطية ملف JSON واحد يشمل كل بيانات النظام — الاسترجاع يستبدل البيانات الحالية بالكامل.</span>
+        <span style="font-size:12px;color:var(--muted);">${T("النسخة الاحتياطية ملف JSON واحد يشمل كل بيانات النظام — الاسترجاع يستبدل البيانات الحالية بالكامل.")}</span>
       </div>
     </div>` : ''}
 
     <div class="sup-header-row" style="margin-bottom:16px">
-      <h3>سجل التدقيق — من عمل إيه وإمتى
-        <span class="audit-live-badge"><span class="audit-live-dot"></span> تحديث لحظي</span>
+      <h3>${T("سجل التدقيق — من عمل إيه وإمتى")}
+        <span class="audit-live-badge"><span class="audit-live-dot"></span> ${T("تحديث لحظي")}</span>
       </h3>
     </div>
 
     <div class="adv-filter-box">
       <div class="adv-filter-grid">
         <div class="adv-filter-field">
-          <label>نوع العملية</label>
+          <label>${T("نوع العملية")}</label>
           <select id="auditFilterType" onchange="auditApplyFilters()">
-            <option value="">الكل</option>
-            ${Object.entries(AUDIT_ENTITY_LABELS).map(([k,v]) => `<option value="${k}">${v}</option>`).join('')}
+            <option value="">${T("الكل")}</option>
+            ${Object.entries(AUDIT_ENTITY_LABELS).map(([k,v]) => `<option value="${k}">${T(v)}</option>`).join('')}
           </select>
         </div>
         <div class="adv-filter-field">
-          <label>بحث (اسم/ملاحظة)</label>
-          <input type="text" id="auditFilterQ" placeholder="ابحث بالاسم أو الملاحظة..." oninput="window.debounce(auditApplyFilters,300)()" />
+          <label>${T("بحث (اسم/ملاحظة)")}</label>
+          <input type="text" id="auditFilterQ" placeholder="${T("ابحث بالاسم أو الملاحظة...")}" oninput="window.debounce(auditApplyFilters,300)()" />
         </div>
       </div>
       <div class="adv-filter-footer">
-        <button class="adv-filter-clear-btn" onclick="auditLogState={entityType:'',q:''};renderAuditLog();">مسح الفلاتر</button>
+        <button class="adv-filter-clear-btn" onclick="auditLogState={entityType:'',q:''};renderAuditLog();">${T("مسح الفلاتر")}</button>
         <span class="adv-filter-count" id="auditFilterCount"></span>
       </div>
     </div>
 
-    <div id="auditLogList"><div class="loading">جارِ تحميل السجل…</div></div>
+    <div id="auditLogList"><div class="loading">${T("جارِ تحميل السجل…")}</div></div>
   `;
   await auditLoadList();
   if (!window.auditPollTimer) {
@@ -9521,7 +9649,7 @@ async function auditLoadList(isSilent) {
   } catch (e) {
     if (!isSilent) {
       console.error('Audit log load error', e);
-      listEl.innerHTML = '<div class="empty" style="color:var(--danger);">فشل تحميل سجل التدقيق</div>';
+      listEl.innerHTML = T('<div class="empty" style="color:var(--danger);">فشل تحميل سجل التدقيق</div>');
     }
   }
 }
@@ -9531,13 +9659,13 @@ function auditRelativeTime(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
   const diffSec = Math.round((Date.now() - d.getTime()) / 1000);
-  if (diffSec < 5) return 'الآن';
-  if (diffSec < 60) return `منذ ${diffSec} ثانية`;
+  if (diffSec < 5) return T('الآن');
+  if (diffSec < 60) return `${T("منذ")} ${diffSec} ${T("ثانية")}`;
   const diffMin = Math.round(diffSec / 60);
-  if (diffMin < 60) return `منذ ${diffMin} دقيقة`;
+  if (diffMin < 60) return `${T("منذ")} ${diffMin} ${T("دقيقة")}`;
   const diffHr = Math.round(diffMin / 60);
-  if (diffHr < 24) return `منذ ${diffHr} ساعة`;
-  return d.toLocaleString('ar-EG');
+  if (diffHr < 24) return `${T("منذ")} ${diffHr} ${T("ساعة")}`;
+  return d.toLocaleString(LOC());
 }
 
 function auditRenderList() {
@@ -9553,24 +9681,25 @@ function auditRenderList() {
       String(e.department || '').toLowerCase().includes(q)
     );
   }
-  if (countEl) countEl.textContent = `${entries.length} عملية`;
+  if (countEl) countEl.textContent = `${entries.length} ${T("عملية")}`;
 
   if (entries.length === 0) {
-    listEl.innerHTML = '<div class="empty"><div class="icon">🛡️</div>لا توجد عمليات مسجّلة بعد — سيبدأ السجل بالامتلاء تلقائيًا مع أي اعتماد/رفض/حذف جديد</div>';
+    listEl.innerHTML = T('<div class="empty"><div class="icon">🛡️</div>لا توجد عمليات مسجّلة بعد — سيبدأ السجل بالامتلاء تلقائيًا مع أي اعتماد/رفض/حذف جديد</div>');
     return;
   }
 
   listEl.innerHTML = `<div class="audit-timeline">` + entries.map(e => {
     const meta = AUDIT_ACTION_META[e.action] || { glyph: '•', cls: 'a-update', label: e.action };
-    const entityLabel = AUDIT_ENTITY_LABELS[e.entityType] || e.entityType;
+    const entityLabel = T(AUDIT_ENTITY_LABELS[e.entityType] || e.entityType);
+    const actionLabel = T(meta.label);
     const statusChange = (e.previousStatus || e.newStatus)
       ? `<div class="audit-item-status-chip">${escapeHtml(e.previousStatus || '—')} ← ${escapeHtml(e.newStatus || '—')}</div>` : '';
     return `
       <div class="audit-item">
         <div class="audit-item-icon ${meta.cls}">${meta.glyph}</div>
         <div class="audit-item-head">
-          <div class="audit-item-title">${escapeHtml(entityLabel)} <span class="audit-item-action">${escapeHtml(meta.label)}</span></div>
-          <div class="audit-item-time" title="${e.timestamp ? new Date(e.timestamp).toLocaleString('ar-EG') : ''}">${auditRelativeTime(e.timestamp)}</div>
+          <div class="audit-item-title">${escapeHtml(entityLabel)} <span class="audit-item-action">${escapeHtml(actionLabel)}</span></div>
+          <div class="audit-item-time" title="${e.timestamp ? new Date(e.timestamp).toLocaleString(LOC()) : ''}">${auditRelativeTime(e.timestamp)}</div>
         </div>
         <div class="audit-item-meta">
           <span><b>${escapeHtml(e.actorName || e.actorUsername || '—')}</b></span>
@@ -9593,27 +9722,27 @@ function downloadFullBackup() {
 async function restoreFullBackup(event) {
   const file = event.target.files[0];
   if (!file) return;
-  if (!confirm('تحذير: استرجاع هذه النسخة الاحتياطية سيستبدل كل البيانات الحالية في النظام (التصاريح، البلاغات، الموظفين...) بمحتوى الملف. هل أنت متأكد؟')) {
+  if (!confirm(T('تحذير: استرجاع هذه النسخة الاحتياطية سيستبدل كل البيانات الحالية في النظام (التصاريح، البلاغات، الموظفين...) بمحتوى الملف. هل أنت متأكد؟'))) {
     event.target.value = '';
     return;
   }
   try {
     const text = await file.text();
     const backup = JSON.parse(text);
-    showToast('جارِ استرجاع النسخة الاحتياطية…', 'info');
+    showToast(T('جارِ استرجاع النسخة الاحتياطية…'), 'info');
     const res = await authFetch('/api/admin/backup/import', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ backup, confirm: 'تأكيد' })
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok && data.success) {
-      showToast(`تم استرجاع ${data.restored} مجموعة بيانات بنجاح ✓ — يُنصح بتحديث الصفحة`, 'success');
+      showToast(`${T("تم استرجاع")} ${data.restored} ${T("مجموعة بيانات بنجاح ✓ — يُنصح بتحديث الصفحة")}`, 'success');
     } else {
-      showToast(data.error || 'فشل استرجاع النسخة الاحتياطية', 'error');
+      showToast(data.error || T('فشل استرجاع النسخة الاحتياطية'), 'error');
     }
   } catch (e) {
     console.error('restoreFullBackup error', e);
-    showToast('ملف النسخة الاحتياطية غير صالح', 'error');
+    showToast(T('ملف النسخة الاحتياطية غير صالح'), 'error');
   }
   event.target.value = '';
 }
