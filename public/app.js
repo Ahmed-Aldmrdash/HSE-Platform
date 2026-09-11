@@ -520,6 +520,9 @@ function applyRbacUI() {
   setDisplay('tabPenaltiesWorker', isWorker);
   setDisplay('tabPenaltiesAdmin', isSup);
 
+  // 🦺 Monthly Inspection Tab — hse_admin/super_admin only
+  setDisplay('tabInspections', isSup && (currentUserRole === 'super_admin' || currentUserRole === 'hse_admin'));
+
   // Dashboard Tab — first tab, visible for ALL authenticated roles
   setDisplay('tabDashboard', isWorker || isSup);
 
@@ -576,7 +579,7 @@ function switchTab(which){
   // worker tabs.  Pre-auth state ('none') is allowed to reach the
   // supervisor login gate so goToAdminLogin() keeps working.
   const workerTabs = ['worker', 'hazardWorker', 'myhistory', 'myhazards', 'trainingWorker', 'drillWorker', 'penaltiesWorker'];
-  const supTabs    = ['sup', 'supHazard', 'users', 'employees', 'trainingAdmin', 'drillAdmin', 'penaltiesAdmin'];
+  const supTabs    = ['sup', 'supHazard', 'users', 'employees', 'trainingAdmin', 'drillAdmin', 'penaltiesAdmin', 'inspections'];
   if (workerTabs.includes(which) && sessionRole === 'supervisor') return;
   if (supTabs.includes(which)   && sessionRole === 'worker') return;
   // ─────────────────────────────────────────────────────────────────
@@ -609,6 +612,8 @@ function switchTab(which){
   if(tabPenW) tabPenW.classList.toggle('active', which==='penaltiesWorker');
   const tabPenA = document.getElementById('tabPenaltiesAdmin');
   if(tabPenA) tabPenA.classList.toggle('active', which==='penaltiesAdmin');
+  const tabInsp = document.getElementById('tabInspections');
+  if(tabInsp) tabInsp.classList.toggle('active', which==='inspections');
 
   document.getElementById('viewWorker').style.display = which==='worker' ? 'block':'none';
   const viewHazardW = document.getElementById('viewHazardWorker');
@@ -639,6 +644,9 @@ function switchTab(which){
   // Dashboard view
   const viewDash = document.getElementById('viewDashboard');
   if(viewDash) viewDash.style.display = which==='dashboard' ? 'block':'none';
+  // Monthly Inspection view (الفحص الشهري)
+  const viewInsp = document.getElementById('viewInspections');
+  if(viewInsp) viewInsp.style.display = which==='inspections' ? 'block':'none';
 
   // Stop polling when leaving the relevant view
   if(which !== 'sup' && supervisorPollTimer){
@@ -750,6 +758,12 @@ function switchTab(which){
   // Dashboard
   if(which==='dashboard'){
     loadDashboard();
+  }
+  // Monthly Inspection (الفحص الشهري) — hse_admin/super_admin only
+  if(which==='inspections'){
+    if(isLoggedIn && (currentUserRole === 'hse_admin' || currentUserRole === 'super_admin')){
+      renderInspections();
+    } else { switchTab('sup'); }
   }
 }
 
@@ -8449,3 +8463,677 @@ function renderDashboardCharts(data) {
   _dashFromDate = from.toISOString().slice(0, 10);
   _dashToDate   = now.toISOString().slice(0, 10);
 })();
+
+// ============================================================
+// 🦺 MONTHLY INSPECTION (الفحص الشهري) — hse_admin/super_admin only
+// ============================================================
+const ARABIC_MONTHS = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+
+window.inspState = {
+  view: 'category',   // 'category' | 'sections' | 'detail'
+  category: null,     // 'P1' | 'P2'
+  sectionId: null,
+  sectionName: '',
+  year: new Date().getFullYear(),
+  month: new Date().getMonth() + 1,
+  filters: { department: '', status: '', q: '' }
+};
+var inspState = window.inspState;
+
+// ── Generic reusable modal (الفحص الشهري وغيرها) ────────────────
+function openAppModal(html) {
+  closeAppModal();
+  const overlay = document.createElement('div');
+  overlay.id = 'appModalOverlay';
+  overlay.className = 'app-modal-overlay';
+  overlay.innerHTML = `<div class="app-modal-card">
+      <button class="app-modal-close" type="button" onclick="closeAppModal()">✕</button>
+      ${html}
+    </div>`;
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeAppModal(); });
+  document.body.appendChild(overlay);
+}
+function closeAppModal() {
+  const el = document.getElementById('appModalOverlay');
+  if (el) el.remove();
+}
+
+// ────────────────────────────────────────────────────────────
+// 🚪 Entry point — called from switchTab('inspections')
+// ────────────────────────────────────────────────────────────
+function renderInspections() {
+  const root = document.getElementById('inspectionsContent');
+  if (!root) return;
+  if (inspState.view === 'sections' && inspState.category) {
+    renderInspectionSections();
+  } else if (inspState.view === 'detail' && inspState.sectionId) {
+    renderInspectionSectionDetail();
+  } else {
+    renderInspectionCategoryPicker();
+  }
+}
+
+// ────────────────────────────────────────────────────────────
+// 1️⃣ Category picker: P1 / P2
+// ────────────────────────────────────────────────────────────
+function renderInspectionCategoryPicker() {
+  const root = document.getElementById('inspectionsContent');
+  if (!root) return;
+  root.innerHTML = `
+    <h3 class="section-title">🦺 الفحص الشهري</h3>
+    <p style="color:var(--muted);font-size:13.5px;margin:-8px 0 18px;">اختر برنامج الفحص</p>
+    <div class="insp-category-grid">
+      <div class="insp-category-card" onclick="inspSelectCategory('P1')">
+        <div class="insp-cat-icon">🅟1</div>
+        <div class="insp-cat-title">برنامج P1</div>
+        <div class="insp-cat-sub">33 بند فحص</div>
+      </div>
+      <div class="insp-category-card" onclick="inspSelectCategory('P2')">
+        <div class="insp-cat-icon">🅟2</div>
+        <div class="insp-cat-title">برنامج P2</div>
+        <div class="insp-cat-sub">27 بند فحص</div>
+      </div>
+    </div>
+  `;
+}
+
+function inspSelectCategory(cat) {
+  inspState.category = cat;
+  inspState.view = 'sections';
+  renderInspections();
+}
+
+function inspBackToCategory() {
+  inspState.view = 'category';
+  inspState.category = null;
+  renderInspections();
+}
+
+// ────────────────────────────────────────────────────────────
+// 📅 Shared year/month picker
+// ────────────────────────────────────────────────────────────
+function inspYearMonthPickerHtml() {
+  const years = [];
+  const curY = new Date().getFullYear();
+  for (let y = curY - 2; y <= curY + 1; y++) years.push(y);
+  return `
+    <select id="inspYear" class="insp-status-select" onchange="inspOnYearMonthChange()">
+      ${years.map(y => `<option value="${y}" ${y === inspState.year ? 'selected' : ''}>${y}</option>`).join('')}
+    </select>
+    <select id="inspMonth" class="insp-status-select" onchange="inspOnYearMonthChange()">
+      ${ARABIC_MONTHS.map((m,i) => `<option value="${i+1}" ${i+1===inspState.month ? 'selected':''}>${m}</option>`).join('')}
+    </select>
+  `;
+}
+
+function inspOnYearMonthChange() {
+  const y = document.getElementById('inspYear');
+  const m = document.getElementById('inspMonth');
+  if (y) inspState.year = parseInt(y.value, 10);
+  if (m) inspState.month = parseInt(m.value, 10);
+  renderInspections();
+}
+
+// ────────────────────────────────────────────────────────────
+// 2️⃣ Sections grid for a chosen category
+// ────────────────────────────────────────────────────────────
+async function renderInspectionSections() {
+  const root = document.getElementById('inspectionsContent');
+  if (!root) return;
+  root.innerHTML = `
+    <div class="insp-toolbar">
+      <div class="insp-toolbar-left">
+        <button class="btn btn-secondary btn-sm" type="button" onclick="inspBackToCategory()">→ رجوع</button>
+        <div class="insp-breadcrumb">الفحص الشهري / <b>برنامج ${escapeHtml(inspState.category)}</b></div>
+      </div>
+      <div class="insp-toolbar-left">
+        ${inspYearMonthPickerHtml()}
+        <button class="btn btn-primary btn-sm" type="button" onclick="inspOpenAddSectionModal()">+ إضافة قسم</button>
+      </div>
+    </div>
+    <div class="kpi-grid" id="inspSectionsKpis">
+      <div class="skeleton skeleton-card"></div>
+      <div class="skeleton skeleton-card"></div>
+      <div class="skeleton skeleton-card"></div>
+      <div class="skeleton skeleton-card"></div>
+    </div>
+    <div class="insp-sections-grid" id="inspSectionsGrid">
+      <div class="loading-inline"><span class="btn-spinner"></span> جارِ تحميل الأقسام…</div>
+    </div>
+  `;
+  try {
+    const res = await authFetch(`/api/inspections/sections?category=${encodeURIComponent(inspState.category)}&year=${inspState.year}&month=${inspState.month}`);
+    if (!res.ok) throw new Error('fetch failed');
+    const data = await res.json();
+    const sections = data.sections || [];
+    window._inspSectionsCache = sections;
+
+    const totalItems = sections.reduce((s,x)=>s+(x.itemCount||0),0);
+    const totalCompliant = sections.reduce((s,x)=>s+(x.compliant||0),0);
+    const totalNonCompliant = sections.reduce((s,x)=>s+(x.nonCompliant||0),0);
+    const totalPending = sections.reduce((s,x)=>s+(x.pending||0),0);
+    const overallPct = totalItems > 0 ? Math.round((totalCompliant/totalItems)*1000)/10 : null;
+
+    const kpisEl = document.getElementById('inspSectionsKpis');
+    if (kpisEl) kpisEl.innerHTML = `
+      <div class="kpi-card kpi-success">
+        <div class="kpi-card-top"><span class="kpi-icon">✅</span></div>
+        <div class="kpi-value">${totalCompliant}</div>
+        <div class="kpi-label">مطابق</div>
+      </div>
+      <div class="kpi-card kpi-danger">
+        <div class="kpi-card-top"><span class="kpi-icon">⛔</span></div>
+        <div class="kpi-value">${totalNonCompliant}</div>
+        <div class="kpi-label">غير مطابق</div>
+      </div>
+      <div class="kpi-card kpi-warning">
+        <div class="kpi-card-top"><span class="kpi-icon">⏳</span></div>
+        <div class="kpi-value">${totalPending}</div>
+        <div class="kpi-label">لم يتم الفحص</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-card-top"><span class="kpi-icon">📊</span></div>
+        <div class="kpi-value">${overallPct !== null ? overallPct + '%' : '—'}</div>
+        <div class="kpi-label">نسبة المطابقة الإجمالية</div>
+        <div class="kpi-sub">${totalItems} صنف عبر ${sections.length} قسم</div>
+      </div>
+    `;
+
+    const gridEl = document.getElementById('inspSectionsGrid');
+    if (!gridEl) return;
+    if (sections.length === 0) {
+      gridEl.innerHTML = '<div class="empty"><div class="icon">🦺</div>لا توجد أقسام بعد — أضف قسمًا جديدًا</div>';
+      return;
+    }
+    gridEl.innerHTML = sections.map(s => `
+      <div class="insp-section-card">
+        <div onclick="inspOpenSection('${s.id}')">
+          <div class="insp-section-name">${escapeHtml(s.name)}</div>
+          <div class="insp-section-meta"><span>${s.itemCount} صنف</span><span>${s.compliancePct !== null && s.compliancePct !== undefined ? s.compliancePct + '%' : '—'}</span></div>
+          <div class="insp-section-bar"><div class="insp-section-bar-fill" style="width:${s.compliancePct || 0}%"></div></div>
+        </div>
+        <button class="insp-section-del" type="button" onclick="event.stopPropagation();inspDeleteSection('${s.id}')" title="حذف القسم">🗑 حذف</button>
+      </div>
+    `).join('');
+  } catch(e) {
+    console.error('Inspection sections load error', e);
+    const gridEl = document.getElementById('inspSectionsGrid');
+    if (gridEl) gridEl.innerHTML = '<div class="empty" style="color:var(--danger);">فشل تحميل الأقسام</div>';
+  }
+}
+
+function inspOpenAddSectionModal() {
+  openAppModal(`
+    <h3>+ إضافة قسم فحص جديد (${escapeHtml(inspState.category)})</h3>
+    <div class="app-modal-field"><label>اسم القسم *</label><input id="inspNewSectionName" type="text" placeholder="مثال: طفايات الحريق" /></div>
+    <div class="app-modal-error" id="inspSectionModalError"></div>
+    <div class="app-modal-actions">
+      <button class="btn btn-secondary" type="button" onclick="closeAppModal()">إلغاء</button>
+      <button class="btn btn-primary" type="button" id="inspSectionModalSubmit" onclick="inspSubmitAddSection()">إضافة</button>
+    </div>
+  `);
+}
+
+async function inspSubmitAddSection() {
+  const nameEl = document.getElementById('inspNewSectionName');
+  const name = nameEl ? nameEl.value.trim() : '';
+  const errEl = document.getElementById('inspSectionModalError');
+  errEl.style.display = 'none';
+  if (!name) { errEl.textContent = 'اسم القسم مطلوب'; errEl.style.display = 'block'; return; }
+  const btn = document.getElementById('inspSectionModalSubmit');
+  const orig = btn.textContent;
+  btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span>';
+  try {
+    const res = await authFetch('/api/inspections/sections', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category: inspState.category, name })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      showToast('تمت إضافة القسم بنجاح ✓', 'success');
+      closeAppModal();
+      renderInspectionSections();
+    } else {
+      errEl.textContent = data.error || 'فشل إضافة القسم'; errEl.style.display = 'block';
+      btn.disabled = false; btn.textContent = orig;
+    }
+  } catch(e) {
+    errEl.textContent = 'خطأ في الاتصال بالسيرفر'; errEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+
+async function inspDeleteSection(sectionId) {
+  const s = (window._inspSectionsCache || []).find(x => x.id === sectionId);
+  if (!s) return;
+  const warn = s.itemCount > 0 ? ` يحتوي ${s.itemCount} صنف — سيتم حذف كل الأصناف وسجلات الفحص الخاصة به نهائيًا.` : '';
+  if (!confirm(`هل تريد حذف قسم "${s.name}"؟${warn}`)) return;
+  try {
+    const url = `/api/inspections/sections/${sectionId}` + (s.itemCount > 0 ? '?cascade=true' : '');
+    const res = await authFetch(url, { method: 'DELETE' });
+    if (res.ok) {
+      showToast('تم حذف القسم', 'success');
+      renderInspectionSections();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      showToast(data.error || 'فشل حذف القسم', 'error');
+    }
+  } catch(e) {
+    showToast('خطأ في الاتصال بالسيرفر', 'error');
+  }
+}
+
+// ────────────────────────────────────────────────────────────
+// 3️⃣ Section detail: item registry + monthly compliance
+// ────────────────────────────────────────────────────────────
+function inspOpenSection(sectionId) {
+  const s = (window._inspSectionsCache || []).find(x => x.id === sectionId);
+  inspState.sectionId = sectionId;
+  inspState.sectionName = s ? s.name : '';
+  inspState.view = 'detail';
+  inspState.filters = { department: '', status: '', q: '' };
+  renderInspections();
+}
+
+function inspBackToSections() {
+  inspState.view = 'sections';
+  inspState.sectionId = null;
+  renderInspections();
+}
+
+async function renderInspectionSectionDetail() {
+  const root = document.getElementById('inspectionsContent');
+  if (!root) return;
+  root.innerHTML = `
+    <div class="insp-toolbar">
+      <div class="insp-toolbar-left">
+        <button class="btn btn-secondary btn-sm" type="button" onclick="inspBackToSections()">→ رجوع للأقسام</button>
+        <div class="insp-breadcrumb">الفحص الشهري / ${escapeHtml(inspState.category)} / <b>${escapeHtml(inspState.sectionName)}</b></div>
+      </div>
+      <div class="insp-toolbar-left">
+        ${inspYearMonthPickerHtml()}
+      </div>
+    </div>
+
+    <div class="kpi-grid" id="inspDetailKpis">
+      <div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div>
+      <div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div>
+    </div>
+
+    <div class="adv-filter-box">
+      <div class="adv-filter-head">
+        <div class="adv-filter-title">🔍 فلترة وأدوات</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-secondary btn-sm" type="button" onclick="inspExport('items')">⬇ تصدير سجل الأصناف</button>
+          <button class="btn btn-secondary btn-sm" type="button" onclick="inspExport('monthly')">⬇ تصدير فحص الشهر</button>
+          <button class="btn btn-dark btn-sm" type="button" onclick="document.getElementById('inspLegacyExcelInput').click()">📥 رفع سجل قديم (Excel)</button>
+          <input type="file" id="inspLegacyExcelInput" accept=".xlsx" style="display:none" onchange="inspImportLegacyExcel(event)" />
+          <button class="btn btn-primary btn-sm" type="button" onclick="inspOpenAddItemModal()">+ إضافة صنف</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <input id="inspFilterQ" type="text" placeholder="بحث برقم/اسم/قسم/مكان الصنف…" class="form-input" style="flex:1;min-width:200px;padding:9px 12px;border-radius:10px;border:1px solid var(--paper-line);" oninput="inspDebouncedFilter()" />
+        <select id="inspFilterDept" class="insp-status-select" onchange="inspApplyFilters()">
+          <option value="">كل الأقسام/الأماكن</option>
+        </select>
+        <select id="inspFilterStatus" class="insp-status-select" onchange="inspApplyFilters()">
+          <option value="">كل الحالات</option>
+          <option value="مطابق">مطابق</option>
+          <option value="غير مطابق">غير مطابق</option>
+          <option value="لم يتم الفحص">لم يتم الفحص</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="inspItemsTableWrap">
+      <div class="loading-inline"><span class="btn-spinner"></span> جارِ تحميل الأصناف…</div>
+    </div>
+  `;
+  await inspLoadItems();
+}
+
+/**
+ * inspImportLegacyExcel — رفع ملف الإكسيل القديم لهذا القسم (سجلات فحص
+ * b1/b2 التاريخية): يُنشئ الأصناف غير الموجودة ويستورد كل نتائج الفحص
+ * الشهرية الموجودة في الملف دفعة واحدة عبر /import-legacy-excel.
+ */
+async function inspImportLegacyExcel(event) {
+  const file = event.target.files[0];
+  if (!file || !inspState.sectionId) return;
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const base64Data = e.target.result.split(',')[1];
+    showToast('جارِ استيراد السجل القديم…', 'info');
+    try {
+      const res = await authFetch(`/api/inspections/sections/${inspState.sectionId}/import-legacy-excel`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ base64Data })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        showToast(
+          `تم الاستيراد ✓ — ${data.itemsCreated} صنف جديد، ${data.recordsCreated} سجل جديد، ${data.recordsUpdated} سجل محدَّث (${data.sheetsParsed} ورقة)`,
+          'success'
+        );
+        inspLoadItems();
+      } else {
+        showToast(data.error || 'فشل استيراد الملف', 'error');
+      }
+    } catch (err) {
+      console.error('inspImportLegacyExcel error', err);
+      showToast('خطأ في الاتصال بالسيرفر', 'error');
+    }
+    event.target.value = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function inspLoadItems() {
+  const wrap = document.getElementById('inspItemsTableWrap');
+  if (!wrap || !inspState.sectionId) return;
+  wrap.innerHTML = '<div class="loading-inline"><span class="btn-spinner"></span> جارِ تحميل الأصناف…</div>';
+  try {
+    const params = new URLSearchParams({ year: inspState.year, month: inspState.month });
+    if (inspState.filters.department) params.set('department', inspState.filters.department);
+    if (inspState.filters.status) params.set('status', inspState.filters.status);
+    if (inspState.filters.q) params.set('q', inspState.filters.q);
+    const res = await authFetch(`/api/inspections/sections/${inspState.sectionId}/items?${params.toString()}`);
+    if (!res.ok) throw new Error('fetch failed');
+    const data = await res.json();
+    window._inspItemsCache = data.items || [];
+    const stats = data.stats || {};
+
+    const kpisEl = document.getElementById('inspDetailKpis');
+    if (kpisEl) kpisEl.innerHTML = `
+      <div class="kpi-card kpi-success"><div class="kpi-card-top"><span class="kpi-icon">✅</span></div><div class="kpi-value">${stats.compliant||0}</div><div class="kpi-label">مطابق</div></div>
+      <div class="kpi-card kpi-danger"><div class="kpi-card-top"><span class="kpi-icon">⛔</span></div><div class="kpi-value">${stats.nonCompliant||0}</div><div class="kpi-label">غير مطابق</div></div>
+      <div class="kpi-card kpi-warning"><div class="kpi-card-top"><span class="kpi-icon">⏳</span></div><div class="kpi-value">${stats.pending||0}</div><div class="kpi-label">لم يتم الفحص</div></div>
+      <div class="kpi-card"><div class="kpi-card-top"><span class="kpi-icon">📊</span></div><div class="kpi-value">${stats.compliancePct !== null && stats.compliancePct !== undefined ? stats.compliancePct + '%' : '—'}</div><div class="kpi-label">نسبة المطابقة</div><div class="kpi-sub">${stats.itemCount||0} صنف</div></div>
+    `;
+
+    // Populate department filter options once per section load (kept across
+    // month changes since the item registry doesn't change with the month).
+    const deptSel = document.getElementById('inspFilterDept');
+    if (deptSel && deptSel.options.length <= 1) {
+      const depts = Array.from(new Set((data.items||[]).map(it => it.department).filter(Boolean))).sort();
+      depts.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d; opt.textContent = d;
+        deptSel.appendChild(opt);
+      });
+    }
+
+    renderInspItemsTable(data.items || []);
+  } catch(e) {
+    console.error('Inspection items load error', e);
+    wrap.innerHTML = '<div class="empty" style="color:var(--danger);">فشل تحميل الأصناف</div>';
+  }
+}
+
+function inspStatusBadge(status) {
+  if (status === 'مطابق') return `<span class="badge badge-success">✅ مطابق</span>`;
+  if (status === 'غير مطابق') return `<span class="badge badge-danger">⛔ غير مطابق</span>`;
+  return `<span class="badge badge-neutral">⏳ لم يتم الفحص</span>`;
+}
+
+function renderInspItemsTable(items) {
+  const wrap = document.getElementById('inspItemsTableWrap');
+  if (!wrap) return;
+  if (items.length === 0) {
+    wrap.innerHTML = '<div class="empty"><div class="icon">🦺</div>لا توجد أصناف مطابقة — أضف صنفًا جديدًا أو عدّل الفلاتر</div>';
+    return;
+  }
+  wrap.innerHTML = `
+    <div style="overflow-x:auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>#</th><th>رقم/كود</th><th>الاسم/النوع</th><th>القسم</th><th>المكان</th>
+            <th>الحالة</th><th>الملاحظات</th><th>تاريخ الفحص</th><th>القائم بالفحص</th><th>إجراءات</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.map((it,i) => `
+            <tr>
+              <td>${i+1}</td>
+              <td>${escapeHtml(it.itemNumber || '—')}</td>
+              <td style="font-weight:700;text-align:right;">${escapeHtml(it.name)}</td>
+              <td>${escapeHtml(it.department || '—')}</td>
+              <td>${escapeHtml(it.location || '—')}</td>
+              <td>${inspStatusBadge(it.status)}</td>
+              <td style="max-width:160px;white-space:normal;text-align:right;">${escapeHtml((it.record && it.record.notes) || '—')}</td>
+              <td style="white-space:nowrap;">${it.record && it.record.inspectionDate ? escapeHtml(String(it.record.inspectionDate).slice(0,10)) : '—'}</td>
+              <td>${escapeHtml((it.record && it.record.inspector) || '—')}</td>
+              <td>
+                <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">
+                  <button class="btn btn-primary btn-sm" type="button" onclick="inspOpenRecordModal('${it.id}')">تسجيل فحص</button>
+                  <button class="btn btn-secondary btn-sm" type="button" onclick="inspOpenEditItemModal('${it.id}')" title="تعديل بيانات الصنف">✏️</button>
+                  ${it.record ? `<button class="btn btn-danger-outline btn-sm" type="button" onclick="inspDeleteRecord('${it.record.id}')" title="حذف نتيجة فحص الشهر">حذف الفحص</button>` : ''}
+                  <button class="btn btn-danger-outline btn-sm" type="button" onclick="inspDeleteItem('${it.id}')" title="حذف الصنف نهائيًا">🗑</button>
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function inspApplyFilters() {
+  const q = document.getElementById('inspFilterQ');
+  const dept = document.getElementById('inspFilterDept');
+  const status = document.getElementById('inspFilterStatus');
+  inspState.filters.q = q ? q.value.trim() : '';
+  inspState.filters.department = dept ? dept.value : '';
+  inspState.filters.status = status ? status.value : '';
+  inspLoadItems();
+}
+const inspDebouncedFilter = (typeof window.debounce === 'function') ? window.debounce(inspApplyFilters, 300) : inspApplyFilters;
+
+function inspExport(type) {
+  if (!inspState.sectionId) return;
+  let url = `/api/inspections/sections/${inspState.sectionId}/export?type=${encodeURIComponent(type)}`;
+  if (type === 'monthly') url += `&year=${inspState.year}&month=${inspState.month}`;
+  navigateWithAuth(url);
+}
+
+// ────────────────────────────────────────────────────────────
+// 4️⃣ Item add/edit/delete modals
+// ────────────────────────────────────────────────────────────
+function inspOpenAddItemModal() {
+  openAppModal(`
+    <h3>+ إضافة صنف جديد</h3>
+    <div class="app-modal-field"><label>رقم/كود الصنف</label><input id="inspItemNumber" type="text" placeholder="مثال: 1" /></div>
+    <div class="app-modal-field"><label>الاسم/النوع *</label><input id="inspItemName" type="text" placeholder="مثال: طفاية 6 كجم Dry Powder" /></div>
+    <div class="app-modal-field"><label>القسم</label><input id="inspItemDept" type="text" placeholder="مثال: المبنى الإداري" /></div>
+    <div class="app-modal-field"><label>المكان</label><input id="inspItemLocation" type="text" placeholder="مثال: الاستقبال بجوار السلم" /></div>
+    <div class="app-modal-error" id="inspItemModalError"></div>
+    <div class="app-modal-actions">
+      <button class="btn btn-secondary" type="button" onclick="closeAppModal()">إلغاء</button>
+      <button class="btn btn-primary" type="button" id="inspItemModalSubmit" onclick="inspSubmitAddItem()">إضافة</button>
+    </div>
+  `);
+  setTimeout(() => { const el = document.getElementById('inspItemName'); if (el) el.focus(); }, 50);
+}
+
+async function inspSubmitAddItem() {
+  const nameEl = document.getElementById('inspItemName');
+  const name = nameEl ? nameEl.value.trim() : '';
+  const errEl = document.getElementById('inspItemModalError');
+  errEl.style.display = 'none';
+  if (!name) { errEl.textContent = 'اسم/نوع الصنف مطلوب'; errEl.style.display = 'block'; return; }
+  const btn = document.getElementById('inspItemModalSubmit');
+  const orig = btn.textContent;
+  btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span>';
+  try {
+    const res = await authFetch(`/api/inspections/sections/${inspState.sectionId}/items`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        itemNumber: document.getElementById('inspItemNumber').value.trim(),
+        name,
+        department: document.getElementById('inspItemDept').value.trim(),
+        location: document.getElementById('inspItemLocation').value.trim()
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      showToast('تمت إضافة الصنف بنجاح ✓', 'success');
+      closeAppModal();
+      inspLoadItems();
+    } else {
+      errEl.textContent = data.error || 'فشل إضافة الصنف'; errEl.style.display = 'block';
+      btn.disabled = false; btn.textContent = orig;
+    }
+  } catch(e) {
+    errEl.textContent = 'خطأ في الاتصال بالسيرفر'; errEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+
+function inspOpenEditItemModal(itemId) {
+  const it = (window._inspItemsCache || []).find(x => x.id === itemId);
+  if (!it) return;
+  openAppModal(`
+    <h3>✏️ تعديل بيانات الصنف</h3>
+    <div class="app-modal-field"><label>رقم/كود الصنف</label><input id="inspEditItemNumber" type="text" value="${escapeHtml(it.itemNumber||'')}" /></div>
+    <div class="app-modal-field"><label>الاسم/النوع *</label><input id="inspEditItemName" type="text" value="${escapeHtml(it.name||'')}" /></div>
+    <div class="app-modal-field"><label>القسم</label><input id="inspEditItemDept" type="text" value="${escapeHtml(it.department||'')}" /></div>
+    <div class="app-modal-field"><label>المكان</label><input id="inspEditItemLocation" type="text" value="${escapeHtml(it.location||'')}" /></div>
+    <div class="app-modal-error" id="inspEditItemModalError"></div>
+    <div class="app-modal-actions">
+      <button class="btn btn-secondary" type="button" onclick="closeAppModal()">إلغاء</button>
+      <button class="btn btn-primary" type="button" id="inspEditItemModalSubmit" onclick="inspSubmitEditItem('${itemId}')">حفظ</button>
+    </div>
+  `);
+}
+
+async function inspSubmitEditItem(itemId) {
+  const nameEl = document.getElementById('inspEditItemName');
+  const name = nameEl ? nameEl.value.trim() : '';
+  const errEl = document.getElementById('inspEditItemModalError');
+  errEl.style.display = 'none';
+  if (!name) { errEl.textContent = 'اسم/نوع الصنف مطلوب'; errEl.style.display = 'block'; return; }
+  const btn = document.getElementById('inspEditItemModalSubmit');
+  const orig = btn.textContent;
+  btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span>';
+  try {
+    const res = await authFetch(`/api/inspections/items/${itemId}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        itemNumber: document.getElementById('inspEditItemNumber').value.trim(),
+        name,
+        department: document.getElementById('inspEditItemDept').value.trim(),
+        location: document.getElementById('inspEditItemLocation').value.trim()
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      showToast('تم حفظ التعديل ✓', 'success');
+      closeAppModal();
+      inspLoadItems();
+    } else {
+      errEl.textContent = data.error || 'فشل الحفظ'; errEl.style.display = 'block';
+      btn.disabled = false; btn.textContent = orig;
+    }
+  } catch(e) {
+    errEl.textContent = 'خطأ في الاتصال بالسيرفر'; errEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+
+async function inspDeleteItem(itemId) {
+  const it = (window._inspItemsCache || []).find(x => x.id === itemId);
+  if (!confirm(`هل تريد حذف الصنف "${it ? it.name : ''}"؟ سيتم حذف كل سجلات فحصه الشهرية أيضًا.`)) return;
+  try {
+    const res = await authFetch(`/api/inspections/items/${itemId}`, { method: 'DELETE' });
+    if (res.ok) {
+      showToast('تم حذف الصنف', 'success');
+      inspLoadItems();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      showToast(data.error || 'فشل حذف الصنف', 'error');
+    }
+  } catch(e) {
+    showToast('خطأ في الاتصال بالسيرفر', 'error');
+  }
+}
+
+// ────────────────────────────────────────────────────────────
+// 5️⃣ Monthly record (مطابق/غير مطابق) modal
+// ────────────────────────────────────────────────────────────
+function inspOpenRecordModal(itemId) {
+  const it = (window._inspItemsCache || []).find(x => x.id === itemId);
+  if (!it) return;
+  const rec = it.record;
+  const defaultInspector = rec && rec.inspector ? rec.inspector : (typeof currentUserName !== 'undefined' ? (currentUserName || '') : '');
+  openAppModal(`
+    <h3>تسجيل نتيجة فحص — ${escapeHtml(it.name)}</h3>
+    <p style="color:var(--muted);font-size:12.5px;margin:-10px 0 16px;">${ARABIC_MONTHS[inspState.month-1]} ${inspState.year}</p>
+    <div class="app-modal-field">
+      <label>نتيجة الفحص *</label>
+      <select id="inspRecStatus">
+        <option value="مطابق" ${rec && rec.status==='مطابق' ? 'selected':''}>✅ مطابق</option>
+        <option value="غير مطابق" ${rec && rec.status==='غير مطابق' ? 'selected':''}>⛔ غير مطابق</option>
+      </select>
+    </div>
+    <div class="app-modal-field"><label>تاريخ الفحص</label><input id="inspRecDate" type="date" value="${rec && rec.inspectionDate ? escapeHtml(String(rec.inspectionDate).slice(0,10)) : new Date().toISOString().slice(0,10)}" /></div>
+    <div class="app-modal-field"><label>القائم بالفحص</label><input id="inspRecInspector" type="text" value="${escapeHtml(defaultInspector)}" /></div>
+    <div class="app-modal-field"><label>الملاحظات</label><textarea id="inspRecNotes">${escapeHtml((rec && rec.notes) || '')}</textarea></div>
+    <div class="app-modal-error" id="inspRecModalError"></div>
+    <div class="app-modal-actions">
+      <button class="btn btn-secondary" type="button" onclick="closeAppModal()">إلغاء</button>
+      <button class="btn btn-primary" type="button" id="inspRecModalSubmit" onclick="inspSubmitRecord('${itemId}')">حفظ نتيجة الفحص</button>
+    </div>
+  `);
+}
+
+async function inspSubmitRecord(itemId) {
+  const statusEl = document.getElementById('inspRecStatus');
+  const status = statusEl ? statusEl.value : '';
+  const errEl = document.getElementById('inspRecModalError');
+  errEl.style.display = 'none';
+  const btn = document.getElementById('inspRecModalSubmit');
+  const orig = btn.textContent;
+  btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span>';
+  try {
+    const res = await authFetch(`/api/inspections/items/${itemId}/records`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        year: inspState.year, month: inspState.month, status,
+        inspectionDate: document.getElementById('inspRecDate').value,
+        inspector: document.getElementById('inspRecInspector').value.trim(),
+        notes: document.getElementById('inspRecNotes').value.trim()
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      showToast('تم حفظ نتيجة الفحص ✓', 'success');
+      closeAppModal();
+      inspLoadItems();
+    } else {
+      errEl.textContent = data.error || 'فشل الحفظ'; errEl.style.display = 'block';
+      btn.disabled = false; btn.textContent = orig;
+    }
+  } catch(e) {
+    errEl.textContent = 'خطأ في الاتصال بالسيرفر'; errEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+
+async function inspDeleteRecord(recordId) {
+  if (!confirm('هل تريد حذف نتيجة الفحص لهذا الشهر؟ سيعود الصنف لحالة "لم يتم الفحص".')) return;
+  try {
+    const res = await authFetch(`/api/inspections/records/${recordId}`, { method: 'DELETE' });
+    if (res.ok) {
+      showToast('تم حذف نتيجة الفحص', 'success');
+      inspLoadItems();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      showToast(data.error || 'فشل الحذف', 'error');
+    }
+  } catch(e) {
+    showToast('خطأ في الاتصال بالسيرفر', 'error');
+  }
+}

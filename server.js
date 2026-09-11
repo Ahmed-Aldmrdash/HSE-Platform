@@ -6215,6 +6215,628 @@ app.get('/api/analytics', async (req, res) => {
   }
 });
 
+// ============================================================
+// 🦺 API ROUTES — الفحص الشهري (MONTHLY INSPECTION)
+// وحدة كاملة: مقصورة حصريًا على hse_admin و super_admin. برنامجا فحص
+// مستقلان تمامًا P1 (33 قسمًا) و P2 (27 قسمًا)، كل قسم له سجل أصناف
+// خاص به وسجلات فحص شهرية منفصلة لكل صنف×شهر×سنة. 11 سبتمبر 2026.
+// ============================================================
+
+const INSPECTION_ADMIN_ROLES = ['hse_admin', 'super_admin'];
+
+function computeInspectionStats(sectionItems, allRecords, year, month) {
+  let compliant = 0, nonCompliant = 0;
+  const recMap = new Map();
+  allRecords.forEach(r => {
+    if (r.year === year && r.month === month) recMap.set(r.itemId, r);
+  });
+  sectionItems.forEach(it => {
+    const r = recMap.get(it.id);
+    if (!r) return;
+    if (r.status === 'مطابق') compliant++;
+    else if (r.status === 'غير مطابق') nonCompliant++;
+  });
+  const total = sectionItems.length;
+  const pending = total - compliant - nonCompliant;
+  const compliancePct = total > 0 ? Math.round((compliant / total) * 1000) / 10 : null;
+  return { itemCount: total, compliant, nonCompliant, pending, compliancePct };
+}
+
+// ── GET /api/inspections/sections — قائمة أقسام برنامج P1 أو P2 مع مؤشرات
+// أداء شهر/سنة محددين (افتراضيًا الشهر والسنة الحاليين)
+app.get('/api/inspections/sections', authenticateToken, requireRole(...INSPECTION_ADMIN_ROLES), (req, res) => {
+  try {
+    const category = (req.query.category || '').toUpperCase();
+    if (category !== 'P1' && category !== 'P2') {
+      return res.status(400).json({ error: 'يجب تحديد category=P1 أو category=P2' });
+    }
+    const now = new Date();
+    const year = parseInt(req.query.year, 10) || now.getFullYear();
+    const month = parseInt(req.query.month, 10) || (now.getMonth() + 1);
+
+    const sections = readInspectionSections().filter(s => s.category === category);
+    const items = readInspectionItems();
+    const records = readInspectionRecords();
+
+    const result = sections
+      .slice()
+      .sort((a, b) => (a.order || 0) - (b.order || 0))
+      .map(s => {
+        const sectionItems = items.filter(it => it.sectionId === s.id);
+        const stats = computeInspectionStats(sectionItems, records, year, month);
+        return Object.assign({}, s, stats);
+      });
+
+    res.json({ category, year, month, sections: result });
+  } catch (err) {
+    console.error('Inspection sections list error:', err);
+    res.status(500).json({ error: 'فشل تحميل الأقسام' });
+  }
+});
+
+// ── POST /api/inspections/sections — إضافة قسم فحص جديد يدويًا
+app.post('/api/inspections/sections', authenticateToken, requireRole(...INSPECTION_ADMIN_ROLES), async (req, res) => {
+  const { category, name } = req.body || {};
+  const cat = (category || '').toUpperCase();
+  if (cat !== 'P1' && cat !== 'P2') {
+    return res.status(400).json({ error: 'يجب تحديد category=P1 أو category=P2' });
+  }
+  if (!name || !String(name).trim()) {
+    return res.status(400).json({ error: 'اسم القسم مطلوب' });
+  }
+  let result;
+  await enqueueWrite(async () => {
+    const sections = readInspectionSections();
+    const maxOrder = sections.filter(s => s.category === cat).reduce((m, s) => Math.max(m, s.order || 0), 0);
+    const section = {
+      id: 'INSEC-' + Date.now() + '-' + crypto.randomBytes(3).toString('hex'),
+      category: cat,
+      order: maxOrder + 1,
+      name: String(name).trim(),
+      createdAt: new Date().toISOString(),
+      createdBy: req.user.username || req.user.id
+    };
+    const sections2 = sections.concat([section]);
+    if (writeInspectionSections(sections2)) {
+      logAuditEvent({ entityType: 'inspection-section', entityId: section.id, action: 'create', actor: req.user, note: `${cat}: ${section.name}` });
+      result = { status: 201, body: { success: true, section } };
+    } else {
+      result = { status: 500, body: { error: 'فشل حفظ القسم' } };
+    }
+  });
+  res.status(result ? result.status : 500).json(result ? result.body : { error: 'حدث خطأ غير متوقع أثناء المعالجة، حاول مرة أخرى' });
+});
+
+// ── DELETE /api/inspections/sections/:id — حذف قسم (مع كل أصنافه وسجلاته
+// إذا مرّرت ?cascade=true؛ وإلا يُرفض الحذف إذا كان القسم يحتوي أصنافًا)
+app.delete('/api/inspections/sections/:id', authenticateToken, requireRole(...INSPECTION_ADMIN_ROLES), async (req, res) => {
+  const sectionId = req.params.id;
+  const cascade = req.query.cascade === 'true';
+  let result;
+  await enqueueWrite(async () => {
+    const sections = readInspectionSections();
+    const idx = sections.findIndex(s => s.id === sectionId);
+    if (idx === -1) {
+      result = { status: 404, body: { error: 'القسم غير موجود' } };
+      return;
+    }
+    const items = readInspectionItems();
+    const sectionItemIds = items.filter(it => it.sectionId === sectionId).map(it => it.id);
+
+    if (sectionItemIds.length > 0 && !cascade) {
+      result = { status: 409, body: { error: `القسم يحتوي ${sectionItemIds.length} صنف. أضف ?cascade=true لحذف القسم وكل أصنافه وسجلاته نهائيًا.`, itemCount: sectionItemIds.length } };
+      return;
+    }
+
+    const removedSection = sections[idx];
+    const remainingSections = sections.slice(0, idx).concat(sections.slice(idx + 1));
+
+    let remainingItems = items;
+    let removedRecordsCount = 0;
+    if (sectionItemIds.length > 0) {
+      remainingItems = items.filter(it => it.sectionId !== sectionId);
+      const records = readInspectionRecords();
+      const remainingRecords = records.filter(r => {
+        const belongs = sectionItemIds.includes(r.itemId);
+        if (belongs) removedRecordsCount++;
+        return !belongs;
+      });
+      writeInspectionRecords(remainingRecords);
+    }
+
+    if (writeInspectionSections(remainingSections) && writeInspectionItems(remainingItems)) {
+      logAuditEvent({ entityType: 'inspection-section', entityId: sectionId, action: 'delete', actor: req.user, note: `${removedSection.category}: ${removedSection.name} (${sectionItemIds.length} صنف، ${removedRecordsCount} سجل فحص)` });
+      result = { status: 200, body: { success: true } };
+    } else {
+      result = { status: 500, body: { error: 'فشل حذف القسم' } };
+    }
+  });
+  res.status(result ? result.status : 500).json(result ? result.body : { error: 'حدث خطأ غير متوقع أثناء المعالجة، حاول مرة أخرى' });
+});
+
+// ── GET /api/inspections/sections/:id/items — أصناف القسم مع حالة فحص
+// الشهر المحدد (year/month)، بدعم فلاتر department / status / q (بحث)
+app.get('/api/inspections/sections/:id/items', authenticateToken, requireRole(...INSPECTION_ADMIN_ROLES), (req, res) => {
+  try {
+    const sectionId = req.params.id;
+    const sections = readInspectionSections();
+    const section = sections.find(s => s.id === sectionId);
+    if (!section) return res.status(404).json({ error: 'القسم غير موجود' });
+
+    const now = new Date();
+    const year = parseInt(req.query.year, 10) || now.getFullYear();
+    const month = parseInt(req.query.month, 10) || (now.getMonth() + 1);
+
+    const allItems = readInspectionItems().filter(it => it.sectionId === sectionId);
+    const records = readInspectionRecords();
+    const recMap = new Map();
+    records.forEach(r => {
+      if (r.sectionId === sectionId && r.year === year && r.month === month) recMap.set(r.itemId, r);
+    });
+
+    let merged = allItems.map(it => {
+      const rec = recMap.get(it.id) || null;
+      return Object.assign({}, it, {
+        record: rec ? {
+          id: rec.id, status: rec.status, notes: rec.notes || '',
+          inspectionDate: rec.inspectionDate || null, inspector: rec.inspector || '',
+          updatedAt: rec.updatedAt || rec.createdAt
+        } : null,
+        status: rec ? rec.status : 'لم يتم الفحص'
+      });
+    });
+
+    const { department, status, q } = req.query;
+    if (department) {
+      merged = merged.filter(it => String(it.department || '').trim() === String(department).trim());
+    }
+    if (status) {
+      merged = merged.filter(it => it.status === status);
+    }
+    if (q) {
+      const qq = String(q).trim().toLowerCase();
+      merged = merged.filter(it =>
+        String(it.itemNumber || '').toLowerCase().includes(qq) ||
+        String(it.name || '').toLowerCase().includes(qq) ||
+        String(it.department || '').toLowerCase().includes(qq) ||
+        String(it.location || '').toLowerCase().includes(qq)
+      );
+    }
+
+    const stats = computeInspectionStats(allItems, records, year, month);
+    res.json({ section, year, month, stats, items: merged });
+  } catch (err) {
+    console.error('Inspection items list error:', err);
+    res.status(500).json({ error: 'فشل تحميل الأصناف' });
+  }
+});
+
+// ── POST /api/inspections/sections/:id/items — إضافة صنف جديد لقسم
+app.post('/api/inspections/sections/:id/items', authenticateToken, requireRole(...INSPECTION_ADMIN_ROLES), async (req, res) => {
+  const sectionId = req.params.id;
+  const { itemNumber, name, department, location } = req.body || {};
+  if (!name || !String(name).trim()) {
+    return res.status(400).json({ error: 'اسم/نوع الصنف مطلوب' });
+  }
+  let result;
+  await enqueueWrite(async () => {
+    const sections = readInspectionSections();
+    const section = sections.find(s => s.id === sectionId);
+    if (!section) { result = { status: 404, body: { error: 'القسم غير موجود' } }; return; }
+
+    const items = readInspectionItems();
+    const item = {
+      id: 'INSITM-' + Date.now() + '-' + crypto.randomBytes(3).toString('hex'),
+      sectionId,
+      itemNumber: itemNumber != null ? String(itemNumber).trim() : '',
+      name: String(name).trim(),
+      department: department ? String(department).trim() : '',
+      location: location ? String(location).trim() : '',
+      createdAt: new Date().toISOString(),
+      createdBy: req.user.username || req.user.id,
+      updatedAt: null,
+      updatedBy: null
+    };
+    const items2 = items.concat([item]);
+    if (writeInspectionItems(items2)) {
+      logAuditEvent({ entityType: 'inspection-item', entityId: item.id, action: 'create', actor: req.user, note: `${section.name}: ${item.name}` });
+      result = { status: 201, body: { success: true, item } };
+    } else {
+      result = { status: 500, body: { error: 'فشل حفظ الصنف' } };
+    }
+  });
+  res.status(result ? result.status : 500).json(result ? result.body : { error: 'حدث خطأ غير متوقع أثناء المعالجة، حاول مرة أخرى' });
+});
+
+// ── PUT /api/inspections/items/:id — تعديل بيانات صنف
+app.put('/api/inspections/items/:id', authenticateToken, requireRole(...INSPECTION_ADMIN_ROLES), async (req, res) => {
+  const itemId = req.params.id;
+  const { itemNumber, name, department, location } = req.body || {};
+  let result;
+  await enqueueWrite(async () => {
+    const items = readInspectionItems();
+    const idx = items.findIndex(it => it.id === itemId);
+    if (idx === -1) { result = { status: 404, body: { error: 'الصنف غير موجود' } }; return; }
+    const it = items[idx];
+    if (name != null && String(name).trim()) it.name = String(name).trim();
+    if (itemNumber != null) it.itemNumber = String(itemNumber).trim();
+    if (department != null) it.department = String(department).trim();
+    if (location != null) it.location = String(location).trim();
+    it.updatedAt = new Date().toISOString();
+    it.updatedBy = req.user.username || req.user.id;
+    if (writeInspectionItems(items)) {
+      logAuditEvent({ entityType: 'inspection-item', entityId: itemId, action: 'update', actor: req.user, note: it.name });
+      result = { status: 200, body: { success: true, item: it } };
+    } else {
+      result = { status: 500, body: { error: 'فشل حفظ التعديل' } };
+    }
+  });
+  res.status(result ? result.status : 500).json(result ? result.body : { error: 'حدث خطأ غير متوقع أثناء المعالجة، حاول مرة أخرى' });
+});
+
+// ── DELETE /api/inspections/items/:id — حذف صنف وكل سجلات فحصه الشهرية
+app.delete('/api/inspections/items/:id', authenticateToken, requireRole(...INSPECTION_ADMIN_ROLES), async (req, res) => {
+  const itemId = req.params.id;
+  let result;
+  await enqueueWrite(async () => {
+    const items = readInspectionItems();
+    const idx = items.findIndex(it => it.id === itemId);
+    if (idx === -1) { result = { status: 404, body: { error: 'الصنف غير موجود' } }; return; }
+    const removed = items[idx];
+    const remainingItems = items.slice(0, idx).concat(items.slice(idx + 1));
+
+    const records = readInspectionRecords();
+    let removedRecordsCount = 0;
+    const remainingRecords = records.filter(r => {
+      const belongs = r.itemId === itemId;
+      if (belongs) removedRecordsCount++;
+      return !belongs;
+    });
+
+    if (writeInspectionItems(remainingItems) && writeInspectionRecords(remainingRecords)) {
+      logAuditEvent({ entityType: 'inspection-item', entityId: itemId, action: 'delete', actor: req.user, note: `${removed.name} (${removedRecordsCount} سجل فحص)` });
+      result = { status: 200, body: { success: true } };
+    } else {
+      result = { status: 500, body: { error: 'فشل الحذف' } };
+    }
+  });
+  res.status(result ? result.status : 500).json(result ? result.body : { error: 'حدث خطأ غير متوقع أثناء المعالجة، حاول مرة أخرى' });
+});
+
+// ── PUT /api/inspections/items/:id/records — تسجيل/تعديل نتيجة فحص صنف
+// لشهر وسنة محددين (مطابق / غير مطابق). سجل واحد فقط لكل صنف×شهر×سنة —
+// إعادة الإرسال لنفس الشهر تُحدِّث السجل الموجود (upsert) بدلاً من تكراره.
+app.put('/api/inspections/items/:id/records', authenticateToken, requireRole(...INSPECTION_ADMIN_ROLES), async (req, res) => {
+  const itemId = req.params.id;
+  const { year, month, status, notes, inspectionDate, inspector } = req.body || {};
+  const y = parseInt(year, 10);
+  const m = parseInt(month, 10);
+  if (!y || !m || m < 1 || m > 12) {
+    return res.status(400).json({ error: 'سنة/شهر غير صالحين' });
+  }
+  if (status !== 'مطابق' && status !== 'غير مطابق') {
+    return res.status(400).json({ error: "نتيجة الفحص يجب أن تكون 'مطابق' أو 'غير مطابق'" });
+  }
+  let result;
+  await enqueueWrite(async () => {
+    const items = readInspectionItems();
+    const item = items.find(it => it.id === itemId);
+    if (!item) { result = { status: 404, body: { error: 'الصنف غير موجود' } }; return; }
+
+    const records = readInspectionRecords();
+    const existingIdx = records.findIndex(r => r.itemId === itemId && r.year === y && r.month === m);
+    const now = new Date().toISOString();
+    let record, previousStatus = null, isUpdate = false;
+
+    if (existingIdx !== -1) {
+      isUpdate = true;
+      record = records[existingIdx];
+      previousStatus = record.status;
+      record.status = status;
+      record.notes = notes != null ? String(notes) : '';
+      record.inspectionDate = inspectionDate || record.inspectionDate || null;
+      record.inspector = inspector != null ? String(inspector).trim() : (record.inspector || '');
+      record.updatedAt = now;
+      record.updatedBy = req.user.username || req.user.id;
+    } else {
+      record = {
+        id: 'INSREC-' + Date.now() + '-' + crypto.randomBytes(3).toString('hex'),
+        sectionId: item.sectionId,
+        itemId,
+        year: y,
+        month: m,
+        status,
+        notes: notes != null ? String(notes) : '',
+        inspectionDate: inspectionDate || null,
+        inspector: inspector != null ? String(inspector).trim() : (req.user.name || ''),
+        createdAt: now,
+        createdBy: req.user.username || req.user.id,
+        updatedAt: null,
+        updatedBy: null
+      };
+      records.push(record);
+    }
+
+    if (writeInspectionRecords(records)) {
+      logAuditEvent({
+        entityType: 'inspection-record', entityId: record.id, action: isUpdate ? 'update' : 'create',
+        actor: req.user, previousStatus, newStatus: status,
+        note: `${item.name} — ${y}/${m}${notes ? ' — ' + notes : ''}`
+      });
+      result = { status: 200, body: { success: true, record } };
+    } else {
+      result = { status: 500, body: { error: 'فشل حفظ نتيجة الفحص' } };
+    }
+  });
+  res.status(result ? result.status : 500).json(result ? result.body : { error: 'حدث خطأ غير متوقع أثناء المعالجة، حاول مرة أخرى' });
+});
+
+// ── DELETE /api/inspections/records/:id — حذف سجل فحص شهري واحد
+app.delete('/api/inspections/records/:id', authenticateToken, requireRole(...INSPECTION_ADMIN_ROLES), async (req, res) => {
+  const recordId = req.params.id;
+  let result;
+  await enqueueWrite(async () => {
+    const records = readInspectionRecords();
+    const idx = records.findIndex(r => r.id === recordId);
+    if (idx === -1) { result = { status: 404, body: { error: 'السجل غير موجود' } }; return; }
+    const removed = records[idx];
+    const remaining = records.slice(0, idx).concat(records.slice(idx + 1));
+    if (writeInspectionRecords(remaining)) {
+      logAuditEvent({ entityType: 'inspection-record', entityId: recordId, action: 'delete', actor: req.user, previousStatus: removed.status, note: `${removed.year}/${removed.month}` });
+      result = { status: 200, body: { success: true } };
+    } else {
+      result = { status: 500, body: { error: 'فشل الحذف' } };
+    }
+  });
+  res.status(result ? result.status : 500).json(result ? result.body : { error: 'حدث خطأ غير متوقع أثناء المعالجة، حاول مرة أخرى' });
+});
+
+// ── GET /api/inspections/sections/:id/export — تصدير إكسيل (سجل أصناف عبر
+// type=items أو فحص شهر محدد عبر type=monthly&year=&month=، الافتراضي
+// monthly). يقبل التوكن عبر ?dt= لأنه رابط تنزيل مباشر <a href> لا يمكنه
+// إرسال Authorization header (نفس نمط GET /api/drills/export/:id).
+app.get('/api/inspections/sections/:id/export', authenticateTokenFlexible, requireRole(...INSPECTION_ADMIN_ROLES), async (req, res) => {
+  try {
+    const sectionId = req.params.id;
+    const sections = readInspectionSections();
+    const section = sections.find(s => s.id === sectionId);
+    if (!section) return res.status(404).send('Section not found');
+
+    const type = req.query.type === 'items' ? 'items' : 'monthly';
+    const items = readInspectionItems().filter(it => it.sectionId === sectionId)
+      .sort((a, b) => String(a.itemNumber || '').localeCompare(String(b.itemNumber || ''), 'ar', { numeric: true }));
+
+    const wb = new ExcelJS.Workbook();
+    const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A5F' } };
+    const whiteBold = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 };
+    const safeSlug = `${section.category}_${String(section.order || 0).padStart(2, '0')}`;
+
+    if (type === 'items') {
+      const ws = wb.addWorksheet('Items');
+      const headerRow = ws.addRow(['م', 'رقم/كود الصنف', 'الاسم/النوع', 'القسم', 'المكان']);
+      headerRow.font = whiteBold; headerRow.fill = headerFill;
+      headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+      ws.columns = [{ width: 6 }, { width: 18 }, { width: 32 }, { width: 22 }, { width: 28 }];
+      items.forEach((it, i) => {
+        ws.addRow([i + 1, it.itemNumber || '', it.name || '', it.department || '', it.location || '']);
+      });
+      res.setHeader('Content-Disposition', `attachment; filename="inspection_${safeSlug}_items.xlsx"`);
+    } else {
+      const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+      const month = parseInt(req.query.month, 10) || (new Date().getMonth() + 1);
+      const records = readInspectionRecords();
+      const recMap = new Map();
+      records.forEach(r => { if (r.sectionId === sectionId && r.year === year && r.month === month) recMap.set(r.itemId, r); });
+
+      const ws = wb.addWorksheet(`${month}-${year}`);
+      ws.addRow([`قسم الفحص: ${section.name} (${section.category})   |   الشهر: ${month}/${year}`]);
+      ws.getRow(1).getCell(1).style = { font: { bold: true, size: 13, color: { argb: 'FF1E3A5F' } }, alignment: { horizontal: 'right' } };
+      ws.mergeCells('A1:I1');
+      ws.addRow([]);
+      const headerRow = ws.addRow(['م', 'رقم/كود الصنف', 'الاسم/النوع', 'القسم', 'المكان', 'نتيجة الفحص', 'الملاحظات', 'تاريخ الفحص', 'القائم بالفحص']);
+      headerRow.font = whiteBold; headerRow.fill = headerFill;
+      headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+      ws.columns = [{ width: 6 }, { width: 16 }, { width: 30 }, { width: 20 }, { width: 26 }, { width: 14 }, { width: 30 }, { width: 14 }, { width: 20 }];
+      items.forEach((it, i) => {
+        const r = recMap.get(it.id);
+        ws.addRow([
+          i + 1, it.itemNumber || '', it.name || '', it.department || '', it.location || '',
+          r ? r.status : 'لم يتم الفحص', r ? (r.notes || '') : '',
+          r && r.inspectionDate ? r.inspectionDate : '', r ? (r.inspector || '') : ''
+        ]);
+      });
+      res.setHeader('Content-Disposition', `attachment; filename="inspection_${safeSlug}_${year}_${month}.xlsx"`);
+    }
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error('Inspection export error:', err);
+    if (!res.headersSent) res.status(500).send('Error generating Excel file');
+  }
+});
+
+// ============================================================
+// 📥 استيراد سجلات الفحص القديمة من ملفات إكسيل تاريخية (b1/b2)
+// ============================================================
+// الملفات القديمة (60 ملف إكسيل، ورقة لكل شهر تقريبًا) لها نفس النمط
+// تقريبًا: عمود رقم/كود الصنف، أعمدة وصفية (نوع/وزن)، القسم، المكان،
+// عمودا "مطابق"/"غير مطابق" (علامة ✓ في أحدهما)، الملاحظات، تاريخ الفحص،
+// القائم بالفحص. هذا المحلل يكتشف الأعمدة من نص الهيدر نفسه (لا يفترض
+// ترتيبًا ثابتًا) حتى يعمل عبر أكثر من تنسيق ملف بدون كتابة parser مخصص
+// لكل قسم على حدة. 11 سبتمبر 2026.
+function findLegacyInspectionHeaderRow(ws) {
+  for (let r = 1; r <= Math.min(6, ws.rowCount); r++) {
+    const row = ws.getRow(r);
+    for (let c = 1; c <= ws.columnCount; c++) {
+      if (String(row.getCell(c).value || '').trim() === 'مطابق') return r;
+    }
+  }
+  return null;
+}
+
+function parseLegacyInspectionSheet(ws) {
+  const headerRowIdx = findLegacyInspectionHeaderRow(ws);
+  if (!headerRowIdx) return null;
+  const headerRow = ws.getRow(headerRowIdx);
+  const cols = { compliantCol: null, nonCompliantCol: null, notesCol: null, dateCol: null, inspectorCol: null, deptCol: null, locationCol: null };
+  let itemNumberCol = null;
+  const typeCols = [];
+
+  for (let c = 1; c <= ws.columnCount; c++) {
+    const raw = String(headerRow.getCell(c).value || '').replace(/\s+/g, ' ').trim();
+    if (!raw) continue;
+    if (raw === 'مطابق' && cols.compliantCol == null) cols.compliantCol = c;
+    else if (raw === 'غير مطابق' && cols.nonCompliantCol == null) cols.nonCompliantCol = c;
+    else if (raw.includes('الملاحظات') && !raw.includes('تعديل') && cols.notesCol == null) cols.notesCol = c;
+    else if (raw.includes('تاريخ الفحص') && cols.dateCol == null) cols.dateCol = c;
+    else if (raw.includes('القائم بالفحص') && cols.inspectorCol == null) cols.inspectorCol = c;
+    else if (raw.includes('القسم') && cols.deptCol == null) cols.deptCol = c;
+    else if ((raw.includes('المكان') || raw.includes('الموقع')) && cols.locationCol == null) cols.locationCol = c;
+    else if (raw.includes('رقم') && itemNumberCol == null) itemNumberCol = c;
+    else if (itemNumberCol != null && cols.compliantCol == null) typeCols.push(c);
+  }
+  if (itemNumberCol == null) itemNumberCol = 1;
+  return { headerRowIdx, itemNumberCol, typeCols, ...cols };
+}
+
+// ── POST /api/inspections/sections/:id/import-legacy-excel — رفع سجل قديم
+// (Excel) لقسم فحص محدد: ينشئ الأصناف غير الموجودة + سجلات الفحص الشهرية
+// من كل الأوراق (شهور) الموجودة في الملف دفعة واحدة.
+app.post('/api/inspections/sections/:id/import-legacy-excel', authenticateToken, requireRole(...INSPECTION_ADMIN_ROLES), async (req, res) => {
+  const sectionId = req.params.id;
+  const { base64Data } = req.body || {};
+  if (!base64Data) return res.status(400).json({ error: 'لا يوجد ملف' });
+
+  let result;
+  await enqueueWrite(async () => {
+    const sections = readInspectionSections();
+    const section = sections.find(s => s.id === sectionId);
+    if (!section) { result = { status: 404, body: { error: 'القسم غير موجود' } }; return; }
+
+    let wb;
+    try {
+      const buffer = Buffer.from(base64Data, 'base64');
+      wb = new ExcelJS.Workbook();
+      await wb.xlsx.load(buffer);
+    } catch (err) {
+      result = { status: 400, body: { error: 'تعذّر قراءة ملف الإكسيل — تأكد إنه بصيغة xlsx صحيحة' } };
+      return;
+    }
+
+    const allItems = readInspectionItems();
+    const allRecords = readInspectionRecords();
+    const itemByKey = new Map();
+    allItems.filter(it => it.sectionId === sectionId).forEach(it => {
+      itemByKey.set(`${it.itemNumber}|${it.department}|${it.location}`, it);
+    });
+    const recordByKey = new Map();
+    allRecords.forEach(r => recordByKey.set(`${r.itemId}|${r.year}|${r.month}`, r));
+
+    const now = new Date().toISOString();
+    const newItems = [];
+    const newRecords = [];
+    let itemsCreated = 0, recordsCreated = 0, recordsUpdated = 0, rowsSkippedNoDate = 0, sheetsParsed = 0, sheetsSkipped = 0;
+
+    wb.eachSheet(ws => {
+      const parsed = parseLegacyInspectionSheet(ws);
+      if (!parsed) { sheetsSkipped++; return; }
+      sheetsParsed++;
+
+      for (let r = parsed.headerRowIdx + 1; r <= ws.rowCount; r++) {
+        const row = ws.getRow(r);
+        const itemNumberRaw = row.getCell(parsed.itemNumberCol).value;
+        if (itemNumberRaw === null || itemNumberRaw === undefined || String(itemNumberRaw).trim() === '') continue;
+        const itemNumber = String(itemNumberRaw).trim();
+        const department = parsed.deptCol ? String(row.getCell(parsed.deptCol).value || '').trim() : '';
+        const location = parsed.locationCol ? String(row.getCell(parsed.locationCol).value || '').trim() : '';
+        const typeParts = parsed.typeCols.map(c => String(row.getCell(c).value || '').trim()).filter(Boolean);
+        const key = `${itemNumber}|${department}|${location}`;
+
+        let item = itemByKey.get(key);
+        if (!item) {
+          item = {
+            id: 'INSITM-' + Date.now() + '-' + newItems.length + '-' + crypto.randomBytes(3).toString('hex'),
+            sectionId,
+            itemNumber,
+            name: typeParts.length ? typeParts.join(' - ') : `${section.name} #${itemNumber}`,
+            department, location,
+            createdAt: now, createdBy: `legacy-import:${req.user.username || req.user.id}`,
+            updatedAt: null, updatedBy: null
+          };
+          itemByKey.set(key, item);
+          newItems.push(item);
+          itemsCreated++;
+        }
+
+        const compliantVal = parsed.compliantCol ? row.getCell(parsed.compliantCol).value : null;
+        const nonCompliantVal = parsed.nonCompliantCol ? row.getCell(parsed.nonCompliantCol).value : null;
+        let status = null;
+        if (compliantVal !== null && compliantVal !== undefined && String(compliantVal).trim() !== '') status = 'مطابق';
+        else if (nonCompliantVal !== null && nonCompliantVal !== undefined && String(nonCompliantVal).trim() !== '') status = 'غير مطابق';
+        if (!status) continue; // صف لم يُفحص بعد في هذه الورقة — تجاهله
+
+        const dateVal = parsed.dateCol ? row.getCell(parsed.dateCol).value : null;
+        let dateObj = null;
+        if (dateVal instanceof Date) dateObj = dateVal;
+        else if (dateVal) { const d = new Date(dateVal); if (!isNaN(d)) dateObj = d; }
+        if (!dateObj) { rowsSkippedNoDate++; continue; } // بدون تاريخ لا يمكن تحديد الشهر/السنة بثقة
+
+        const y = dateObj.getFullYear(), m = dateObj.getMonth() + 1;
+        const notes = parsed.notesCol ? String(row.getCell(parsed.notesCol).value || '').trim() : '';
+        const inspector = parsed.inspectorCol ? String(row.getCell(parsed.inspectorCol).value || '').trim() : '';
+        const recKey = `${item.id}|${y}|${m}`;
+        const existingRec = recordByKey.get(recKey);
+
+        if (existingRec) {
+          existingRec.status = status;
+          if (notes) existingRec.notes = notes;
+          existingRec.inspectionDate = dateObj.toISOString().slice(0, 10);
+          if (inspector) existingRec.inspector = inspector;
+          recordsUpdated++;
+        } else {
+          const rec = {
+            id: 'INSREC-' + Date.now() + '-' + newRecords.length + '-' + crypto.randomBytes(3).toString('hex'),
+            sectionId, itemId: item.id, year: y, month: m, status, notes,
+            inspectionDate: dateObj.toISOString().slice(0, 10), inspector,
+            createdAt: now, createdBy: `legacy-import:${req.user.username || req.user.id}`,
+            updatedAt: null, updatedBy: null
+          };
+          recordByKey.set(recKey, rec);
+          newRecords.push(rec);
+          recordsCreated++;
+        }
+      }
+    });
+
+    if (sheetsParsed === 0) {
+      result = { status: 400, body: { error: 'لم يتم التعرف على تنسيق الملف — يجب أن يحتوي عمود "مطابق" في أول 6 صفوف من كل ورقة' } };
+      return;
+    }
+
+    const okItems = writeInspectionItems(allItems.concat(newItems));
+    const okRecords = writeInspectionRecords(allRecords.concat(newRecords));
+    if (okItems && okRecords) {
+      logAuditEvent({
+        entityType: 'inspection-section', entityId: sectionId, action: 'import-legacy-excel', actor: req.user,
+        note: `${section.name}: ${itemsCreated} صنف جديد، ${recordsCreated} سجل جديد، ${recordsUpdated} سجل مُحدَّث (من ${sheetsParsed} ورقة)`
+      });
+      result = {
+        status: 200,
+        body: {
+          success: true,
+          itemsCreated, recordsCreated, recordsUpdated,
+          sheetsParsed, sheetsSkipped, rowsSkippedNoDate
+        }
+      };
+    } else {
+      result = { status: 500, body: { error: 'فشل حفظ البيانات المستوردة' } };
+    }
+  });
+  res.status(result ? result.status : 500).json(result ? result.body : { error: 'حدث خطأ غير متوقع أثناء المعالجة، حاول مرة أخرى' });
+});
+
 // ── 404 fallback ──────────────────────────────────────────────
 app.use((req, res) => {
   if (req.path.startsWith('/api/')) {
