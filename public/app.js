@@ -1086,9 +1086,26 @@ function workerLogout(){
   if(myHistoryPollTimer){ clearInterval(myHistoryPollTimer); myHistoryPollTimer = null; }
   if(window.myHazardsPollTimer){ clearInterval(window.myHazardsPollTimer); window.myHazardsPollTimer = null; }
   if(window.trnWorkerPollTimer){ clearInterval(window.trnWorkerPollTimer); window.trnWorkerPollTimer = null; }
-  
+
+  // BUGFIX: this button is also the one shown when an admin's session has
+  // an employee chip on screen (e.g. after an admin login). It used to only
+  // clear the worker-side state, leaving the admin JWT valid in
+  // sessionStorage — so a fresh worker-code login right after would still
+  // silently resume the previous admin session instead of starting clean.
+  // Always fully clear the admin session too, exactly like logout() does.
+  clearToken();
+  currentAdminToken = '';
+  isLoggedIn = false;
+  currentUsername = '';
+  currentUserName = '';
+  currentUserRole = '';
+  currentUserDept = '';
+  if (supervisorPollTimer) { clearInterval(supervisorPollTimer); supervisorPollTimer = null; }
+  const globalBar = document.getElementById('globalUserBar');
+  if (globalBar) globalBar.style.display = 'none';
+
   stopNotificationPolling();
-  
+
   // Reset RBAC state and return to unified login
   sessionRole = 'none';
   applyRbacUI();
