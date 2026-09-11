@@ -2,3 +2,14 @@ node_modules/
 .env
 *.log
 server-error.log
+
+# SQLite WAL/SHM sidecar files — transient journal state, not part of the
+# durable database. data/app.db itself IS tracked (same backup-via-git
+# pattern the old data/*.json files used).
+data/*.db-wal
+data/*.db-shm
+
+# One-time local safety copy of the pre-migration JSON files (11 Sep 2026
+# JSON→SQLite migration). Fully redundant with data/app.db — kept on disk
+# only, never in git, so the repo doesn't carry the same data twice.
+data/_legacy_json_backup/

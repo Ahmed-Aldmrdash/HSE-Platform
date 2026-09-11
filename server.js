@@ -18,6 +18,8 @@ const rateLimit  = require('express-rate-limit');
 const webpush    = require('web-push');
 const compression = require('compression');
 const { parsePermitsWorkbook } = require('./lib/permits-excel-parser');
+const { db: sqliteDb, makeStore, exportAll: dbExportAll, importAll: dbImportAll, DB_PATH } = require('./lib/db');
+const { migrateJsonToDb, sweepOrphanJsonFiles } = require('./lib/migrate-json-to-db');
 
 const app  = express();
 
@@ -148,7 +150,7 @@ if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 
-// ── Initialize Training Topics ───────────────────────────────
+// ── Initial Training Topics (seeded into DB on first boot only) ──
 const INITIAL_TOPICS = [
   "فصل وعزل الطاقة LOTO",
   "القيادة الامنة للفوركليفت",
@@ -163,21 +165,6 @@ const INITIAL_TOPICS = [
   "مخاطر الاماكن المغلقة",
   "مكافحة الحرائق واستخدام الطفايات"
 ];
-if (!fs.existsSync(TRAINING_TOPICS_FILE)) {
-  fs.writeFileSync(TRAINING_TOPICS_FILE, JSON.stringify(INITIAL_TOPICS, null, 2), 'utf8');
-}
-if (!fs.existsSync(TRAININGS_FILE)) {
-  fs.writeFileSync(TRAININGS_FILE, JSON.stringify([], null, 2), 'utf8');
-}
-if (!fs.existsSync(DRILLS_FILE)) {
-  fs.writeFileSync(DRILLS_FILE, JSON.stringify([], null, 2), 'utf8');
-}
-if (!fs.existsSync(SUBSCRIPTIONS_FILE)) {
-  fs.writeFileSync(SUBSCRIPTIONS_FILE, JSON.stringify([], null, 2), 'utf8');
-}
-if (!fs.existsSync(AUDIT_LOG_FILE)) {
-  fs.writeFileSync(AUDIT_LOG_FILE, JSON.stringify([], null, 2), 'utf8');
-}
 
 // ── Web Push Initialization ────────────────────────────────────
 let vapidKeys = { publicKey: '', privateKey: '' };
@@ -192,6 +179,50 @@ webpush.setVapidDetails(
   vapidKeys.publicKey,
   vapidKeys.privateKey
 );
+
+// ============================================================
+// 🗄️ DATABASE MIGRATION — من ملفات JSON إلى SQLite (مرة واحدة فقط)
+// ============================================================
+// كل بيانات التطبيق أصبحت مخزَّنة في data/app.db بدل ملفات JSON منفصلة.
+// هذا الترحيل يعمل تلقائيًا عند أول إقلاع بعد هذا التحديث: يقرأ كل ملف
+// JSON قديم موجود، ينسخ محتواه إلى القاعدة، وينقل الملف الأصلي (لا يحذفه)
+// إلى data/_legacy_json_backup/ كنسخة أمان. في أي إقلاع لاحق لا يحدث شيء
+// (كل مجموعة أصبح لها بيانات في القاعدة فتُتجاهَل ملفاتها). 11 سبتمبر 2026.
+const DB_COLLECTIONS = [
+  { file: 'storage.json',           name: 'storage',             isObject: true },
+  { file: 'hazard-reports.json',    name: 'hazards' },
+  { file: 'audit-log.json',         name: 'audit-log' },
+  { file: 'penalties.json',         name: 'penalties' },
+  { file: 'employees.json',         name: 'employees' },
+  { file: 'training-topics.json',   name: 'training-topics' },
+  { file: 'trainings.json',         name: 'trainings' },
+  { file: 'drills.json',            name: 'drills' },
+  { file: 'notifications.json',     name: 'notifications' },
+  { file: 'push-subscriptions.json', name: 'subscriptions' },
+  { file: 'inspection-sections.json', name: 'inspection-sections' },
+  { file: 'inspection-items.json',    name: 'inspection-items' },
+  { file: 'inspection-records.json',  name: 'inspection-records' },
+];
+migrateJsonToDb({ dataDir: DATA_DIR, db: sqliteDb, collections: DB_COLLECTIONS });
+sweepOrphanJsonFiles({ dataDir: DATA_DIR, db: sqliteDb, excludeFiles: ['vapid.json'] });
+
+// ── DB-backed collection stores ─────────────────────────────────
+const storageStore           = makeStore('storage', {});
+const hazardsStore           = makeStore('hazards', []);
+const auditLogStore          = makeStore('audit-log', []);
+const penaltiesStore         = makeStore('penalties', []);
+const employeesStore         = makeStore('employees', []);
+const trainingTopicsStore    = makeStore('training-topics', []);
+const trainingsStore         = makeStore('trainings', []);
+const drillsStore            = makeStore('drills', []);
+const notificationsStore     = makeStore('notifications', []);
+const subscriptionsStore     = makeStore('subscriptions', []);
+const inspectionSectionsStore = makeStore('inspection-sections', []);
+const inspectionItemsStore    = makeStore('inspection-items', []);
+const inspectionRecordsStore  = makeStore('inspection-records', []);
+
+// ── First-boot-only defaults (نفس منطق "أنشئ الملف لو مش موجود" القديم) ──
+if (!trainingTopicsStore.exists()) trainingTopicsStore.write(INITIAL_TOPICS);
 
 // ── Security Headers Middleware ───────────────────────────────
 // Applied before all other routes. No external dependency needed.
@@ -434,14 +465,10 @@ function scheduleHazardsExcelSync(hazardsArray) {
   if (_hazardsExcelTimer.unref) _hazardsExcelTimer.unref();
 }
 
-// ── Storage Helpers ───────────────────────────────────────────
+// ── Storage Helpers (DB-backed — انظر lib/db.js) ─────────────────
 function readStorage() {
-  if (!fs.existsSync(DATA_FILE)) return {};
-  const cached = getCached(DATA_FILE);
-  if (cached !== undefined) return cached;
   try {
-    const raw = fs.readFileSync(DATA_FILE, 'utf8');
-    const data = safeJsonParse(raw, {});
+    const data = storageStore.read();
     if (data['work-permits']) {
       if (typeof data['work-permits'] === 'string') {
         try {
@@ -458,10 +485,9 @@ function readStorage() {
         data['work-permits'] = JSON.stringify(data['work-permits']);
       }
     }
-    setCached(DATA_FILE, data);
     return data;
   } catch (err) {
-    console.error('Error reading storage.json:', err);
+    console.error('Error reading storage:', err);
     return {};
   }
 }
@@ -490,70 +516,24 @@ function normalizePermitDeletedBy(permit) {
 }
 
 function writeStorage(data) {
-  try {
-    // PERF: compact JSON (no pretty-print indent) — storage.json holds
-    // thousands of permits; pretty-printing roughly doubles file size
-    // and serialize/write/parse time for no functional benefit.
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data), 'utf8');
-    setCached(DATA_FILE, data);
-    return true;
-  } catch (err) {
-    console.error('Error writing storage.json:', err);
-    return false;
-  }
+  return storageStore.write(data);
 }
 
 function readHazards() {
-  if (!fs.existsSync(HAZARDS_FILE)) return [];
-  const cached = getCached(HAZARDS_FILE);
-  if (cached !== undefined) return cached;
-  try {
-    const raw = fs.readFileSync(HAZARDS_FILE, 'utf8');
-    const data = safeJsonParse(raw, []);
-    setCached(HAZARDS_FILE, data);
-    return data;
-  } catch (err) {
-    console.error('Error reading hazard-reports.json:', err);
-    return [];
-  }
+  return hazardsStore.read();
 }
 
 function writeHazards(data) {
-  try {
-    fs.writeFileSync(HAZARDS_FILE, JSON.stringify(data), 'utf8');
-    setCached(HAZARDS_FILE, data);
-    return true;
-  } catch (err) {
-    console.error('Error writing hazard-reports.json:', err);
-    return false;
-  }
+  return hazardsStore.write(data);
 }
 
 // ── Audit Log Storage Helpers (Append-Only) ───────────────
 function readAuditLog() {
-  if (!fs.existsSync(AUDIT_LOG_FILE)) return [];
-  const cached = getCached(AUDIT_LOG_FILE);
-  if (cached !== undefined) return cached;
-  try {
-    const raw = fs.readFileSync(AUDIT_LOG_FILE, 'utf8');
-    const data = safeJsonParse(raw, []);
-    setCached(AUDIT_LOG_FILE, data);
-    return data;
-  } catch (err) {
-    console.error('Error reading audit-log.json:', err);
-    return [];
-  }
+  return auditLogStore.read();
 }
 
 function writeAuditLog(data) {
-  try {
-    fs.writeFileSync(AUDIT_LOG_FILE, JSON.stringify(data), 'utf8');
-    setCached(AUDIT_LOG_FILE, data);
-    return true;
-  } catch (err) {
-    console.error('Error writing audit-log.json:', err);
-    return false;
-  }
+  return auditLogStore.write(data);
 }
 
 /**
@@ -599,29 +579,11 @@ function logAuditEvent({ entityType, entityId, action, actor, previousStatus, ne
 
 // ── Penalties Storage Helpers ─────────────────────────────
 function readPenalties() {
-  if (!fs.existsSync(PENALTIES_FILE)) return [];
-  const cached = getCached(PENALTIES_FILE);
-  if (cached !== undefined) return cached;
-  try {
-    const raw = fs.readFileSync(PENALTIES_FILE, 'utf8');
-    const data = safeJsonParse(raw, []);
-    setCached(PENALTIES_FILE, data);
-    return data;
-  } catch (err) {
-    console.error('Error reading penalties.json:', err);
-    return [];
-  }
+  return penaltiesStore.read();
 }
 
 function writePenalties(data) {
-  try {
-    fs.writeFileSync(PENALTIES_FILE, JSON.stringify(data), 'utf8');
-    setCached(PENALTIES_FILE, data);
-    return true;
-  } catch (err) {
-    console.error('Error writing penalties.json:', err);
-    return false;
-  }
+  return penaltiesStore.write(data);
 }
 
 // ── Employee Storage Helpers ──────────────────────────────
@@ -634,150 +596,61 @@ function normalizeEmpCode(code) {
 }
 
 function readEmployees() {
-  if (!fs.existsSync(EMPLOYEES_FILE)) return [];
-  const cached = getCached(EMPLOYEES_FILE);
-  if (cached !== undefined) return cached;
-  try {
-    const raw = fs.readFileSync(EMPLOYEES_FILE, 'utf8');
-    const data = safeJsonParse(raw, []);
-    setCached(EMPLOYEES_FILE, data);
-    return data;
-  } catch (err) {
-    console.error('Error reading employees.json:', err);
-    return [];
-  }
+  return employeesStore.read();
 }
 
 function writeEmployees(data) {
-  try {
-    fs.writeFileSync(EMPLOYEES_FILE, JSON.stringify(data), 'utf8');
-    setCached(EMPLOYEES_FILE, data);
-    return true;
-  } catch (err) {
-    console.error('Error writing employees.json:', err);
-    return false;
-  }
+  return employeesStore.write(data);
 }
 
 // ── Training Storage Helpers ──────────────────────────────
 
 function readTrainingTopics() {
-  if (!fs.existsSync(TRAINING_TOPICS_FILE)) return [];
-  const cached = getCached(TRAINING_TOPICS_FILE);
-  if (cached !== undefined) return cached;
-  try {
-    const raw = fs.readFileSync(TRAINING_TOPICS_FILE, 'utf8');
-    const data = safeJsonParse(raw, []);
-    setCached(TRAINING_TOPICS_FILE, data);
-    return data;
-  } catch (err) {
-    console.error('Error reading training-topics.json:', err);
-    return [];
-  }
+  return trainingTopicsStore.read();
 }
 
 function readTrainings() {
-  if (!fs.existsSync(TRAININGS_FILE)) return [];
-  const cached = getCached(TRAININGS_FILE);
-  if (cached !== undefined) return cached;
-  try {
-    const raw = fs.readFileSync(TRAININGS_FILE, 'utf8');
-    const data = safeJsonParse(raw, []);
-    setCached(TRAININGS_FILE, data);
-    return data;
-  } catch (err) {
-    console.error('Error reading trainings.json:', err);
-    return [];
-  }
+  return trainingsStore.read();
 }
 
 function readDrills() {
-  if (!fs.existsSync(DRILLS_FILE)) return [];
-  const cached = getCached(DRILLS_FILE);
-  if (cached !== undefined) return cached;
-  try {
-    const raw = fs.readFileSync(DRILLS_FILE, 'utf8');
-    const data = safeJsonParse(raw, []);
-    setCached(DRILLS_FILE, data);
-    return data;
-  } catch (err) {
-    console.error('Error reading drills.json:', err);
-    return [];
-  }
+  return drillsStore.read();
 }
 
 function writeTrainings(data) {
-  try {
-    fs.writeFileSync(TRAININGS_FILE, JSON.stringify(data), 'utf8');
-    setCached(TRAININGS_FILE, data);
-    return true;
-  } catch (err) {
-    console.error('Error writing trainings.json:', err);
-    return false;
-  }
+  return trainingsStore.write(data);
 }
 
 function writeDrills(data) {
-  try {
-    fs.writeFileSync(DRILLS_FILE, JSON.stringify(data), 'utf8');
-    setCached(DRILLS_FILE, data);
-    return true;
-  } catch (err) {
-    console.error('Error writing drills.json:', err);
-    return false;
-  }
+  return drillsStore.write(data);
 }
 
 
 // ── Notifications Storage Helpers ─────────────────────────────
 
 function readNotifications() {
-  if (!fs.existsSync(NOTIFICATIONS_FILE)) return [];
-  const cached = getCached(NOTIFICATIONS_FILE);
-  if (cached !== undefined) return cached;
-  try {
-    const raw = fs.readFileSync(NOTIFICATIONS_FILE, 'utf8');
-    const data = safeJsonParse(raw, []);
-    setCached(NOTIFICATIONS_FILE, data);
-    return data;
-  } catch (err) {
-    console.error('Error reading notifications.json:', err);
-    return [];
-  }
+  return notificationsStore.read();
 }
 
 function writeNotifications(data) {
-  try {
-    fs.writeFileSync(NOTIFICATIONS_FILE, JSON.stringify(data), 'utf8');
-    setCached(NOTIFICATIONS_FILE, data);
-    return true;
-  } catch (err) {
-    console.error('Error writing notifications.json:', err);
-    return false;
-  }
+  return notificationsStore.write(data);
 }
 
 function readSubscriptions() {
-  const cached = getCached(SUBSCRIPTIONS_FILE);
-  if (cached !== undefined) return cached;
-  try {
-    const raw = fs.readFileSync(SUBSCRIPTIONS_FILE, 'utf8');
-    const data = safeJsonParse(raw, []);
-    setCached(SUBSCRIPTIONS_FILE, data);
-    return data;
-  } catch { return []; }
+  return subscriptionsStore.read();
 }
 
 function writeSubscriptions(data) {
-  try {
-    fs.writeFileSync(SUBSCRIPTIONS_FILE, JSON.stringify(data), 'utf8');
-    setCached(SUBSCRIPTIONS_FILE, data);
-    return true;
-  } catch (err) {
-    console.error('Error writing subscriptions:', err);
-    return false;
-  }
+  return subscriptionsStore.write(data);
 }
+
+// ── Monthly Inspection Storage Helpers (🦺 الفحص الشهري) ───────
+function readInspectionSections() { return inspectionSectionsStore.read(); }
+function writeInspectionSections(data) { return inspectionSectionsStore.write(data); }
+function readInspectionItems() { return inspectionItemsStore.read(); }
+function writeInspectionItems(data) { return inspectionItemsStore.write(data); }
+function readInspectionRecords() { return inspectionRecordsStore.read(); }
+function writeInspectionRecords(data) { return inspectionRecordsStore.write(data); }
 
 /**
  * Creates a notification and appends it to the storage safely using enqueueWrite.
@@ -1005,18 +878,17 @@ async function parseEmployeesXlsx(buffer) {
  * parse the xlsx and save employees.json automatically.
  */
 async function loadEmployeesFromXlsxIfNeeded() {
-  // Check if employees.json exists AND has at least one record
-  const jsonExists   = fs.existsSync(EMPLOYEES_FILE);
-  const currentData  = jsonExists ? readEmployees() : [];
-  const jsonHasData  = currentData.length > 0;
+  // Check if the DB already has at least one employee record
+  const currentData  = readEmployees();
+  const hasData      = currentData.length > 0;
 
-  if (jsonExists && jsonHasData) {
-    console.log(`✅ employees.json found (${currentData.length} records) — skipping xlsx import.`);
+  if (hasData) {
+    console.log(`✅ Employees already in DB (${currentData.length} records) — skipping xlsx import.`);
     return;
   }
 
   if (!fs.existsSync(EMPLOYEES_XLSX_INPUT)) {
-    if (!jsonExists) console.log('ℹ️  No employees.xlsx found — employee directory starts empty.');
+    console.log('ℹ️  No employees.xlsx found — employee directory starts empty.');
     return;
   }
 
@@ -5487,6 +5359,48 @@ app.post('/api/admin/clear-module', authenticateToken, requireRole('super_admin'
   res.status(result ? result.status : 500).json(result ? result.body : { error: 'حدث خطأ غير متوقع أثناء المعالجة، حاول مرة أخرى' });
 });
 
+// ============================================================
+// 💾 DATABASE BACKUP / RESTORE (super_admin only)
+// ============================================================
+// نسخة احتياطية كاملة لقاعدة البيانات (كل التصاريح، البلاغات، الموظفين،
+// التدريب، الجزاءات، الفحص الشهري...) كملف JSON واحد قابل للتنزيل، مع
+// إمكانية الاسترجاع من نفس الملف من واجهة الإدارة مباشرة — بدون الحاجة
+// للتواصل مع أي مطور لاسترجاع البيانات بعد أي حادثة. 11 سبتمبر 2026.
+app.get('/api/admin/backup/export', authenticateTokenFlexible, requireRole('super_admin'), (req, res) => {
+  try {
+    const backup = dbExportAll();
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="hse-platform-backup-${stamp}.json"`);
+    res.send(JSON.stringify(backup));
+  } catch (err) {
+    console.error('[Backup] Export failed:', err);
+    res.status(500).json({ error: 'فشل إنشاء النسخة الاحتياطية' });
+  }
+});
+
+app.post('/api/admin/backup/import', authenticateToken, requireRole('super_admin'), async (req, res) => {
+  const { backup, confirm } = req.body || {};
+  if (confirm !== 'تأكيد') {
+    return res.status(400).json({ error: 'لازم تبعت تأكيد صريح لاسترجاع نسخة احتياطية — هذه العملية تستبدل البيانات الحالية' });
+  }
+  if (!backup || typeof backup !== 'object') {
+    return res.status(400).json({ error: 'ملف النسخة الاحتياطية غير صالح' });
+  }
+  let result;
+  await enqueueWrite(async () => {
+    try {
+      const summary = dbImportAll(backup);
+      logAuditEvent({ entityType: 'database', entityId: 'full-backup', action: 'restore', actor: req.user, note: `استرجاع ${summary.restored} مجموعة بيانات` });
+      result = { status: 200, body: { success: true, ...summary } };
+    } catch (err) {
+      console.error('[Backup] Import failed:', err);
+      result = { status: 500, body: { error: err.message || 'فشل استرجاع النسخة الاحتياطية' } };
+    }
+  });
+  res.status(result ? result.status : 500).json(result ? result.body : { error: 'حدث خطأ غير متوقع أثناء المعالجة، حاول مرة أخرى' });
+});
+
 // POST /api/penalties/upload-excel — bulk import from the old penalties sheet (super_admin & hse_admin only)
 app.post('/api/penalties/upload-excel', authenticateToken, requireRole('super_admin', 'hse_admin'), async (req, res) => {
   try {
@@ -5845,31 +5759,20 @@ app.get('/api/analytics', async (req, res) => {
     let drills   = [];
     let penalties = readPenalties().filter(p => p.status !== 'deleted');
 
-    const stripBom = (str) => typeof str === 'string' && str.charCodeAt(0) === 0xFEFF ? str.slice(1) : str;
-
-    // Permits from storage.json
-    if (fs.existsSync(DATA_FILE)) {
-      const rawStr = fs.readFileSync(DATA_FILE, 'utf8');
-      const raw = JSON.parse(stripBom(rawStr));
-      const stored = raw['work-permits'];
-      if (stored) {
-        permits = JSON.parse(typeof stored === 'string' ? stripBom(stored) : JSON.stringify(stored));
-        if (!Array.isArray(permits)) permits = [];
-      }
+    // Permits from the DB-backed storage collection
+    const rawStorage = readStorage();
+    const storedPermits = rawStorage['work-permits'];
+    if (storedPermits) {
+      permits = JSON.parse(typeof storedPermits === 'string' ? storedPermits : JSON.stringify(storedPermits));
+      if (!Array.isArray(permits)) permits = [];
     }
 
-    if (fs.existsSync(HAZARDS_FILE)) {
-      hazards = JSON.parse(stripBom(fs.readFileSync(HAZARDS_FILE, 'utf8') || '[]'));
-      if (!Array.isArray(hazards)) hazards = [];
-    }
-    if (fs.existsSync(TRAININGS_FILE)) {
-      trainings = JSON.parse(stripBom(fs.readFileSync(TRAININGS_FILE, 'utf8') || '[]'));
-      if (!Array.isArray(trainings)) trainings = [];
-    }
-    if (fs.existsSync(DRILLS_FILE)) {
-      drills = JSON.parse(stripBom(fs.readFileSync(DRILLS_FILE, 'utf8') || '[]'));
-      if (!Array.isArray(drills)) drills = [];
-    }
+    hazards   = readHazards();
+    trainings = readTrainings();
+    drills    = readDrills();
+    if (!Array.isArray(hazards))   hazards = [];
+    if (!Array.isArray(trainings)) trainings = [];
+    if (!Array.isArray(drills))    drills = [];
 
     // ── Filter by dept scope ────────────────────────────────
     // Normalize codes the same way employee login does (trim + strip leading
