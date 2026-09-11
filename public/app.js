@@ -12,6 +12,29 @@ window.debounce = function(fn, wait) {
 };
 
 // ============================================================
+// 🌙 DARK MODE — يُطبَّق فورًا عند تحميل app.js (قبل أي رندر) لتفادي
+// "ومضة" الثيم الفاتح لو المستخدم كان اختار الوضع الليلي سابقًا.
+// ============================================================
+(function initDarkMode() {
+  try {
+    const saved = localStorage.getItem('ep_theme');
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    applyTheme(saved || (prefersDark ? 'dark' : 'light'));
+  } catch (e) { /* ignore */ }
+})();
+function applyTheme(theme) {
+  document.body.setAttribute('data-theme', theme);
+  const icon = document.getElementById('themeToggleIcon');
+  if (icon) icon.textContent = theme === 'dark' ? '☀️' : '🌙';
+}
+function toggleDarkMode() {
+  const current = document.body.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+  const next = current === 'dark' ? 'light' : 'dark';
+  applyTheme(next);
+  try { localStorage.setItem('ep_theme', next); } catch (e) { /* ignore */ }
+}
+
+// ============================================================
 // ⚠️ GLOBAL ERROR BOUNDARY & FALLBACKS
 // ============================================================
 window.currentSessionType = window.currentSessionType || 'supervisor';

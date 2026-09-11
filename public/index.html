@@ -52,7 +52,7 @@
         rel="stylesheet"
       />
     </noscript>
-    <link rel="stylesheet" href="style.min.css?v=2.33.0" />
+    <link rel="stylesheet" href="style.min.css?v=2.34.2" />
     <!-- PERF: xlsx.js (~900KB) and chart.js are only ever used AFTER login
          (dashboard charts, Excel export/import buttons) — never on this
          initial login screen. Loading them as normal <script> tags (even
@@ -219,6 +219,15 @@
 
           <!-- GLOBAL SYNC & NOTIFICATION BELL -->
           <div class="app-header-actions">
+            <button
+              type="button"
+              id="btnThemeToggle"
+              class="theme-toggle-btn"
+              onclick="toggleDarkMode()"
+              title="الوضع الليلي"
+            >
+              <span id="themeToggleIcon">🌙</span>
+            </button>
             <button
               type="button"
               id="btnGlobalSync"
@@ -2380,6 +2389,6 @@
       </div>
     </div>
 
-    <script src="app.min.js?v=99.9.30" defer></script>
+    <script src="app.min.js?v=99.9.31" defer></script>
   </body>
 </html>

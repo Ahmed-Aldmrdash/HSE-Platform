@@ -43,7 +43,141 @@
   --brand-slate-200: #E5E5E5;
   --brand-slate-100: #F4F4F4;
   --focus-ring: 0 0 0 3px rgba(226, 0, 26, 0.22);
+  --body-bg: #F7F7F7;
+  --card-shadow-color: rgba(0, 0, 0, 0.06);
 }
+
+/* ============================================================
+   🌙 DARK MODE — body[data-theme="dark"]
+   ============================================================
+   إعادة تعريف نفس متغيرات الألوان أعلاه فقط (بدون لمس أي قاعدة أخرى في
+   الملف) — بما إن كل مكونات الواجهة تقريبًا مبنية على هذه المتغيرات
+   (var(--paper), var(--ink), var(--muted)...)، هذا التبديل وحده يغيّر
+   شكل الموقع بالكامل تقريبًا. لون العلامة التجارية (--amber، الأحمر)
+   يبقى كما هو في الوضعين — الهوية البصرية للشركة لا تتغير مع الثيم.
+   11 سبتمبر 2026. */
+body[data-theme="dark"] {
+  --charcoal: #0B1220;
+  --charcoal-2: #1E293B;
+  --paper: #16202E;
+  --paper-line: #2D3B4E;
+  --steel: #94A3B8;
+  --info: #7DD3FC;
+  --ink: #F1F5F9;
+  --muted: #94A3B8;
+  --shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.45);
+  --slate: #94A3B8;
+  --brand-slate-900: #F1F5F9;
+  --brand-slate-700: #CBD5E1;
+  --brand-slate-500: #94A3B8;
+  --brand-slate-200: #2D3B4E;
+  --brand-slate-100: #1E293B;
+  --body-bg: #0B1220;
+  --card-shadow-color: rgba(0, 0, 0, 0.5);
+  --success: #22C55E;
+  --warning: #F59E0B;
+  color-scheme: dark;
+}
+body[data-theme="dark"] { background: var(--body-bg); }
+body[data-theme="dark"] .field input,
+body[data-theme="dark"] .field select,
+body[data-theme="dark"] .field textarea,
+body[data-theme="dark"] .form-input,
+body[data-theme="dark"] .adv-filter-field input,
+body[data-theme="dark"] .adv-filter-field select,
+body[data-theme="dark"] .app-modal-field input,
+body[data-theme="dark"] .app-modal-field select,
+body[data-theme="dark"] .app-modal-field textarea {
+  background: #1E293B;
+  color: var(--ink);
+  border-color: var(--paper-line);
+}
+body[data-theme="dark"] .login-card input,
+body[data-theme="dark"] .dept-filter-input,
+body[data-theme="dark"] .insp-status-select {
+  background: #1E293B;
+  color: var(--ink);
+}
+body[data-theme="dark"] .um-table thead tr,
+body[data-theme="dark"] .data-table th {
+  background: #0B1220;
+}
+body[data-theme="dark"] .data-table tbody tr:hover,
+body[data-theme="dark"] .um-table tbody tr:hover {
+  background: #1E293B;
+}
+body[data-theme="dark"] .app-header,
+body[data-theme="dark"] .um-add-card,
+body[data-theme="dark"] .um-table-wrap,
+body[data-theme="dark"] .app-modal-card,
+body[data-theme="dark"] .force-pw-card,
+body[data-theme="dark"] .login-card {
+  background: var(--paper);
+}
+body[data-theme="dark"] .tabs {
+  background: var(--charcoal-2);
+}
+body[data-theme="dark"] .desc,
+body[data-theme="dark"] .risk-summary {
+  background: rgba(255, 255, 255, 0.04);
+}
+body[data-theme="dark"] .skeleton {
+  background: linear-gradient(90deg, #1E293B 25%, #263548 37%, #1E293B 63%);
+}
+/* Dashboard-specific palette (separate :root block further down) */
+body[data-theme="dark"] {
+  --dash-bg: #0B1220;
+  --dash-card-bg: #16202E;
+  --dash-border: #2D3B4E;
+  --dash-text: #F1F5F9;
+  --dash-muted: #94A3B8;
+}
+/* عناصر بخلفية رمادية فاتحة مكتوبة بقيمة ثابتة (لا متغيّر) — بدون هذا
+   التبديل الصريح، النص الفاتح الذي تحدده --dash-text أعلاه يصبح غير
+   مقروء فوق خلفيتها الفاتحة الأصلية. */
+body[data-theme="dark"] .dash-quick-btn,
+body[data-theme="dark"] .dash-date-input,
+body[data-theme="dark"] .dash-emp-input,
+body[data-theme="dark"] .dash-kpi-pill,
+body[data-theme="dark"] .user-profile-chip,
+body[data-theme="dark"] .hazard-timeline,
+body[data-theme="dark"] .hz-photo-badge,
+body[data-theme="dark"] .notif-item:hover,
+body[data-theme="dark"] .dash-topic-bar-bg {
+  background: #1E293B;
+}
+body[data-theme="dark"] .dash-quick-btn:hover {
+  background: #263548;
+}
+body[data-theme="dark"] .dash-kpi-pill.blue {
+  background: rgba(2, 132, 199, 0.25);
+  color: #7DD3FC;
+}
+body[data-theme="dark"] .user-profile-chip {
+  border-color: var(--paper-line);
+  color: var(--ink);
+}
+body[data-theme="dark"] .dash-filter-bar {
+  background: var(--dash-card-bg);
+}
+
+/* ── Theme toggle button (header) ─────────────────────────────── */
+.theme-toggle-btn {
+  background: none;
+  border: 1px solid var(--paper-line);
+  color: var(--ink);
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: background-color .15s ease;
+}
+.theme-toggle-btn:hover { background: rgba(0,0,0,.05); }
+body[data-theme="dark"] .theme-toggle-btn:hover { background: rgba(255,255,255,.08); }
 
 * {
   box-sizing: border-box;
@@ -61,7 +195,7 @@ body {
 }
 
 body {
-  background: #F7F7F7;
+  background: var(--body-bg);
   color: var(--ink);
   font-family: 'Cairo', sans-serif;
   font-size: clamp(14px, 3.5vw, 16px);
