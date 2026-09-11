@@ -53,11 +53,46 @@
       />
     </noscript>
     <link rel="stylesheet" href="style.css?v=2.33.0" />
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
-      defer
-    ></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" defer></script>
+    <!-- PERF: xlsx.js (~900KB) and chart.js are only ever used AFTER login
+         (dashboard charts, Excel export/import buttons) — never on this
+         initial login screen. Loading them as normal <script> tags (even
+         deferred) still makes the browser fetch+parse+compile ~1MB of JS
+         during the page's initial-load window, which is exactly what
+         mobile PageSpeed penalizes (it audits this login screen, not the
+         dashboard behind it). Fetching them on requestIdleCallback instead
+         moves that cost off the measured load window — by the time a real
+         login completes (emp-code lookup + welcome animation + dashboard
+         fetch, several seconds) these have long since finished loading in
+         the background, so nothing the app actually does waits on this. -->
+    <script>
+      (function () {
+        function loadDeferredLibs() {
+          if (window.__deferredLibsLoaded) return;
+          window.__deferredLibsLoaded = true;
+          [
+            'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+            'https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js'
+          ].forEach(function (src) {
+            var s = document.createElement('script');
+            s.src = src;
+            document.head.appendChild(s);
+          });
+        }
+        // A returning user with a saved session skips the login screen
+        // entirely and can reach dashboard charts within well under a
+        // second — too fast to safely wait on idle time for. Load eagerly
+        // (still non-blocking, just not idle-deferred) in that one case.
+        var hasSavedSession = false;
+        try { hasSavedSession = !!(localStorage.getItem('ep_currentEmployee') || sessionStorage.getItem('wp_auth_token')); } catch (e) {}
+        if (hasSavedSession) {
+          loadDeferredLibs();
+        } else if ('requestIdleCallback' in window) {
+          requestIdleCallback(loadDeferredLibs, { timeout: 1500 });
+        } else {
+          setTimeout(loadDeferredLibs, 800);
+        }
+      })();
+    </script>
   </head>
   <body data-session="none">
     <!-- ======================================================= -->
