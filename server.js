@@ -3432,7 +3432,8 @@ app.get('/api/employees/lookup/:code', (req, res) => {
   const employees = readEmployees();
   const emp = employees.find(e => normalizeEmpCode(e.code || e.empCode) === searchCode);
   if (!emp) return res.json({ found: false });
-  res.json({
+
+  const payload = {
     found: true,
     employee: {
       code:       emp.empCode,
@@ -3442,7 +3443,21 @@ app.get('/api/employees/lookup/:code', (req, res) => {
       role:       emp.role       || 'worker',
       phone:      emp.phone      || ''
     }
-  });
+  };
+
+  // حساب "Executive View" الخاص بالمدير التنفيذي: نفس تسجيل الدخول بالكود
+  // الوظيفي العادي، لكن الدور 'ceo' يستحق توكن JWT حقيقي لأنه يحتاج قراءة
+  // مؤشرات الشركة كلها من endpoint محمي (read-only بالكامل — بدون أي صلاحية
+  // كتابة أو تعديل مهما كان الدور المُرسَل في التوكن). 11 سبتمبر 2026.
+  if (emp.role === 'ceo') {
+    payload.token = jwt.sign(
+      { id: emp.empCode, empCode: emp.empCode, username: emp.empCode, role: 'ceo', name: emp.name },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES }
+    );
+  }
+
+  res.json(payload);
 });
 
 // ── GET /api/employees/export-excel — تصدير قاعدة الموظفين كـ xlsx
@@ -5357,6 +5372,176 @@ app.post('/api/admin/clear-module', authenticateToken, requireRole('super_admin'
   });
 
   res.status(result ? result.status : 500).json(result ? result.body : { error: 'حدث خطأ غير متوقع أثناء المعالجة، حاول مرة أخرى' });
+});
+
+// ============================================================
+// 👔 EXECUTIVE VIEW — حساب "Executive View" الخاص بالمدير التنفيذي
+// ============================================================
+// Endpoint واحد فقط مسموح لدور 'ceo' الوصول له في كل السيرفر (requireRole
+// أعلاه يمنع أي دور آخر، وهذا الـ endpoint نفسه GET بحت بدون أي كتابة) —
+// يرجّع مؤشرات الشركة الكلية المجمّعة فقط، بدون أي تفاصيل تشغيلية فردية
+// (أسماء عمال، أرقام تصاريح، إلخ) وبدون أي إمكانية اتخاذ إجراء. هذا يضمن
+// أن حساب المدير التنفيذي "عرض فقط" فعليًا على مستوى السيرفر، مش بس
+// إخفاء أزرار في الواجهة. 11 سبتمبر 2026.
+function isSoftDeletedRecord(rec) {
+  const db = rec && rec.deletedBy;
+  return !!(db && (db.areaAdmin || db.safetyAdmin || db.superAdmin || db.worker));
+}
+function daysBetween(a, b) {
+  const d1 = new Date(a), d2 = new Date(b);
+  if (isNaN(d1) || isNaN(d2)) return null;
+  const diff = (d2 - d1) / 86400000;
+  return diff >= 0 ? diff : null;
+}
+
+app.get('/api/executive/overview', authenticateToken, requireRole('ceo'), (req, res) => {
+  try {
+    const storage = readStorage();
+    let permits = storage['work-permits'];
+    permits = typeof permits === 'string' ? JSON.parse(permits || '[]') : (Array.isArray(permits) ? permits : []);
+    permits = permits.filter(p => !isSoftDeletedRecord(p));
+
+    const hazards   = readHazards().filter(h => !isSoftDeletedRecord(h) && !(h.permanentlyDeletedBy && Object.values(h.permanentlyDeletedBy).some(Boolean)));
+    const employees = readEmployees();
+    const trainings = readTrainings();
+    const drills     = readDrills();
+    const penalties  = readPenalties().filter(p => p.status !== 'deleted');
+
+    // ── Permits ──────────────────────────────────────────────
+    const permitsByStatus = {};
+    const approvalDurations = [];
+    permits.forEach(p => {
+      const st = p.status || 'pending';
+      permitsByStatus[st] = (permitsByStatus[st] || 0) + 1;
+      if (p.createdAt && p.reviewedAt && (st === 'approved' || st === 'rejected')) {
+        const d = daysBetween(p.createdAt, p.reviewedAt);
+        if (d !== null) approvalDurations.push(d);
+      }
+    });
+    const avgApprovalDays = approvalDurations.length
+      ? Math.round((approvalDurations.reduce((a, b) => a + b, 0) / approvalDurations.length) * 10) / 10
+      : null;
+
+    // ── Hazards ──────────────────────────────────────────────
+    const hazardsByStatus = {};
+    const hazardsByRisk = {};
+    const closureDurations = [];
+    hazards.forEach(h => {
+      const st = h.status || 'open';
+      hazardsByStatus[st] = (hazardsByStatus[st] || 0) + 1;
+      const risk = h.riskLevel || 'غير محدد';
+      hazardsByRisk[risk] = (hazardsByRisk[risk] || 0) + 1;
+      if (h.submittedAt && h.resolvedAt) {
+        const d = daysBetween(h.submittedAt, h.resolvedAt);
+        if (d !== null) closureDurations.push(d);
+      }
+    });
+    const avgClosureDays = closureDurations.length
+      ? Math.round((closureDurations.reduce((a, b) => a + b, 0) / closureDurations.length) * 10) / 10
+      : null;
+
+    // ── Department leaderboard (مؤشر السلامة لكل قسم) ─────────
+    const deptMap = new Map();
+    function deptBucket(name) {
+      const key = String(name || '').trim();
+      if (!key) return null;
+      if (!deptMap.has(key)) {
+        deptMap.set(key, { department: key, hazardsTotal: 0, hazardsClosed: 0, permitsTotal: 0, permitsApproved: 0, employeeCount: 0 });
+      }
+      return deptMap.get(key);
+    }
+    hazards.forEach(h => {
+      const b = deptBucket(h.department);
+      if (!b) return;
+      b.hazardsTotal++;
+      if (h.status === 'closed') b.hazardsClosed++;
+    });
+    permits.forEach(p => {
+      const b = deptBucket(p.department);
+      if (!b) return;
+      b.permitsTotal++;
+      if (p.status === 'approved') b.permitsApproved++;
+    });
+    employees.forEach(e => {
+      const b = deptBucket(e.department);
+      if (b) b.employeeCount++;
+    });
+    // بعض تصاريح العمل المستوردة من الإكسيل القديم كتبت كود منطقة/موقع في
+    // حقل "department" (مثال: "M.B", "P2", "القطعة 38") بدل اسم القسم
+    // التنظيمي الحقيقي — هذه القيم تُنشئ عشرات "الأقسام" الوهمية بنتيجة
+    // 100% كاذبة لو دخلت الليدربورد. نقصر الليدربورد على أسماء الأقسام
+    // المعروفة فعليًا في قاعدة الموظفين فقط.
+    const knownDepartments = new Set(employees.map(e => String(e.department || '').trim()).filter(Boolean));
+    const departmentLeaderboard = Array.from(deptMap.values())
+      .filter(b => knownDepartments.has(b.department))
+      .filter(b => (b.hazardsTotal + b.permitsTotal) >= 3)
+      .map(b => {
+        const closureRate = b.hazardsTotal ? b.hazardsClosed / b.hazardsTotal : 1;
+        const approvalRate = b.permitsTotal ? b.permitsApproved / b.permitsTotal : 1;
+        const score = Math.round((closureRate * 70 + approvalRate * 30) * 10) / 10;
+        return {
+          department: b.department,
+          employeeCount: b.employeeCount,
+          hazardsTotal: b.hazardsTotal,
+          hazardsClosed: b.hazardsClosed,
+          hazardsOpen: b.hazardsTotal - b.hazardsClosed,
+          permitsTotal: b.permitsTotal,
+          score
+        };
+      })
+      .sort((a, b) => b.score - a.score);
+
+    const companySafetyScore = departmentLeaderboard.length
+      ? Math.round((departmentLeaderboard.reduce((s, d) => s + d.score, 0) / departmentLeaderboard.length) * 10) / 10
+      : null;
+
+    // ── Training / Drills (آخر 12 شهر) ──────────────────────
+    const oneYearAgo = new Date(); oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    const recentTrainings = trainings.filter(t => t.date && new Date(t.date) >= oneYearAgo);
+    const trainingAttendeeSet = new Set();
+    let trainingAttendances = 0;
+    recentTrainings.forEach(t => (t.attendees || []).forEach(a => {
+      trainingAttendances++;
+      if (a.code || a.empCode) trainingAttendeeSet.add(normalizeEmpCode(a.code || a.empCode));
+    }));
+
+    const recentDrills = drills.filter(d => d.date && new Date(d.date) >= oneYearAgo);
+    let drillAttendances = 0;
+    recentDrills.forEach(d => { drillAttendances += (d.attendees || []).length; });
+
+    // ── System activity (بدون تفاصيل فردية) ─────────────────
+    const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const auditLog = readAuditLog();
+    const recentActivityCount = auditLog.filter(e => e.timestamp && new Date(e.timestamp) >= sevenDaysAgo).length;
+
+    res.json({
+      generatedAt: new Date().toISOString(),
+      totals: {
+        employees: employees.length,
+        permits: permits.length,
+        hazards: hazards.length,
+        openHazards: hazardsByStatus.open || 0,
+        activePenalties: penalties.length,
+      },
+      permits: { byStatus: permitsByStatus, avgApprovalDays },
+      hazards: { byStatus: hazardsByStatus, byRiskLevel: hazardsByRisk, avgClosureDays },
+      training: {
+        sessionsLast12Months: recentTrainings.length,
+        attendancesLast12Months: trainingAttendances,
+        uniqueEmployeesTrainedLast12Months: trainingAttendeeSet.size
+      },
+      drills: {
+        sessionsLast12Months: recentDrills.length,
+        attendancesLast12Months: drillAttendances
+      },
+      companySafetyScore,
+      departmentLeaderboard,
+      recentActivityCount7d: recentActivityCount
+    });
+  } catch (err) {
+    console.error('[Executive] Overview failed:', err);
+    res.status(500).json({ error: 'فشل تحميل المؤشرات التنفيذية' });
+  }
 });
 
 // ============================================================

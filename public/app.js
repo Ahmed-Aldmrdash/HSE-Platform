@@ -456,6 +456,7 @@ function setDisplay(id, visible) {
 function applyRbacUI() {
   const isWorker = sessionRole === 'worker';
   const isSup    = sessionRole === 'supervisor';
+  const isCeo    = sessionRole === 'ceo';
   const isNone   = sessionRole === 'none';
 
   // Sync CSS safety-net attribute
@@ -467,7 +468,7 @@ function applyRbacUI() {
   // do NOT touch mainApp here in that case — it is shown by
   // hideWorkerLoginOverlay() and hidden by showWorkerLoginOverlay().
   const mainApp = document.getElementById('mainApp');
-  if (isWorker || isSup) {
+  if (isWorker || isSup || isCeo) {
     if (mainApp) mainApp.style.display = 'block';
     const overlay = document.getElementById('workerLoginOverlay');
     if (overlay) overlay.style.display = 'none';
@@ -476,9 +477,19 @@ function applyRbacUI() {
     if (mainApp) mainApp.style.display = 'none';
   }
 
+  // ── Executive View (CEO): read-only, no tabs, no nav at all ─────────
+  setDisplay('viewExecutive', isCeo);
+  if (isCeo) {
+    const viewWorkerEl = document.getElementById('viewWorker');
+    if (viewWorkerEl) viewWorkerEl.style.display = 'none';
+    const empArea = document.getElementById('empBadgeArea');
+    if (empArea) empArea.style.display = 'none';
+  }
+
   // ── Tab navigation bar ───────────────────────────────────────────────
   // Show the tab bar only when a role is active. When 'none', the gate
-  // screen (or overlay) needs no navigation bar.
+  // screen (or overlay) needs no navigation bar. CEO never sees tabs —
+  // Executive View is a single dedicated read-only screen.
   setDisplay('mainTabs', isWorker || isSup);
 
   // Individual tab visibility
@@ -808,25 +819,41 @@ async function attemptLogin(){
       currentUserRole = 'hse_admin';
       currentUserDept = '';
     }
-    // ── Set RBAC session role and rebuild UI ──────────────────
-    sessionRole = 'supervisor';
-    showUserBadge();
-    applyRbacUI();
-    
-    try {
-      startNotificationPolling();
-    } catch (err) {
-      console.warn('Non-critical notification setup error:', err);
-    }
-    
-    // Switch to supervisor view — دايماً افتراضي على لوحة التحكم لكل أدمن بما فيهم الصيانة
-    switchTab('dashboard'); // 📊 Default landing: Dashboard
 
-    // ── إجبار تغيير كلمة المرور الافتراضية قبل السماح بأي استخدام فعلي ──
-    // (11 سبتمبر 2026 — يظهر فقط لحسابات ما زالت تستخدم admin123/123456)
-    if (mustChangePassword) {
-      showForcePasswordChangeModal();
-    }
+    const ADMIN_ROLE_LABELS = {
+      super_admin: 'مدير النظام',
+      hse_admin:   'مشرف السلامة',
+      dept_admin:  'أدمن قسم',
+      maint_admin: 'أدمن صيانة'
+    };
+    const roleLabel = ADMIN_ROLE_LABELS[currentUserRole] || 'مشرف';
+
+    // ✦ شاشة الترحيب المتحركة أولاً، ثم دخول لوحة التحكم بعد انتهائها
+    showAnimatedWelcome({
+      name: currentUserName,
+      subtitle: currentUserDept ? `${roleLabel} · ${currentUserDept}` : roleLabel,
+      onDone: () => {
+        // ── Set RBAC session role and rebuild UI ──────────────────
+        sessionRole = 'supervisor';
+        showUserBadge();
+        applyRbacUI();
+
+        try {
+          startNotificationPolling();
+        } catch (err) {
+          console.warn('Non-critical notification setup error:', err);
+        }
+
+        // Switch to supervisor view — دايماً افتراضي على لوحة التحكم لكل أدمن بما فيهم الصيانة
+        switchTab('dashboard'); // 📊 Default landing: Dashboard
+
+        // ── إجبار تغيير كلمة المرور الافتراضية قبل السماح بأي استخدام فعلي ──
+        // (11 سبتمبر 2026 — يظهر فقط لحسابات ما زالت تستخدم admin123/123456)
+        if (mustChangePassword) {
+          showForcePasswordChangeModal();
+        }
+      }
+    });
   } catch(e){
     document.getElementById('loginErr').classList.add('show');
   }
@@ -1045,6 +1072,27 @@ function initEmployeeSession(){
     const saved = localStorage.getItem('ep_currentEmployee');
     if(saved){
       currentEmployee = JSON.parse(saved);
+
+      // حساب Executive View: التوكن يعيش في sessionStorage (يُمسح عند
+      // إغلاق التبويب) — لو مفقود، الجلسة المحفوظة بقت غير صالحة ولازم
+      // إعادة تسجيل الدخول بدل عرض شاشة تنفيذية بدون بيانات.
+      if (currentEmployee.role === 'ceo') {
+        if (!getToken()) {
+          localStorage.removeItem('ep_currentEmployee');
+          currentEmployee = null;
+          sessionRole = 'none';
+          document.body.dataset.session = 'none';
+          showWorkerLoginOverlay();
+          renderForm();
+          return;
+        }
+        sessionRole = 'ceo';
+        applyRbacUI();
+        hideWorkerLoginOverlay();
+        renderExecutiveView();
+        return;
+      }
+
       // Restore RBAC state before touching UI
       sessionRole = 'worker';
       applyRbacUI();
@@ -1145,28 +1193,18 @@ async function checkEmpCode(){
       const data = await res.json();
       if(data.found){
         const emp = data.employee;
-        // Show brief welcome card
         document.getElementById('wl-step1').style.display = 'none';
-        const welcomeDiv = document.getElementById('wl-welcome');
-        const welcomeText = document.getElementById('wl-welcomeText');
-        if(welcomeDiv && welcomeText){
-          welcomeText.innerHTML =
-            `👋 مرحباً: <strong>${escapeHtml(emp.name)}</strong><br>` +
-            `🏢 القسم: ${escapeHtml(emp.department || '—')}<br>` +
-            (emp.jobTitle ? `💼 المسمى: ${escapeHtml(emp.jobTitle)}<br>` : '');
-          welcomeDiv.style.display = 'block';
-        }
-        // Finish login after a short delay so the user sees the welcome
-        setTimeout(() => {
-          finishEmployeeLogin({
-            empCode:    emp.code,
-            name:       emp.name,
-            department: emp.department,
-            jobTitle:   emp.jobTitle || '',
-            role:       emp.role     || 'worker',
-            phone:      emp.phone    || ''
-          });
-        }, 1200);
+        // finishEmployeeLogin() shows the full animated welcome screen and
+        // handles the CEO Executive View branch itself.
+        finishEmployeeLogin({
+          empCode:    emp.code,
+          name:       emp.name,
+          department: emp.department,
+          jobTitle:   emp.jobTitle || '',
+          role:       emp.role     || 'worker',
+          phone:      emp.phone    || '',
+          ceoToken:   data.token   || null
+        });
       } else {
         // Code not in directory → hard error, no registration form
         showWlMsg('wl_checkMsg',
@@ -1222,6 +1260,160 @@ async function registerEmployee(){
   btn.textContent = 'حفظ وتسجيل الدخول ✓';
 }
 
+// ============================================================
+// ✦ WELCOME ANIMATION — يكتب اسم المستخدم حرف حرف بصوت كيبورد خفيف
+// يظهر لحظة نجاح أي تسجيل دخول (عامل، مشرف، أدمن، أو المدير التنفيذي).
+// ============================================================
+let _welcomeAudioCtx = null;
+function _playKeyClick(){
+  try{
+    if (!_welcomeAudioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      _welcomeAudioCtx = new AC();
+    }
+    const ctx = _welcomeAudioCtx;
+    if (ctx.state === 'suspended') ctx.resume();
+    const now = ctx.currentTime;
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(1150 + Math.random() * 450, now);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.07, now + 0.004);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.035);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.045);
+  } catch(e) { /* الصوت اختياري بحت — الأنيميشن يشتغل عادي من غيره */ }
+}
+
+/**
+ * showAnimatedWelcome — شاشة ترحيب متحركة بملء الشاشة: الاسم يُكتب حرف
+ * حرف مع صوت كيبورد لكل حرف، ثم onDone() بعد لحظة من انتهاء الكتابة.
+ * @param {{name:string, greeting?:string, subtitle?:string, onDone?:Function}} opts
+ */
+function showAnimatedWelcome({ name, greeting, subtitle, onDone }){
+  const overlay = document.getElementById('welcomeAnimOverlay');
+  const textEl  = document.getElementById('welcomeAnimText');
+  const subEl   = document.getElementById('welcomeAnimSub');
+  if (!overlay || !textEl) { if (typeof onDone === 'function') onDone(); return; }
+
+  const fullText = `${greeting || 'أهلاً بك'}، ${name || ''}`;
+  textEl.innerHTML = '<span id="welcomeAnimCursor" class="welcome-anim-cursor">|</span>';
+  if (subEl) { subEl.textContent = subtitle || ''; subEl.classList.remove('show'); }
+  overlay.style.display = 'flex';
+
+  const chars = Array.from(fullText);
+  let i = 0;
+  function typeNext(){
+    if (i >= chars.length) {
+      if (subEl && subtitle) setTimeout(() => subEl.classList.add('show'), 150);
+      setTimeout(() => {
+        overlay.style.display = 'none';
+        if (typeof onDone === 'function') onDone();
+      }, 900);
+      return;
+    }
+    const ch = chars[i];
+    const cursor = document.getElementById('welcomeAnimCursor');
+    const node = document.createTextNode(ch);
+    if (cursor) textEl.insertBefore(node, cursor); else textEl.appendChild(node);
+    if (ch.trim()) _playKeyClick();
+    i++;
+    setTimeout(typeNext, (ch === ' ' || ch === '،') ? 90 : (38 + Math.random() * 45));
+  }
+  setTimeout(typeNext, 220);
+}
+
+// ============================================================
+// 👔 EXECUTIVE VIEW — حساب المدير التنفيذي (Read-Only بالكامل)
+// ============================================================
+async function renderExecutiveView(){
+  // applyRbacUI() (called by every caller of this function) already shows
+  // #viewExecutive and hides #viewWorker/#mainTabs/notifications for the
+  // 'ceo' session role — no separate view-switching needed here.
+  const view = document.getElementById('viewExecutive');
+  if (view) view.style.display = 'block';
+  const container = document.getElementById('executiveContent');
+  if (!container) return;
+  container.innerHTML = '<div class="loading">جارِ تحميل المؤشرات…</div>';
+
+  try{
+    const res = await authFetch('/api/executive/overview');
+    if (!res.ok) {
+      container.innerHTML = '<div class="empty"><div class="icon">✦</div>تعذّر تحميل المؤشرات، حاول تحديث الصفحة</div>';
+      return;
+    }
+    const d = await res.json();
+    const t = d.totals || {};
+    const permitsApproved = (d.permits && d.permits.byStatus && d.permits.byStatus.approved) || 0;
+    const scoreLabel = d.companySafetyScore == null ? '—' : d.companySafetyScore;
+
+    const kpis = [
+      { value: t.employees ?? '—', label: 'إجمالي الموظفين' },
+      { value: t.permits ?? '—', label: 'تصاريح العمل', sub: `${permitsApproved} معتمد` },
+      { value: t.hazards ?? '—', label: 'بلاغات الخطورة', sub: `${t.openHazards ?? 0} مفتوح حاليًا` },
+      { value: d.permits && d.permits.avgApprovalDays != null ? d.permits.avgApprovalDays + ' يوم' : '—', label: 'متوسط زمن اعتماد التصريح' },
+      { value: d.hazards && d.hazards.avgClosureDays != null ? d.hazards.avgClosureDays + ' يوم' : '—', label: 'متوسط زمن إغلاق البلاغ' },
+      { value: t.activePenalties ?? '—', label: 'الجزاءات النشطة' },
+      { value: (d.training && d.training.uniqueEmployeesTrainedLast12Months) ?? '—', label: 'موظف تم تدريبه (آخر سنة)' },
+      { value: (d.drills && d.drills.sessionsLast12Months) ?? '—', label: 'تجارب طوارئ (آخر سنة)' },
+    ];
+
+    const board = (d.departmentLeaderboard || []).slice(0, 12);
+    const maxScore = board.length ? Math.max(...board.map(b => b.score)) : 100;
+
+    container.innerHTML = `
+      <div class="exec-hero">
+        <div class="exec-hero-eyebrow">Executive View — عرض تنفيذي</div>
+        <div class="exec-hero-name">${escapeHtml(currentEmployee && currentEmployee.name || '')}</div>
+        <div class="exec-hero-role">${escapeHtml(currentEmployee && currentEmployee.jobTitle || 'المدير التنفيذي')} · قراءة فقط</div>
+        <div class="exec-hero-score">
+          <div class="num">${scoreLabel}</div>
+          <div class="label">مؤشر السلامة العام للشركة (من 100) — متوسط أداء كل الأقسام</div>
+        </div>
+      </div>
+
+      <div class="exec-kpi-grid">
+        ${kpis.map(k => `
+          <div class="exec-kpi-card">
+            <div class="exec-kpi-value">${escapeHtml(String(k.value))}</div>
+            <div class="exec-kpi-label">${escapeHtml(k.label)}</div>
+            ${k.sub ? `<div class="exec-kpi-sub">${escapeHtml(k.sub)}</div>` : ''}
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="exec-section-title">ترتيب الأقسام حسب الالتزام بالسلامة</div>
+      <div class="exec-leaderboard">
+        ${board.length ? board.map((b, idx) => `
+          <div class="exec-leaderboard-row">
+            <div class="exec-leaderboard-rank">${idx + 1}</div>
+            <div>
+              <div class="exec-leaderboard-name">${escapeHtml(b.department)}</div>
+              <div class="exec-leaderboard-bar-bg">
+                <div class="exec-leaderboard-bar-fill" style="width:${Math.max(2, (b.score / (maxScore || 100)) * 100)}%"></div>
+              </div>
+            </div>
+            <div class="exec-leaderboard-score">${b.score}</div>
+          </div>
+        `).join('') : '<div class="empty" style="padding:24px"><div class="icon">✦</div>لا توجد بيانات كافية بعد</div>'}
+      </div>
+
+      <div style="text-align:center; margin-top:26px">
+        <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
+      </div>
+      <div class="exec-footer-note">
+        بيانات لحظية — آخر تحديث ${new Date(d.generatedAt).toLocaleString('ar-EG')}
+      </div>
+    `;
+  } catch(e){
+    console.error('renderExecutiveView error', e);
+    container.innerHTML = '<div class="empty"><div class="icon">✦</div>لا يوجد اتصال بالسيرفر</div>';
+  }
+}
+
 /** ينهي عملية دخول الموظف: يحفظ الجلسة ويدخل التطبيق */
 function finishEmployeeLogin(emp){
   // Ensure correct employee code is attached to currentUser/emp
@@ -1232,24 +1424,40 @@ function finishEmployeeLogin(emp){
     }
   }
 
+  const isCeo = emp.role === 'ceo';
+
   currentEmployee = emp;
   try{
     localStorage.setItem('ep_currentEmployee', JSON.stringify(emp));
     if (emp.empCode) {
       sessionStorage.setItem('last_logged_emp_code', String(emp.empCode));
     }
+    if (isCeo && emp.ceoToken) saveToken(emp.ceoToken);
   } catch(e){ /* ignore */ }
-  // ── Set RBAC session and rebuild UI before showing app ────
-  sessionRole = 'worker';
-  applyRbacUI();
-  hideWorkerLoginOverlay();
-  showEmpBadge();
-  autoFillForm();
-  startNotificationPolling();
-  subscribeUserToPush();
-  // switchTab guard now allows 'worker' since sessionRole === 'worker'
-  switchTab('dashboard'); // 📊 Default landing: Dashboard
-  if (typeof window.populateTrainerInfo === 'function') window.populateTrainerInfo();
+
+  // ✦ شاشة الترحيب المتحركة أولاً، ثم دخول الواجهة الفعلية بعد انتهائها
+  showAnimatedWelcome({
+    name: emp.name,
+    subtitle: isCeo ? 'Executive View — عرض تنفيذي للمؤشرات' : (emp.department || ''),
+    onDone: () => {
+      sessionRole = isCeo ? 'ceo' : 'worker';
+      applyRbacUI();
+      hideWorkerLoginOverlay();
+
+      if (isCeo) {
+        renderExecutiveView();
+        return;
+      }
+
+      showEmpBadge();
+      autoFillForm();
+      startNotificationPolling();
+      subscribeUserToPush();
+      // switchTab guard now allows 'worker' since sessionRole === 'worker'
+      switchTab('dashboard'); // 📊 Default landing: Dashboard
+      if (typeof window.populateTrainerInfo === 'function') window.populateTrainerInfo();
+    }
+  });
 }
 
 /** تعبئة حقول نموذج الطلب تلقائياً من بيانات الموظف */

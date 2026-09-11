@@ -52,7 +52,7 @@
         rel="stylesheet"
       />
     </noscript>
-    <link rel="stylesheet" href="style.css?v=2.32.0" />
+    <link rel="stylesheet" href="style.css?v=2.33.0" />
     <script
       src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
       defer
@@ -143,6 +143,20 @@
         <button class="wl-admin-btn" onclick="goToAdminLogin()">
           🛡️ دخول المشرفين / الإدارة
         </button>
+      </div>
+    </div>
+
+    <!-- ======================================================= -->
+    <!-- شاشة الترحيب المتحركة (تظهر لحظة نجاح تسجيل الدخول لأي مستخدم) -->
+    <!-- ======================================================= -->
+    <div id="welcomeAnimOverlay" class="welcome-anim-overlay" style="display: none">
+      <div class="welcome-anim-orb orb-1"></div>
+      <div class="welcome-anim-orb orb-2"></div>
+      <div class="welcome-anim-orb orb-3"></div>
+      <div class="welcome-anim-card">
+        <div class="welcome-anim-icon" id="welcomeAnimIcon">✦</div>
+        <div class="welcome-anim-text" id="welcomeAnimText"><span id="welcomeAnimCursor" class="welcome-anim-cursor">|</span></div>
+        <div class="welcome-anim-sub" id="welcomeAnimSub"></div>
       </div>
     </div>
 
@@ -394,6 +408,15 @@
         >
           ⚖️ الجزاءات
         </div>
+        <!-- 🦺 MONTHLY INSPECTION TAB — hse_admin/super_admin only -->
+        <div
+          class="tab"
+          id="tabInspections"
+          onclick="switchTab('inspections')"
+          style="display: none"
+        >
+          🦺 الفحص الشهري
+        </div>
       </div>
 
       <!-- 📊 DASHBOARD VIEW -->
@@ -401,6 +424,18 @@
         <div id="dashboardContent">
           <div class="loading">جارِ تحميل لوحة التحكم…</div>
         </div>
+      </div>
+
+      <!-- 👔 EXECUTIVE VIEW (CEO Read-Only) -->
+      <div id="viewExecutive" style="display: none">
+        <div id="executiveContent">
+          <div class="loading">جارِ تحميل المؤشرات…</div>
+        </div>
+      </div>
+
+      <!-- 🦺 MONTHLY INSPECTION VIEW (الفحص الشهري) — hse_admin/super_admin only -->
+      <div id="viewInspections" style="display: none; padding: 12px">
+        <div id="inspectionsContent"></div>
       </div>
 
       <!-- WORKER FORM VIEW -->
@@ -1262,6 +1297,7 @@
                   <option value="hse_admin">مشرف سلامة (HSE Admin)</option>
                   <option value="dept_admin">أدمن قسم (Dept Admin)</option>
                   <option value="contractor">مقاول / خارجي</option>
+                  <option value="ceo">Executive View (قراءة فقط)</option>
                 </select>
               </div>
               <div class="field">
@@ -2295,6 +2331,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=99.9.26" defer></script>
+    <script src="app.js?v=99.9.27" defer></script>
   </body>
 </html>
