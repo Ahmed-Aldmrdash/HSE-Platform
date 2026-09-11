@@ -20,6 +20,9 @@ const compression = require('compression');
 const { parsePermitsWorkbook } = require('./lib/permits-excel-parser');
 const { db: sqliteDb, makeStore, exportAll: dbExportAll, importAll: dbImportAll, DB_PATH } = require('./lib/db');
 const { migrateJsonToDb, sweepOrphanJsonFiles } = require('./lib/migrate-json-to-db');
+const PDFDocument = require('pdfkit');
+const QRCode = require('qrcode');
+const { prepareBidiText } = require('./lib/pdf-arabic');
 
 const app  = express();
 
@@ -6835,6 +6838,275 @@ app.post('/api/inspections/sections/:id/import-legacy-excel', authenticateToken,
     }
   });
   res.status(result ? result.status : 500).json(result ? result.body : { error: 'حدث خطأ غير متوقع أثناء المعالجة، حاول مرة أخرى' });
+});
+
+// ============================================================
+// 📄 PDF EXPORT — تصدير PDF احترافي لتصريح العمل / بلاغ الخطورة
+// ============================================================
+// مستند رسمي بشعار الشركة، جاهز للطباعة، مع QR Code يفتح صفحة تحقق
+// عامة (بدون تسجيل دخول) تُظهر حالة التصريح/البلاغ لحظيًا — أي حد يمسح
+// الكود بموبايله يتأكد إن المستند شرعي ومطابق للنظام الفعلي، لا نسخة
+// معدَّلة أو منتهية الصلاحية. النصوص العربية تُجهَّز عبر lib/pdf-arabic.js
+// (PDFKit وحده لا يشكّل الحروف العربية ولا يرتبها bidi تلقائيًا) بخط
+// Amiri (assets/fonts/) — خط Cairo المستخدم في الواجهة لا يعمل بشكل
+// صحيح مع PDFKit (اختُبر). 11 سبتمبر 2026.
+const PDF_FONT_REGULAR = path.join(__dirname, 'assets', 'fonts', 'Amiri-Regular.ttf');
+const PDF_FONT_BOLD = path.join(__dirname, 'assets', 'fonts', 'Amiri-Bold.ttf');
+const PDF_LOGO_PATH = path.join(__dirname, 'public', 'icons', 'icon-512.png');
+const PDF_PAGE_MARGIN = 46;
+
+function pdfBaseUrl(req) {
+  return process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`;
+}
+
+/** يرسم رأس المستند: الشعار + اسم المنصة + عنوان المستند */
+function drawPdfHeader(doc, titleAr, titleEn) {
+  const pageW = doc.page.width;
+  try { doc.image(PDF_LOGO_PATH, PDF_PAGE_MARGIN, PDF_PAGE_MARGIN, { width: 44 }); } catch (e) { /* logo optional */ }
+  doc.font(PDF_FONT_BOLD).fontSize(11).fillColor('#0F172A')
+    .text(prepareBidiText('Elsewedy Polymers — HSE Platform'), 0, PDF_PAGE_MARGIN + 2, { width: pageW - PDF_PAGE_MARGIN, align: 'right' });
+  doc.font(PDF_FONT_REGULAR).fontSize(9).fillColor('#64748B')
+    .text(prepareBidiText('السويدي للبوليمرات — منصة السلامة والصحة المهنية'), 0, PDF_PAGE_MARGIN + 18, { width: pageW - PDF_PAGE_MARGIN, align: 'right' });
+  doc.moveTo(PDF_PAGE_MARGIN, PDF_PAGE_MARGIN + 46).lineTo(pageW - PDF_PAGE_MARGIN, PDF_PAGE_MARGIN + 46)
+    .strokeColor('#E2E8F0').lineWidth(1).stroke();
+  doc.y = PDF_PAGE_MARGIN + 62;
+  doc.font(PDF_FONT_BOLD).fontSize(18).fillColor('#7C1D1D')
+    .text(prepareBidiText(titleAr), { align: 'right' });
+  if (titleEn) {
+    doc.font(PDF_FONT_REGULAR).fontSize(10).fillColor('#64748B')
+      .text(titleEn, { align: 'right' });
+  }
+  doc.moveDown(0.6);
+}
+
+/** شارة الحالة الملوّنة (معتمد / مرفوض / قيد المراجعة) */
+function drawPdfStatusStamp(doc, status) {
+  const map = {
+    approved: { label: 'معتمد — APPROVED', color: '#16A34A' },
+    rejected: { label: 'مرفوض — REJECTED', color: '#DC2626' },
+    closed:   { label: 'مغلق — CLOSED', color: '#334155' },
+    open:     { label: 'مفتوح — OPEN', color: '#D97706' },
+  };
+  const s = map[status] || { label: 'قيد المراجعة — PENDING', color: '#D97706' };
+  const boxW = 180, boxH = 26;
+  const x = doc.page.width - PDF_PAGE_MARGIN - boxW;
+  const y = doc.y;
+  doc.roundedRect(x, y, boxW, boxH, 6).lineWidth(1.4).strokeColor(s.color).stroke();
+  doc.font(PDF_FONT_BOLD).fontSize(11).fillColor(s.color)
+    .text(prepareBidiText(s.label), x, y + 7, { width: boxW, align: 'center' });
+  doc.y = y + boxH + 14;
+}
+
+/** صف "تسمية: قيمة" — يدعم عرض عدة أعمدة في نفس السطر */
+function drawPdfLabelValue(doc, label, value) {
+  const pageW = doc.page.width;
+  const usableW = pageW - PDF_PAGE_MARGIN * 2;
+  const y = doc.y;
+  doc.font(PDF_FONT_BOLD).fontSize(9.5).fillColor('#64748B')
+    .text(prepareBidiText(label), PDF_PAGE_MARGIN, y, { width: usableW, align: 'right' });
+  doc.font(PDF_FONT_REGULAR).fontSize(12).fillColor('#0F172A')
+    .text(prepareBidiText(value === 0 ? '0' : (value || '—')), PDF_PAGE_MARGIN, doc.y + 1, { width: usableW, align: 'right' });
+  doc.moveDown(0.55);
+}
+
+function drawPdfSectionTitle(doc, text) {
+  doc.moveDown(0.3);
+  doc.font(PDF_FONT_BOLD).fontSize(12).fillColor('#7C1D1D')
+    .text(prepareBidiText(text), PDF_PAGE_MARGIN, doc.y, { width: doc.page.width - PDF_PAGE_MARGIN * 2, align: 'right' });
+  doc.moveTo(PDF_PAGE_MARGIN, doc.y + 2).lineTo(doc.page.width - PDF_PAGE_MARGIN, doc.y + 2)
+    .strokeColor('#E2E8F0').lineWidth(0.7).dash(2, { space: 2 }).stroke();
+  doc.undash();
+  doc.moveDown(0.5);
+}
+
+/** يرسم QR Code التحقق + التذييل في أسفل آخر صفحة */
+async function drawPdfFooterWithQr(doc, verifyUrl, docId) {
+  try {
+    const qrBuffer = await QRCode.toBuffer(verifyUrl, { margin: 1, width: 200 });
+    const qrSize = 78;
+    const x = doc.page.width - PDF_PAGE_MARGIN - qrSize;
+    const y = doc.page.height - PDF_PAGE_MARGIN - qrSize - 26;
+    doc.image(qrBuffer, x, y, { width: qrSize, height: qrSize });
+    doc.font(PDF_FONT_REGULAR).fontSize(7.5).fillColor('#64748B')
+      .text(prepareBidiText('امسح للتحقق من صلاحية المستند وحالته لحظيًا'), x - 140, y + qrSize + 4, { width: qrSize + 140, align: 'center' });
+  } catch (e) {
+    console.error('[PDF] QR generation failed:', e);
+  }
+  doc.font(PDF_FONT_REGULAR).fontSize(7.5).fillColor('#94A3B8')
+    .text(
+      prepareBidiText(`تم إنشاء هذا المستند آليًا بواسطة HSE Platform — ${new Date().toLocaleString('ar-EG')} — ${docId}`),
+      PDF_PAGE_MARGIN, doc.page.height - PDF_PAGE_MARGIN - 14, { width: doc.page.width - PDF_PAGE_MARGIN * 2 - 140, align: 'right' }
+    );
+}
+
+function findPermitById(permitId) {
+  const storage = readStorage();
+  let permits = storage['work-permits'];
+  permits = typeof permits === 'string' ? JSON.parse(permits || '[]') : (Array.isArray(permits) ? permits : []);
+  return permits.find(p => p.id === permitId);
+}
+
+const PDF_EXPORT_ROLES = ['super_admin', 'hse_admin', 'dept_admin', 'maint_admin'];
+
+// ── GET /api/permits/:id/pdf — تصدير تصريح عمل كـ PDF رسمي ──────
+app.get('/api/permits/:id/pdf', authenticateTokenFlexible, requireRole(...PDF_EXPORT_ROLES), async (req, res) => {
+  try {
+    const permit = findPermitById(req.params.id);
+    if (!permit) return res.status(404).json({ error: 'التصريح غير موجود' });
+
+    const doc = new PDFDocument({ size: 'A4', margin: PDF_PAGE_MARGIN, bufferPages: true });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="Permit_${permit.id}.pdf"`);
+    doc.pipe(res);
+
+    drawPdfHeader(doc, 'تصريح عمل', `Work Permit — ${permit.id}`);
+    drawPdfStatusStamp(doc, permit.status);
+
+    drawPdfSectionTitle(doc, 'بيانات التصريح');
+    drawPdfLabelValue(doc, 'رقم التصريح', permit.id);
+    drawPdfLabelValue(doc, 'نوع التصريح', permit.typeFullLabel || permit.typeLabel);
+    drawPdfLabelValue(doc, 'القسم', permit.department);
+    drawPdfLabelValue(doc, 'التاريخ', permit.date);
+    drawPdfLabelValue(doc, 'الوردية', permit.shift);
+    if (permit.timeFrom || permit.timeTo) drawPdfLabelValue(doc, 'من — إلى', `${permit.timeFrom || '—'} — ${permit.timeTo || '—'}`);
+    drawPdfLabelValue(doc, 'الموقع', permit.location);
+    drawPdfLabelValue(doc, 'المعدة/الآلة', permit.equipment);
+
+    drawPdfSectionTitle(doc, 'بيانات العامل');
+    drawPdfLabelValue(doc, 'اسم العامل', permit.workerName);
+    drawPdfLabelValue(doc, 'وصف العمل', permit.description);
+
+    if (Array.isArray(permit.checklist) && permit.checklist.length) {
+      drawPdfSectionTitle(doc, 'قائمة الفحص الأمنية');
+      permit.checklist.forEach(c => drawPdfLabelValue(doc, c.question, c.answer));
+    }
+
+    if (Array.isArray(permit.risks) && permit.risks.length) {
+      drawPdfSectionTitle(doc, 'تقييم المخاطر');
+      permit.risks.forEach((r, i) => drawPdfLabelValue(doc, `مصدر الخطر ${i + 1}`, `${r.source} — احتمالية×شدة=${r.score} — الإجراء: ${r.control || '—'}`));
+    }
+
+    drawPdfSectionTitle(doc, 'الاعتمادات');
+    drawPdfLabelValue(doc, 'مراجعة رئيس المنطقة', permit.areaHeadReviewedBy ? `${permit.areaHeadReviewedBy} — ${permit.areaHeadReviewedAt || ''}` : null);
+    drawPdfLabelValue(doc, 'مراجعة مسؤول السلامة', permit.safetyOfficerName ? `${permit.safetyOfficerName} — ${permit.reviewedAt || ''}` : (permit.reviewedBy ? `${permit.reviewedBy} — ${permit.reviewedAt || ''}` : null));
+    if (permit.reviewNote) drawPdfLabelValue(doc, 'ملاحظات المراجعة', permit.reviewNote);
+
+    const verifyUrl = `${pdfBaseUrl(req)}/verify/permit/${encodeURIComponent(permit.id)}`;
+    await drawPdfFooterWithQr(doc, verifyUrl, permit.id);
+    doc.end();
+  } catch (err) {
+    console.error('[PDF] Permit export failed:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'فشل إنشاء ملف PDF' });
+  }
+});
+
+// ── GET /api/hazards/:id/pdf — تصدير بلاغ خطورة كـ PDF رسمي ──────
+app.get('/api/hazards/:id/pdf', authenticateTokenFlexible, requireRole(...PDF_EXPORT_ROLES), async (req, res) => {
+  try {
+    const hazard = readHazards().find(h => h.id === req.params.id);
+    if (!hazard) return res.status(404).json({ error: 'البلاغ غير موجود' });
+
+    const doc = new PDFDocument({ size: 'A4', margin: PDF_PAGE_MARGIN, bufferPages: true });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="Hazard_${hazard.id}.pdf"`);
+    doc.pipe(res);
+
+    drawPdfHeader(doc, 'بلاغ خطورة', `Hazard Report — ${hazard.id}`);
+    drawPdfStatusStamp(doc, hazard.status);
+
+    drawPdfSectionTitle(doc, 'بيانات البلاغ');
+    drawPdfLabelValue(doc, 'رقم البلاغ', hazard.id);
+    drawPdfLabelValue(doc, 'اسم المُبلِّغ', hazard.reporterName);
+    drawPdfLabelValue(doc, 'القسم', hazard.department);
+    drawPdfLabelValue(doc, 'المنطقة', hazard.area);
+    drawPdfLabelValue(doc, 'التاريخ', hazard.date);
+    drawPdfLabelValue(doc, 'مستوى الخطورة', hazard.riskLevel === 'H' ? 'مرتفع (H)' : hazard.riskLevel === 'M' ? 'متوسط (M)' : hazard.riskLevel === 'L' ? 'منخفض (L)' : hazard.riskLevel);
+
+    drawPdfSectionTitle(doc, 'الوصف والمعالجة');
+    drawPdfLabelValue(doc, 'وصف الخطورة', hazard.description);
+    drawPdfLabelValue(doc, 'الإصابة المحتملة', hazard.potentialInjury);
+    drawPdfLabelValue(doc, 'الحل المقترح', hazard.proposedSolution);
+    drawPdfLabelValue(doc, 'الإجراء المتخذ', hazard.actionTaken);
+
+    drawPdfSectionTitle(doc, 'المتابعة');
+    drawPdfLabelValue(doc, 'مسؤول السلامة', hazard.hseName);
+    drawPdfLabelValue(doc, 'أُسندت للصيانة', hazard.assignedToMaintenance);
+    if (hazard.resolvedAt) drawPdfLabelValue(doc, 'تاريخ الإغلاق', new Date(hazard.resolvedAt).toLocaleDateString('ar-EG'));
+
+    const verifyUrl = `${pdfBaseUrl(req)}/verify/hazard/${encodeURIComponent(hazard.id)}`;
+    await drawPdfFooterWithQr(doc, verifyUrl, hazard.id);
+    doc.end();
+  } catch (err) {
+    console.error('[PDF] Hazard export failed:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'فشل إنشاء ملف PDF' });
+  }
+});
+
+// ============================================================
+// ✅ صفحات التحقق العامة (QR Code) — بدون تسجيل دخول
+// ============================================================
+// تُظهر فقط الحد الأدنى من المعلومات (لا أرقام هواتف، لا تفاصيل حساسة)
+// حتى لو صُوِّرت الصفحة الورقية ومُسِح الكود من أي شخص — تمامًا مثل
+// التحقق من تذكرة أو شهادة، هذا هو الغرض المقصود من QR Code أصلاً.
+function verifyPageHtml({ title, rows, statusLabel, statusColor }) {
+  return `<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${title} — HSE Platform</title>
+<style>
+  body{font-family:'Cairo',Tahoma,sans-serif;background:#0F172A;color:#fff;margin:0;padding:24px;min-height:100vh;box-sizing:border-box;display:flex;align-items:center;justify-content:center;}
+  .card{background:#fff;color:#0F172A;border-radius:16px;padding:28px 24px;max-width:420px;width:100%;box-shadow:0 20px 60px -10px rgba(0,0,0,.5);}
+  .brand{font-size:12px;color:#64748B;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+  h1{font-size:19px;margin:0 0 16px;}
+  .status{display:inline-block;padding:8px 18px;border-radius:8px;font-weight:800;font-size:14px;border:2px solid ${statusColor};color:${statusColor};margin-bottom:18px;}
+  .row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #E2E8F0;font-size:13.5px;}
+  .row span:first-child{color:#64748B;font-weight:700;}
+  .row span:last-child{font-weight:700;text-align:left;}
+  .foot{margin-top:16px;font-size:11px;color:#94A3B8;text-align:center;}
+</style></head>
+<body>
+  <div class="card">
+    <div class="brand">Elsewedy Polymers — HSE Platform</div>
+    <h1>${title}</h1>
+    <div class="status">${statusLabel}</div>
+    ${rows.map(r => `<div class="row"><span>${r[0]}</span><span>${r[1] || '—'}</span></div>`).join('')}
+    <div class="foot">تحقق آلي لحظي من النظام الرسمي — ${new Date().toLocaleString('ar-EG')}</div>
+  </div>
+</body></html>`;
+}
+
+app.get('/verify/permit/:id', (req, res) => {
+  const permit = findPermitById(req.params.id);
+  if (!permit) return res.status(404).send(verifyPageHtml({ title: 'تصريح غير موجود', rows: [], statusLabel: 'غير صالح', statusColor: '#DC2626' }));
+  const statusMap = { approved: ['معتمد', '#16A34A'], rejected: ['مرفوض', '#DC2626'], closed: ['مغلق', '#334155'] };
+  const [label, color] = statusMap[permit.status] || ['قيد المراجعة', '#D97706'];
+  res.send(verifyPageHtml({
+    title: `تصريح عمل ${permit.id}`,
+    statusLabel: label, statusColor: color,
+    rows: [
+      ['النوع', permit.typeFullLabel || permit.typeLabel],
+      ['القسم', permit.department],
+      ['التاريخ', permit.date],
+      ['العامل', permit.workerName],
+    ]
+  }));
+});
+
+app.get('/verify/hazard/:id', (req, res) => {
+  const hazard = readHazards().find(h => h.id === req.params.id);
+  if (!hazard) return res.status(404).send(verifyPageHtml({ title: 'بلاغ غير موجود', rows: [], statusLabel: 'غير صالح', statusColor: '#DC2626' }));
+  const statusMap = { open: ['مفتوح', '#D97706'], closed: ['مغلق', '#16A34A'] };
+  const [label, color] = statusMap[hazard.status] || ['—', '#64748B'];
+  res.send(verifyPageHtml({
+    title: `بلاغ خطورة ${hazard.id}`,
+    statusLabel: label, statusColor: color,
+    rows: [
+      ['القسم', hazard.department],
+      ['المنطقة', hazard.area],
+      ['التاريخ', hazard.date],
+      ['مستوى الخطورة', hazard.riskLevel],
+    ]
+  }));
 });
 
 // ── 404 fallback ──────────────────────────────────────────────

@@ -2315,6 +2315,7 @@ function renderList(){
       ${failedChecks>0 ? `<div class="checklist-summary"><b>⚠ ${failedChecks} بند غير مستوفٍ في قائمة التحقق</b></div>` : `<div class="checklist-summary">✓ كل بنود قائمة التحقق مستوفاة أو لا تنطبق</div>`}
 
       <span class="details-toggle" onclick="toggleDetails('${p.id}')">عرض كل التفاصيل (قائمة التحقق + المخاطر) ⌄</span>
+      <button class="btn btn-secondary btn-sm" type="button" style="margin-inline-start:10px;" onclick="navigateWithAuth('/api/permits/${p.id}/pdf')">🖨️ طباعة PDF</button>
       <div class="full-details" id="details-${p.id}">
         <div class="section-title" style="margin-top:14px;">قائمة التحقق</div>
         ${checklistHtml}
@@ -4514,6 +4515,7 @@ function getHazardCardHtml(h) {
       ${h.actionTaken ? `<div class="desc" style="background:#f8f9fa; border-right:4px solid var(--primary); padding:10px; margin-top:10px;"><strong>الإجراء المتخذ:</strong><br>${escapeHtml(h.actionTaken)}</div>` : ''}
       ${h.assignNotes ? `<div class="desc" style="background:#e0f7fa; padding:8px; border-radius:4px; border:1px solid #b2ebf2; margin-top:8px;"><strong>ملاحظات التوجيه للصيانة:</strong><br>${escapeHtml(h.assignNotes)}</div>` : ''}
       ${h.photoUrl ? `<div style="margin-top:8px;"><div class="hz-photo-badge" onclick="openLightbox('${h.photoUrl}')">🖼️ عرض الصورة</div></div>` : ''}
+      <button class="btn btn-secondary btn-sm" type="button" style="margin-top:10px;" onclick="navigateWithAuth('/api/hazards/${h.id}/pdf')">🖨️ طباعة PDF</button>
       ${actionHtml}
       ${timelineHtml}
       ${manageHtml}

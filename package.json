@@ -7,8 +7,10 @@
     "start": "node server.js"
   },
   "dependencies": {
+    "arabic-reshaper": "^1.1.0",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^13.0.3",
+    "bidi-js": "^1.1.0",
     "compression": "^1.8.1",
     "docx": "^9.5.1",
     "dotenv": "^16.6.1",
