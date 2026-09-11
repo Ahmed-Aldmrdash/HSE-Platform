@@ -9,10 +9,8 @@
     "build:assets": "terser public/app.js -c -m --comments false -o public/app.min.js && cleancss -o public/style.min.css public/style.css"
   },
   "dependencies": {
-    "arabic-reshaper": "^1.1.0",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^13.0.3",
-    "bidi-js": "^1.1.0",
     "clean-css-cli": "^5.6.3",
     "compression": "^1.8.1",
     "docx": "^9.5.1",

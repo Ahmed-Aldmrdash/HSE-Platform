@@ -57,23 +57,26 @@
    يبقى كما هو في الوضعين — الهوية البصرية للشركة لا تتغير مع الثيم.
    11 سبتمبر 2026. */
 body[data-theme="dark"] {
-  --charcoal: #0B1220;
-  --charcoal-2: #1E293B;
-  --paper: #16202E;
-  --paper-line: #2D3B4E;
-  --steel: #94A3B8;
-  --info: #7DD3FC;
-  --ink: #F1F5F9;
-  --muted: #94A3B8;
-  --shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.45);
-  --slate: #94A3B8;
-  --brand-slate-900: #F1F5F9;
-  --brand-slate-700: #CBD5E1;
-  --brand-slate-500: #94A3B8;
-  --brand-slate-200: #2D3B4E;
-  --brand-slate-100: #1E293B;
-  --body-bg: #0B1220;
-  --card-shadow-color: rgba(0, 0, 0, 0.5);
+  /* أسود/رمادي فحمي حقيقي (مطابق لهوية "أسود/أحمر" السويدي) بدل
+     الأزرق الداكن (Slate) العام الذي كان يجعل الوضع الليلي يبدو وكأنه
+     من تطبيق مختلف تمامًا — طلب المستخدم صراحة تصحيح هذا. */
+  --charcoal: #0A0A0A;
+  --charcoal-2: #1C1C1C;
+  --paper: #171717;
+  --paper-line: #333333;
+  --steel: #A3A3A3;
+  --info: #D4D4D4;
+  --ink: #F5F5F5;
+  --muted: #A3A3A3;
+  --shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.6);
+  --slate: #A3A3A3;
+  --brand-slate-900: #F5F5F5;
+  --brand-slate-700: #D4D4D4;
+  --brand-slate-500: #A3A3A3;
+  --brand-slate-200: #333333;
+  --brand-slate-100: #212121;
+  --body-bg: #0A0A0A;
+  --card-shadow-color: rgba(0, 0, 0, 0.65);
   --success: #22C55E;
   --warning: #F59E0B;
   color-scheme: dark;
@@ -88,23 +91,23 @@ body[data-theme="dark"] .adv-filter-field select,
 body[data-theme="dark"] .app-modal-field input,
 body[data-theme="dark"] .app-modal-field select,
 body[data-theme="dark"] .app-modal-field textarea {
-  background: #1E293B;
+  background: #212121;
   color: var(--ink);
   border-color: var(--paper-line);
 }
 body[data-theme="dark"] .login-card input,
 body[data-theme="dark"] .dept-filter-input,
 body[data-theme="dark"] .insp-status-select {
-  background: #1E293B;
+  background: #212121;
   color: var(--ink);
 }
 body[data-theme="dark"] .um-table thead tr,
 body[data-theme="dark"] .data-table th {
-  background: #0B1220;
+  background: #0A0A0A;
 }
 body[data-theme="dark"] .data-table tbody tr:hover,
 body[data-theme="dark"] .um-table tbody tr:hover {
-  background: #1E293B;
+  background: #212121;
 }
 body[data-theme="dark"] .app-header,
 body[data-theme="dark"] .um-add-card,
@@ -119,18 +122,22 @@ body[data-theme="dark"] .tabs {
 }
 body[data-theme="dark"] .desc,
 body[data-theme="dark"] .risk-summary {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.05);
 }
 body[data-theme="dark"] .skeleton {
-  background: linear-gradient(90deg, #1E293B 25%, #263548 37%, #1E293B 63%);
+  background: linear-gradient(90deg, #212121 25%, #2a2a2a 37%, #212121 63%);
+}
+body[data-theme="dark"] .loading::before {
+  border-color: #333333;
+  border-top-color: var(--amber);
 }
 /* Dashboard-specific palette (separate :root block further down) */
 body[data-theme="dark"] {
-  --dash-bg: #0B1220;
-  --dash-card-bg: #16202E;
-  --dash-border: #2D3B4E;
-  --dash-text: #F1F5F9;
-  --dash-muted: #94A3B8;
+  --dash-bg: #0A0A0A;
+  --dash-card-bg: #171717;
+  --dash-border: #333333;
+  --dash-text: #F5F5F5;
+  --dash-muted: #A3A3A3;
 }
 /* عناصر بخلفية رمادية فاتحة مكتوبة بقيمة ثابتة (لا متغيّر) — بدون هذا
    التبديل الصريح، النص الفاتح الذي تحدده --dash-text أعلاه يصبح غير
@@ -144,14 +151,14 @@ body[data-theme="dark"] .hazard-timeline,
 body[data-theme="dark"] .hz-photo-badge,
 body[data-theme="dark"] .notif-item:hover,
 body[data-theme="dark"] .dash-topic-bar-bg {
-  background: #1E293B;
+  background: #212121;
 }
 body[data-theme="dark"] .dash-quick-btn:hover {
-  background: #263548;
+  background: #2a2a2a;
 }
 body[data-theme="dark"] .dash-kpi-pill.blue {
-  background: rgba(2, 132, 199, 0.25);
-  color: #7DD3FC;
+  background: rgba(226, 0, 26, 0.18);
+  color: #FF6B6B;
 }
 body[data-theme="dark"] .user-profile-chip {
   border-color: var(--paper-line);
@@ -178,6 +185,33 @@ body[data-theme="dark"] .dash-filter-bar {
 }
 .theme-toggle-btn:hover { background: rgba(0,0,0,.05); }
 body[data-theme="dark"] .theme-toggle-btn:hover { background: rgba(255,255,255,.08); }
+.login-pre-toggles {
+  position: absolute;
+  top: 14px;
+  inset-inline-start: 14px;
+  display: flex;
+  gap: 6px;
+  z-index: 2;
+}
+.login-pre-toggles .theme-toggle-btn {
+  background: rgba(255,255,255,.08);
+  border-color: rgba(255,255,255,.18);
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  font-size: 13px;
+}
+.login-pre-toggles .lang-toggle-btn { width: auto; padding: 0 8px; font-size: 10.5px; }
+.worker-login-card { position: relative; }
+.lang-toggle-btn {
+  width: auto;
+  min-width: 38px;
+  padding: 0 10px;
+  font-size: 11.5px;
+  font-weight: 800;
+  font-family: 'Oswald', sans-serif;
+  letter-spacing: .5px;
+}
 
 * {
   box-sizing: border-box;
@@ -1111,71 +1145,101 @@ body {
 .adv-filter-box {
   background: var(--surface);
   border: 1px solid var(--paper-line);
-  border-radius: 12px;
-  padding: 16px;
+  border-radius: 14px;
+  padding: 18px 18px 16px;
   margin-bottom: 24px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow);
 }
 .adv-filter-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed var(--paper-line);
 }
 .adv-filter-title {
   margin: 0;
-  font-size: 16px;
-  color: var(--primary);
+  font-size: 15px;
+  color: var(--brand-slate-900);
   display: flex;
   align-items: center;
   gap: 8px;
-  font-weight: 700;
+  font-weight: 800;
+}
+.adv-filter-title span:first-child {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: rgba(226,0,26,.1);
+  font-size: 13px;
 }
 .adv-filter-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
+  gap: 14px 16px;
   margin-bottom: 12px;
 }
 .adv-filter-field { margin: 0; }
 .adv-filter-field label {
-  font-weight: 600;
-  margin-bottom: 8px;
+  font-weight: 700;
+  margin-bottom: 7px;
   display: block;
-  color: var(--text-color);
-  font-size: 13px;
+  color: var(--muted);
+  font-size: 12px;
 }
 .adv-filter-field input,
 .adv-filter-field select {
   width: 100%;
-  border-radius: 8px;
-  padding: 8px;
-  border: 1px solid var(--paper-line);
+  border-radius: 9px;
+  padding: 9px 11px;
+  border: 1.5px solid var(--paper-line);
   background: var(--paper);
   color: var(--text-color);
   font-family: inherit;
+  font-size: 13.5px;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.adv-filter-field input:focus,
+.adv-filter-field select:focus {
+  outline: none;
+  border-color: var(--brand-primary);
+  box-shadow: var(--focus-ring);
 }
 .adv-filter-footer {
   display: flex;
   gap: 12px;
   border-top: 1px solid var(--paper-line);
-  padding-top: 16px;
+  padding-top: 14px;
   flex-wrap: wrap;
   align-items: center;
 }
 .adv-filter-clear-btn {
-  padding: 6px 24px;
-  border-radius: 8px;
+  padding: 8px 20px;
+  border-radius: 9px;
   background: var(--paper);
-  border: 1px solid var(--paper-line);
+  border: 1.5px solid var(--paper-line);
   color: var(--text-color);
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 700;
   font-family: inherit;
+  font-size: 13px;
+  transition: border-color .15s ease, color .15s ease, transform .1s ease;
+}
+.adv-filter-clear-btn:hover {
+  border-color: var(--danger);
+  color: var(--danger);
 }
 .adv-filter-count {
-  font-size: 13px;
-  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--brand-primary);
+  background: rgba(226,0,26,.08);
+  padding: 5px 12px;
+  border-radius: 20px;
   margin-inline-start: auto;
 }
 
@@ -4906,9 +4970,9 @@ body[data-session="supervisor"] #empBadgeArea {
   animation: welcomeOrbFloat 9s ease-in-out infinite;
   pointer-events: none;
 }
-.welcome-anim-orb.orb-1 { width: 340px; height: 340px; background: var(--amber, #D51E27); top: -80px; inset-inline-start: -60px; animation-duration: 10s; }
-.welcome-anim-orb.orb-2 { width: 260px; height: 260px; background: #1E40AF; bottom: -60px; inset-inline-end: -40px; animation-duration: 12s; animation-delay: -3s; }
-.welcome-anim-orb.orb-3 { width: 200px; height: 200px; background: #16A34A; top: 40%; inset-inline-start: 45%; animation-duration: 8s; animation-delay: -5s; opacity: .35; }
+.welcome-anim-orb.orb-1 { width: 340px; height: 340px; background: var(--amber, #E2001A); top: -80px; inset-inline-start: -60px; animation-duration: 10s; }
+.welcome-anim-orb.orb-2 { width: 260px; height: 260px; background: var(--steel, #333333); bottom: -60px; inset-inline-end: -40px; animation-duration: 12s; animation-delay: -3s; }
+.welcome-anim-orb.orb-3 { width: 200px; height: 200px; background: var(--amber-dark, #A6000F); top: 40%; inset-inline-start: 45%; animation-duration: 8s; animation-delay: -5s; opacity: .35; }
 
 .welcome-anim-card {
   position: relative;
@@ -5098,6 +5162,465 @@ body[data-session="supervisor"] #empBadgeArea {
   padding: 14px;
 }
 
+/* ============================================================
+   ✨ MOTION SYSTEM — حركة وانيميشن عبر الموقع بالكامل
+   ============================================================
+   هذه القواعد تُطبَّق على مكونات موجودة بالفعل (.sup-card, .ticket,
+   .kpi-card, .exec-kpi-card, .insp-*, .btn...) — بما إن كل محتوى
+   الصفحات تقريبًا يُرسَم عبر innerHTML في كل مرة، إضافة أنيميشن دخول
+   لهذه الكلاسات هنا كافية لتحريك الموقع بالكامل تلقائيًا في كل تبويب
+   بدون تعديل جافاسكريبت. 11 سبتمبر 2026. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes feFadeInUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes feFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes fePulseRing {
+    0%   { transform: scale(0.85); opacity: .5; }
+    50%  { transform: scale(1.1); opacity: .15; }
+    100% { transform: scale(0.85); opacity: .5; }
+  }
+
+  .sup-card, .ticket, .um-add-card, .um-table-wrap, .adv-filter-box,
+  .kpi-card, .exec-kpi-card, .exec-hero, .exec-leaderboard,
+  .insp-category-card, .insp-section-card, .dash-exec-card,
+  .app-modal-card, .force-pw-card {
+    animation: feFadeInUp .38s cubic-bezier(.2,.8,.2,1) both;
+  }
+  /* Stagger cards inside a grid so they cascade in instead of popping
+     together — nth-child selectors give each card a slightly later
+     start with zero JS. */
+  .kpi-grid > *:nth-child(1), .insp-sections-grid > *:nth-child(1), .insp-category-grid > *:nth-child(1) { animation-delay: 0ms; }
+  .kpi-grid > *:nth-child(2), .insp-sections-grid > *:nth-child(2), .insp-category-grid > *:nth-child(2) { animation-delay: 40ms; }
+  .kpi-grid > *:nth-child(3), .insp-sections-grid > *:nth-child(3) { animation-delay: 80ms; }
+  .kpi-grid > *:nth-child(4), .insp-sections-grid > *:nth-child(4) { animation-delay: 120ms; }
+  .kpi-grid > *:nth-child(5), .insp-sections-grid > *:nth-child(5) { animation-delay: 160ms; }
+  .kpi-grid > *:nth-child(6), .insp-sections-grid > *:nth-child(6) { animation-delay: 200ms; }
+  .kpi-grid > *:nth-child(n+7), .insp-sections-grid > *:nth-child(n+7) { animation-delay: 240ms; }
+
+  #viewDashboard, #viewExecutive, #inspectionsContent, #auditLogContent,
+  #empDirList, #supList, #hzList {
+    animation: feFadeIn .3s ease both;
+  }
+}
+
+/* Buttons/cards: tactile hover + press feedback everywhere, not just
+   the newer .btn system — extends to the older .act-btn/.export-btn/
+   .chip/.emp-dir-btn classes too so the whole app feels consistent. */
+.btn, .act-btn, .export-btn, .chip, .emp-dir-btn, .submit-btn,
+.insp-category-card, .insp-section-card, .sup-card, .ticket,
+.dash-quick-btn, .kpi-card, .exec-kpi-card {
+  transition: transform .15s cubic-bezier(.2,.8,.2,1), box-shadow .15s ease, border-color .15s ease, background-color .15s ease;
+}
+@media (hover: hover) {
+  .btn:not(:disabled):hover, .act-btn:hover, .export-btn:hover,
+  .emp-dir-btn:hover, .kpi-card:hover, .exec-kpi-card:hover,
+  .sup-card:hover, .ticket:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px -8px rgba(0,0,0,.18);
+  }
+}
+.btn:active, .act-btn:active, .export-btn:active, .submit-btn:active,
+.emp-dir-btn:active, .chip:active {
+  transform: scale(0.97);
+}
+
+/* Smooth theme switch — background/color/border transition on the
+   handful of surfaces that actually change under dark mode, so
+   toggling feels like a cross-fade instead of a hard flash. */
+body, .sup-card, .ticket, .app-header, .tabs, .um-add-card,
+.um-table-wrap, .adv-filter-box, .kpi-card, .field input,
+.field select, .field textarea {
+  transition: background-color .25s ease, color .25s ease, border-color .25s ease;
+}
+
+/* ── Loading state — a proper branded spinner instead of plain text ── */
+.loading {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+  position: relative;
+}
+.loading::before {
+  content: '';
+  display: block;
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  border: 3px solid var(--brand-slate-200, var(--paper-line));
+  border-top-color: var(--brand-primary, var(--amber));
+  animation: feSpin .7s linear infinite;
+}
+@keyframes feSpin { to { transform: rotate(360deg); } }
+.loading-inline .btn-spinner { animation: feSpin .7s linear infinite; }
+
+/* ── Filter chips/box: refreshed, tactile treatment ────────────── */
+.adv-filter-box {
+  position: relative;
+  overflow: hidden;
+}
+.adv-filter-box::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, var(--brand-primary), var(--brand-primary-dark));
+}
+.chip {
+  transition: transform .15s ease, box-shadow .15s ease, background-color .15s ease, color .15s ease;
+}
+.chip.active {
+  box-shadow: 0 4px 12px -2px rgba(226,0,26,.35);
+}
+@media (hover: hover) {
+  .chip:not(.active):hover {
+    background: var(--brand-slate-100);
+    color: var(--ink);
+    transform: translateY(-1px);
+  }
+}
+.dept-filter-input {
+  transition: box-shadow .15s ease, border-color .15s ease;
+}
+.dept-filter-input:focus {
+  box-shadow: var(--focus-ring);
+}
+
 @media (min-width: 768px) {
   .exec-hero { padding: 34px 32px 28px; }
+}
+
+/* ============================================================
+   🦺 MONTHLY INSPECTION (الفحص الشهري) — كان بدون أي تصميم فعليًا:
+   جافاسكريبت الوحدة يستخدم هذه الكلاسات منذ دمجها، لكن تعريفاتها لم
+   تُنسَخ فعليًا لملف الأنماط وقتها — الصفحة كانت تعرض عناصر HTML خام
+   بلا أي شكل. هذا هو الإصلاح الفعلي (وليس مجرد تلميع). 11 سبتمبر 2026.
+   ============================================================ */
+.insp-hero {
+  background: linear-gradient(135deg, #0F172A 0%, #1A1A1A 55%, #7C1D1D 100%);
+  color: #fff;
+  border-radius: var(--radius);
+  padding: 26px 24px 22px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow);
+}
+.insp-hero-title {
+  font-size: clamp(18px, 4vw, 23px);
+  font-weight: 900;
+}
+.insp-hero-sub {
+  font-size: 13px;
+  color: rgba(255,255,255,.65);
+  margin-top: 4px;
+}
+
+.insp-category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+  max-width: 640px;
+  margin: 8px auto 24px;
+}
+.insp-category-card {
+  background: var(--paper);
+  border: 1px solid var(--paper-line);
+  border-radius: 16px;
+  padding: 32px 22px;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+.insp-category-card:hover {
+  border-color: var(--brand-primary);
+  box-shadow: 0 14px 30px -10px rgba(226,0,26,.3);
+}
+.insp-category-card .insp-cat-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 12px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand-primary), var(--brand-primary-dark));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 900;
+  font-family: 'Oswald', sans-serif;
+}
+.insp-category-card .insp-cat-title { font-size: 18px; font-weight: 900; color: var(--brand-slate-900); }
+.insp-category-card .insp-cat-sub { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+
+.insp-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.insp-toolbar-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.insp-breadcrumb { font-size: 13px; color: var(--muted); font-weight: 700; }
+.insp-breadcrumb b { color: var(--brand-slate-900); }
+
+.insp-sections-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 14px;
+}
+.insp-section-card {
+  background: var(--paper);
+  border: 1px solid var(--paper-line);
+  border-radius: 14px;
+  padding: 16px 18px;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.insp-section-card:hover { border-color: var(--brand-primary); }
+.insp-section-name { font-size: 14.5px; font-weight: 800; color: var(--brand-slate-900); }
+.insp-section-meta { font-size: 11.5px; color: var(--muted); display: flex; justify-content: space-between; }
+.insp-section-bar {
+  height: 7px;
+  border-radius: 4px;
+  background: var(--brand-slate-100);
+  overflow: hidden;
+}
+.insp-section-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--success), #22c55e);
+  transition: width .5s ease;
+}
+.insp-section-del {
+  align-self: flex-end;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+}
+.insp-section-del:hover { color: var(--danger); }
+.insp-status-select {
+  min-width: 130px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--paper-line);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+/* ── Generic reusable modal (الفحص الشهري + أي نافذة منبثقة عامة) ──
+   كانت الكلاسات دي مُستخدَمة في JS (openAppModal) بدون أي تعريف مطابق —
+   نفس المشكلة بالضبط. */
+.app-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5000;
+  padding: 16px;
+}
+.app-modal-card {
+  background: var(--paper);
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 480px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px -10px rgba(0,0,0,.5);
+  position: relative;
+}
+.app-modal-close {
+  position: absolute;
+  inset-inline-end: 16px;
+  top: 16px;
+  border: none;
+  background: var(--brand-slate-100);
+  color: var(--brand-slate-700);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+}
+.app-modal-card h3 {
+  margin: 0 20px 16px 0;
+  color: var(--brand-slate-900);
+  font-size: 17px;
+}
+.app-modal-field { margin-bottom: 14px; }
+.app-modal-field label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--brand-slate-700);
+  margin-bottom: 6px;
+}
+.app-modal-field input,
+.app-modal-field select,
+.app-modal-field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--paper-line);
+  font-family: inherit;
+  font-size: 14px;
+  box-sizing: border-box;
+  background: var(--paper);
+  color: var(--ink);
+}
+.app-modal-field textarea { resize: vertical; min-height: 64px; }
+.app-modal-error {
+  color: var(--danger);
+  font-size: 12.5px;
+  font-weight: 700;
+  margin: -4px 0 12px;
+  display: none;
+}
+.app-modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
+/* ============================================================
+   🛡️ AUDIT LOG — عرض بشكل خط زمني (Timeline)
+   ============================================================ */
+.audit-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--success);
+  background: rgba(22,163,74,.1);
+  border: 1px solid rgba(22,163,74,.25);
+  padding: 4px 10px;
+  border-radius: 20px;
+  margin-inline-start: 10px;
+}
+.audit-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--success);
+  animation: fePulseRing 1.6s ease-in-out infinite;
+}
+.audit-timeline {
+  position: relative;
+  padding-inline-start: 34px;
+}
+.audit-timeline::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 13px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  background: var(--paper-line);
+}
+.audit-item {
+  position: relative;
+  background: var(--paper);
+  border: 1px solid var(--paper-line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+}
+.audit-item-icon {
+  position: absolute;
+  inset-inline-start: -34px;
+  top: 12px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 900;
+  color: #fff;
+  border: 3px solid var(--body-bg, #F8FAFC);
+  box-shadow: 0 0 0 1px var(--paper-line);
+}
+.audit-item-icon.a-create  { background: var(--info, #0369A1); }
+.audit-item-icon.a-approve { background: var(--success); }
+.audit-item-icon.a-reject,
+.audit-item-icon.a-delete  { background: var(--danger); }
+.audit-item-icon.a-update  { background: var(--warning); }
+.audit-item-icon.a-close,
+.audit-item-icon.a-restore,
+.audit-item-icon.a-import  { background: var(--brand-slate-700, var(--steel)); }
+.audit-item-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.audit-item-title {
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--ink);
+}
+.audit-item-action {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .3px;
+}
+.audit-item-time {
+  font-size: 11.5px;
+  color: var(--muted);
+  white-space: nowrap;
+  font-family: 'Oswald', sans-serif;
+}
+.audit-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.audit-item-meta b { color: var(--ink); font-weight: 700; }
+.audit-item-note {
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: var(--ink);
+  background: rgba(0,0,0,.03);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+body[data-theme="dark"] .audit-item-note { background: rgba(255,255,255,.04); }
+.audit-item-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  margin-top: 6px;
+  color: var(--muted);
 }

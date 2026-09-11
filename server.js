@@ -924,6 +924,22 @@ function sanitizeStr(val, maxLen = 500) {
 }
 
 /**
+ * setDownloadFilename — يضبط ترويسة Content-Disposition باسم عربي حقيقي
+ * قابل للقراءة (مش رقم/ID تقني) لأي ملف يُنزَّل. المتصفحات الحديثة كلها
+ * تدعم filename*=UTF-8'' (RFC 6266) فتُظهر الاسم العربي الفعلي، مع اسم
+ * احتياطي ASCII بسيط للمتصفحات القديمة النادرة التي لا تدعمه.
+ * @param {import('express').Response} res
+ * @param {string} niceNameNoExt — اسم الملف بدون الامتداد (عربي مسموح)
+ * @param {string} ext — الامتداد بدون نقطة (مثال: 'pdf', 'xlsx')
+ */
+function setDownloadFilename(res, niceNameNoExt, ext) {
+  const clean = String(niceNameNoExt).replace(/["\\\r\n\/]/g, ' ').replace(/\s+/g, '_').trim().slice(0, 150) || 'file';
+  const asciiFallback = clean.replace(/[^\x20-\x7E]/g, '') .replace(/_+/g, '_').replace(/^_|_$/g, '') || 'download';
+  const encoded = encodeURIComponent(`${clean}.${ext}`);
+  res.setHeader('Content-Disposition', `attachment; filename="${asciiFallback}.${ext}"; filename*=UTF-8''${encoded}`);
+}
+
+/**
  * Clamps a numeric value to [min, max]; returns fallback on NaN.
  */
 function clampInt(val, min, max, fallback) {
@@ -2772,7 +2788,7 @@ app.get('/api/export-hazards', authenticateToken, requireRole('super_admin', 'hs
     });
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="Hazard_Reports_${Date.now()}.xlsx"`);
+    setDownloadFilename(res, `سجل بلاغات الخطورة - ${new Date().toISOString().slice(0,10)}`, 'xlsx');
 
     await workbook.xlsx.write(res);
     return res.end();
@@ -3276,7 +3292,7 @@ app.post('/api/users',
     if (!username || !password || !role || !name) {
       return res.status(400).json({ error: 'جميع الحقول مطلوبة' });
     }
-    const VALID_ROLES = ['super_admin', 'hse_admin', 'dept_admin'];
+    const VALID_ROLES = ['super_admin', 'hse_admin', 'dept_admin', 'ceo'];
     if (!VALID_ROLES.includes(role)) {
       return res.status(400).json({ error: `الدور غير صالح. الأدوار المتاحة: ${VALID_ROLES.join(', ')}` });
     }
@@ -3436,31 +3452,23 @@ app.get('/api/employees/lookup/:code', (req, res) => {
   const emp = employees.find(e => normalizeEmpCode(e.code || e.empCode) === searchCode);
   if (!emp) return res.json({ found: false });
 
-  const payload = {
+  // ملاحظة: كود الموظف هنا دائمًا يُدخِل بصفة "عامل" عادي (نموذج تصريح
+  // العمل)، حتى لو كان الموظف نفسه صاحب حساب Executive View — الوصول
+  // لهذا الحساب الخاص يتم فقط عبر "دخول المشرفين/الإدارة" (اسم مستخدم +
+  // كلمة مرور)، تمامًا مثل أي حساب أدمن آخر. هذا يضمن أن دخول أي شخص
+  // بكوده الوظيفي العادي يظهر له دائمًا واجهة موظف عادية، ولا يكشف عن
+  // وجود حساب خاص إطلاقًا. 11 سبتمبر 2026.
+  res.json({
     found: true,
     employee: {
       code:       emp.empCode,
       name:       emp.name       || '',
       department: emp.department  || '',
       jobTitle:   emp.jobTitle   || '',
-      role:       emp.role       || 'worker',
+      role:       (emp.role === 'ceo' ? 'worker' : (emp.role || 'worker')),
       phone:      emp.phone      || ''
     }
-  };
-
-  // حساب "Executive View" الخاص بالمدير التنفيذي: نفس تسجيل الدخول بالكود
-  // الوظيفي العادي، لكن الدور 'ceo' يستحق توكن JWT حقيقي لأنه يحتاج قراءة
-  // مؤشرات الشركة كلها من endpoint محمي (read-only بالكامل — بدون أي صلاحية
-  // كتابة أو تعديل مهما كان الدور المُرسَل في التوكن). 11 سبتمبر 2026.
-  if (emp.role === 'ceo') {
-    payload.token = jwt.sign(
-      { id: emp.empCode, empCode: emp.empCode, username: emp.empCode, role: 'ceo', name: emp.name },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES }
-    );
-  }
-
-  res.json(payload);
+  });
 });
 
 // ── GET /api/employees/export-excel — تصدير قاعدة الموظفين كـ xlsx
@@ -3504,7 +3512,7 @@ app.get('/api/employees/export-excel',
       ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
       ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD51E27' } };
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.setHeader('Content-Disposition', `attachment; filename="employees_${Date.now()}.xlsx"`);
+      setDownloadFilename(res, `دليل الموظفين - ${new Date().toISOString().slice(0,10)}`, 'xlsx');
       await wb.xlsx.write(res);
       return res.end();
     } catch (err) {
@@ -4262,7 +4270,7 @@ app.post('/api/trainings/export-bulk', authenticateToken, requireRole('super_adm
     });
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="Bulk_Trainings.xlsx"`);
+    setDownloadFilename(res, `سجل المحاضرات التدريبية - ${new Date().toISOString().slice(0,10)}`, 'xlsx');
     await workbook.xlsx.write(res);
     res.end();
   } catch (error) {
@@ -4353,7 +4361,7 @@ app.get('/api/trainings/:id/export-excel', authenticateToken, requireRole('super
     });
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="Training_${trn.id}.xlsx"`);
+    setDownloadFilename(res, `محاضرة - ${trn.topic || trn.title || ''} - ${trn.date || ''}`, 'xlsx');
     await wb.xlsx.write(res);
     res.end();
   } catch (err) {
@@ -4491,7 +4499,7 @@ app.get('/api/drills/export/:id', authenticateTokenFlexible, async (req, res) =>
     }
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="drill_attendance_${drl.id}.xlsx"`);
+    setDownloadFilename(res, `حضور تجربة طوارئ - ${drl.title || ''} - ${drl.date || ''}`, 'xlsx');
     await wb.xlsx.write(res);
     res.end();
   } catch (err) {
@@ -4918,7 +4926,7 @@ app.get('/api/drills/:id/export-excel', authenticateToken, requireRole('super_ad
     });
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="Drill_${drl.id}.xlsx"`);
+    setDownloadFilename(res, `تجربة طوارئ - ${drl.title || ''} - ${drl.date || ''}`, 'xlsx');
     await wb.xlsx.write(res);
     res.end();
   } catch (err) {
@@ -5106,7 +5114,7 @@ app.get('/api/drills/:id/report/export', authenticateTokenFlexible, async (req, 
     const report = drl.report || defaultDrillReport();
     const buffer = await buildDrillReportDocx(drl, report);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    res.setHeader('Content-Disposition', `attachment; filename="Drill_Report_${drl.id}.docx"`);
+    setDownloadFilename(res, `تقرير تجربة طوارئ - ${drl.title || ''} - ${drl.date || ''}`, 'docx');
     res.send(buffer);
   } catch (err) {
     console.error('Export drill report error:', err);
@@ -5397,7 +5405,7 @@ function daysBetween(a, b) {
   return diff >= 0 ? diff : null;
 }
 
-app.get('/api/executive/overview', authenticateToken, requireRole('ceo'), (req, res) => {
+app.get('/api/executive/overview', authenticateToken, requireRole('ceo', 'super_admin', 'hse_admin'), (req, res) => {
   try {
     const storage = readStorage();
     let permits = storage['work-permits'];
@@ -5559,7 +5567,7 @@ app.get('/api/admin/backup/export', authenticateTokenFlexible, requireRole('supe
     const backup = dbExportAll();
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="hse-platform-backup-${stamp}.json"`);
+    setDownloadFilename(res, `نسخة احتياطية كاملة - ${stamp}`, 'json');
     res.send(JSON.stringify(backup));
   } catch (err) {
     console.error('[Backup] Export failed:', err);
@@ -6623,7 +6631,7 @@ app.get('/api/inspections/sections/:id/export', authenticateTokenFlexible, requi
       items.forEach((it, i) => {
         ws.addRow([i + 1, it.itemNumber || '', it.name || '', it.department || '', it.location || '']);
       });
-      res.setHeader('Content-Disposition', `attachment; filename="inspection_${safeSlug}_items.xlsx"`);
+      setDownloadFilename(res, `الفحص الشهري - ${section.name} - سجل الأصناف`, 'xlsx');
     } else {
       const year = parseInt(req.query.year, 10) || new Date().getFullYear();
       const month = parseInt(req.query.month, 10) || (new Date().getMonth() + 1);
@@ -6648,7 +6656,7 @@ app.get('/api/inspections/sections/:id/export', authenticateTokenFlexible, requi
           r && r.inspectionDate ? r.inspectionDate : '', r ? (r.inspector || '') : ''
         ]);
       });
-      res.setHeader('Content-Disposition', `attachment; filename="inspection_${safeSlug}_${year}_${month}.xlsx"`);
+      setDownloadFilename(res, `الفحص الشهري - ${section.name} - ${month}-${year}`, 'xlsx');
     }
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -6956,7 +6964,7 @@ app.get('/api/permits/:id/pdf', authenticateTokenFlexible, requireRole(...PDF_EX
 
     const doc = new PDFDocument({ size: 'A4', margin: PDF_PAGE_MARGIN, bufferPages: true });
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="Permit_${permit.id}.pdf"`);
+    setDownloadFilename(res, `تصريح عمل - ${permit.typeFullLabel || permit.typeLabel || ''} - ${permit.date || ''}`, 'pdf');
     doc.pipe(res);
 
     drawPdfHeader(doc, 'تصريح عمل', `Work Permit — ${permit.id}`);
@@ -7008,7 +7016,7 @@ app.get('/api/hazards/:id/pdf', authenticateTokenFlexible, requireRole(...PDF_EX
 
     const doc = new PDFDocument({ size: 'A4', margin: PDF_PAGE_MARGIN, bufferPages: true });
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="Hazard_${hazard.id}.pdf"`);
+    setDownloadFilename(res, `بلاغ خطورة - ${hazard.department || ''} - ${hazard.date || ''}`, 'pdf');
     doc.pipe(res);
 
     drawPdfHeader(doc, 'بلاغ خطورة', `Hazard Report — ${hazard.id}`);
@@ -7166,7 +7174,7 @@ app.post('/api/dashboard/export-excel-charts', authenticateToken, requireRole('s
     wsCharts.getColumn(1).width = 80;
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="dashboard_charts_${Date.now()}.xlsx"`);
+    setDownloadFilename(res, `لوحة التحكم بالرسوم البيانية - ${new Date().toISOString().slice(0,10)}`, 'xlsx');
     await wb.xlsx.write(res);
     res.end();
   } catch (err) {

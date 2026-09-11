@@ -52,7 +52,7 @@
         rel="stylesheet"
       />
     </noscript>
-    <link rel="stylesheet" href="style.min.css?v=2.34.2" />
+    <link rel="stylesheet" href="style.min.css?v=2.38.0" />
     <!-- PERF: xlsx.js (~900KB) and chart.js are only ever used AFTER login
          (dashboard charts, Excel export/import buttons) — never on this
          initial login screen. Loading them as normal <script> tags (even
@@ -104,6 +104,10 @@
       style="display: none"
     >
       <div class="worker-login-card">
+        <div class="login-pre-toggles">
+          <button type="button" class="theme-toggle-btn lang-toggle-btn" onclick="toggleLanguage()" title="Language / اللغة"><span id="langToggleLabelPre">EN</span></button>
+          <button type="button" class="theme-toggle-btn" onclick="toggleDarkMode()" title="الوضع الليلي"><span id="themeToggleIconPre">🌙</span></button>
+        </div>
         <div class="login-logo-box">
           <img
             src="icons/icon-192.png"
@@ -113,20 +117,21 @@
             onerror="this.style.display='none'"
           />
         </div>
-        <div class="wl-title">مرحباً بك</div>
+        <div class="wl-title" data-i18n="wlTitle">مرحباً بك</div>
         <div class="wl-sub">HSE Platform · Elsewedy Polymers</div>
 
         <!-- Single-step: code input only -->
         <div id="wl-step1">
           <div class="field" style="text-align: right">
             <label
-              >الكود الوظيفي
+              ><span data-i18n="wlCodeLabel">الكود الوظيفي</span>
               <span class="req-star">*</span>
             </label>
             <input
               id="wl_empCode"
               type="text"
               placeholder="أدخل كودك الوظيفي"
+              data-i18n-placeholder="wlCodePlaceholder"
               autocomplete="off"
               style="
                 text-align: center;
@@ -140,7 +145,7 @@
             />
           </div>
           <button class="submit-btn" id="wl_checkBtn" onclick="checkEmpCode()">
-            تسجيل الدخول ←
+            <span data-i18n="wlSubmit">تسجيل الدخول ←</span>
           </button>
           <div id="wl_checkMsg" class="wl-msg"></div>
         </div>
@@ -173,10 +178,10 @@
 
         <!-- فاصل: دخول المشرفين -->
         <div class="wl-divider">
-          <span>أو</span>
+          <span data-i18n="wlOr">أو</span>
         </div>
         <button class="wl-admin-btn" onclick="goToAdminLogin()">
-          🛡️ دخول المشرفين / الإدارة
+          🛡️ <span data-i18n="wlAdminLogin">دخول المشرفين / الإدارة</span>
         </button>
       </div>
     </div>
@@ -219,6 +224,15 @@
 
           <!-- GLOBAL SYNC & NOTIFICATION BELL -->
           <div class="app-header-actions">
+            <button
+              type="button"
+              id="btnLangToggle"
+              class="theme-toggle-btn lang-toggle-btn"
+              onclick="toggleLanguage()"
+              title="Language / اللغة"
+            >
+              <span id="langToggleLabel">EN</span>
+            </button>
             <button
               type="button"
               id="btnThemeToggle"
@@ -334,7 +348,7 @@
               class="user-profile-chip-container"
               id="globalUserProfileChip"
             ></div>
-            <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
+            <button class="logout-btn" onclick="logout()"><span data-i18n="logout">تسجيل الخروج</span></button>
           </div>
 
           <button
@@ -361,36 +375,22 @@
           id="tabDashboard"
           onclick="switchTab('dashboard')"
           style="display: none"
-        >
-          📊 لوحة التحكم
-        </div>
-        <div class="tab active" id="tabWorker" onclick="switchTab('worker')">
-          📝 تصاريح العمل
-        </div>
+        ><span data-i18n="tabDashboard">📊 لوحة التحكم</span></div>
+        <div class="tab active" id="tabWorker" onclick="switchTab('worker')"><span data-i18n="tabWorker">📝 تصاريح العمل</span></div>
         <div
           class="tab"
           id="tabHazardWorker"
           onclick="switchTab('hazardWorker')"
-        >
-          ⚠️ الإبلاغ عن خطورة
-        </div>
-        <div class="tab" id="tabMyHistory" onclick="switchTab('myhistory')">
-          📁 سجل تصاريح العمل
-        </div>
-        <div class="tab" id="tabMyHazards" onclick="switchTab('myhazards')">
-          📋 سجل بلاغاتي
-        </div>
-        <div class="tab" id="tabSup" onclick="switchTab('sup')">
-          📋 تصاريح العمل
-        </div>
+        ><span data-i18n="tabHazardWorker">⚠️ الإبلاغ عن خطورة</span></div>
+        <div class="tab" id="tabMyHistory" onclick="switchTab('myhistory')"><span data-i18n="tabMyHistory">📁 سجل تصاريح العمل</span></div>
+        <div class="tab" id="tabMyHazards" onclick="switchTab('myhazards')"><span data-i18n="tabMyHazards">📋 سجل بلاغاتي</span></div>
+        <div class="tab" id="tabSup" onclick="switchTab('sup')"><span data-i18n="tabSup">📋 تصاريح العمل</span></div>
         <div
           class="tab"
           id="tabSupHazard"
           onclick="switchTab('supHazard')"
           style="display: none"
-        >
-          ⚠️ بلاغات الخطورة
-          <span id="hzSupBadge" class="badge-count" style="display: none"
+        ><span data-i18n="tabSupHazard">⚠️ بلاغات الخطورة</span><span id="hzSupBadge" class="badge-count" style="display: none"
             >0</span
           >
         </div>
@@ -399,77 +399,57 @@
           id="tabUsers"
           onclick="switchTab('users')"
           style="display: none"
-        >
-          👥 المستخدمون
-        </div>
+        ><span data-i18n="tabUsers">👥 المستخدمون</span></div>
         <div
           class="tab"
           id="tabEmployees"
           onclick="switchTab('employees')"
           style="display: none"
-        >
-          🗂️ الموظفين
-        </div>
+        ><span data-i18n="tabEmployees">🗂️ الموظفين</span></div>
         <div
           class="tab"
           id="tabTrainingWorker"
           onclick="switchTab('trainingWorker')"
-        >
-          🎓 التدريب والتوعية
-        </div>
+        ><span data-i18n="tabTrainingWorker">🎓 التدريب والتوعية</span></div>
         <div
           class="tab"
           id="tabTrainingAdmin"
           onclick="switchTab('trainingAdmin')"
           style="display: none"
-        >
-          🎓 إدارة المحاضرات
-        </div>
-        <div class="tab" id="tabDrillWorker" onclick="switchTab('drillWorker')">
-          🚨 تجارب الطوارئ
-        </div>
+        ><span data-i18n="tabTrainingAdmin">🎓 إدارة المحاضرات</span></div>
+        <div class="tab" id="tabDrillWorker" onclick="switchTab('drillWorker')"><span data-i18n="tabDrillWorker">🚨 تجارب الطوارئ</span></div>
         <div
           class="tab"
           id="tabDrillAdmin"
           onclick="switchTab('drillAdmin')"
           style="display: none"
-        >
-          🚨 إدارة تجارب الطوارئ
-        </div>
+        ><span data-i18n="tabDrillAdmin">🚨 إدارة تجارب الطوارئ</span></div>
         <div
           class="tab"
           id="tabPenaltiesWorker"
           onclick="switchTab('penaltiesWorker')"
           style="display: none"
-        >
-          ⚖️ الجزاءات
-        </div>
+        ><span data-i18n="tabPenaltiesWorker">⚖️ الجزاءات</span></div>
         <div
           class="tab"
           id="tabPenaltiesAdmin"
           onclick="switchTab('penaltiesAdmin')"
           style="display: none"
-        >
-          ⚖️ الجزاءات
-        </div>
+        ><span data-i18n="tabPenaltiesAdmin">⚖️ الجزاءات</span></div>
         <!-- 🦺 MONTHLY INSPECTION TAB — hse_admin/super_admin only -->
         <div
           class="tab"
           id="tabInspections"
           onclick="switchTab('inspections')"
           style="display: none"
-        >
-          🦺 الفحص الشهري
-        </div>
+        ><span data-i18n="tabInspections">🦺 الفحص الشهري</span></div>
         <!-- 🛡️ AUDIT LOG TAB — hse_admin/super_admin only -->
         <div
           class="tab"
           id="tabAuditLog"
           onclick="switchTab('auditlog')"
           style="display: none"
-        >
-          🛡️ سجل التدقيق
-        </div>
+        ><span data-i18n="tabAuditLog">🛡️ سجل التدقيق</span></div>
       </div>
 
       <!-- 📊 DASHBOARD VIEW -->
@@ -1059,6 +1039,7 @@
                 <option value="super_admin">Super Admin — مدير النظام</option>
                 <option value="hse_admin">HSE Admin — مشرف سلامة</option>
                 <option value="dept_admin">Dept Admin — أدمن قسم</option>
+                <option value="ceo">Executive View — عرض تنفيذي (قراءة فقط)</option>
               </select>
             </div>
           </div>
@@ -1139,6 +1120,7 @@
                 <option value="super_admin">Super Admin — مدير النظام</option>
                 <option value="hse_admin">HSE Admin — مشرف سلامة</option>
                 <option value="dept_admin">Dept Admin — أدمن قسم</option>
+                <option value="ceo">Executive View — عرض تنفيذي (قراءة فقط)</option>
               </select>
             </div>
             <div class="field" id="um_editDeptRow" style="display: none">
@@ -1355,7 +1337,6 @@
                   <option value="hse_admin">مشرف سلامة (HSE Admin)</option>
                   <option value="dept_admin">أدمن قسم (Dept Admin)</option>
                   <option value="contractor">مقاول / خارجي</option>
-                  <option value="ceo">Executive View (قراءة فقط)</option>
                 </select>
               </div>
               <div class="field">
@@ -2389,6 +2370,6 @@
       </div>
     </div>
 
-    <script src="app.min.js?v=99.9.32" defer></script>
+    <script src="app.min.js?v=99.9.37" defer></script>
   </body>
 </html>

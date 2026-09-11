@@ -24,8 +24,10 @@ window.debounce = function(fn, wait) {
 })();
 function applyTheme(theme) {
   document.body.setAttribute('data-theme', theme);
-  const icon = document.getElementById('themeToggleIcon');
-  if (icon) icon.textContent = theme === 'dark' ? '☀️' : '🌙';
+  ['themeToggleIcon', 'themeToggleIconPre'].forEach(id => {
+    const icon = document.getElementById(id);
+    if (icon) icon.textContent = theme === 'dark' ? '☀️' : '🌙';
+  });
 }
 function toggleDarkMode() {
   const current = document.body.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
@@ -33,6 +35,76 @@ function toggleDarkMode() {
   applyTheme(next);
   try { localStorage.setItem('ep_theme', next); } catch (e) { /* ignore */ }
 }
+
+// ============================================================
+// 🌐 EN/AR — عربي/إنجليزي (تبديل حقيقي وليس نصف حل)
+// ============================================================
+// التغطية الكاملة تشمل: كل عناصر التنقل (التابات) في كل الأدوار، شاشة
+// دخول الموظف، أزرار عامة (تسجيل الخروج...)، وشاشة المدير التنفيذي
+// بالكامل (renderExecutiveView تتحقق من اللغة الحالية وتبني نصوصها
+// بالإنجليزية مباشرة). محتوى ديناميكي أعمق (نماذج التصاريح التفصيلية،
+// سجلات كل تبويب) يبقى عربيًا حاليًا — تغطية كاملة له تتطلب ترجمة آلاف
+// السطور، خارج نطاق هذا التحديث. اتجاه الصفحة (RTL) يبقى ثابتًا في كل
+// الأحوال لتفادي كسر تخطيط الصفحة بالكامل. 11 سبتمبر 2026.
+const I18N_DICT = {
+  tabDashboard:       { ar: '📊 لوحة التحكم', en: '📊 Dashboard' },
+  tabWorker:          { ar: '📝 تصاريح العمل', en: '📝 Work Permits' },
+  tabHazardWorker:    { ar: '⚠️ الإبلاغ عن خطورة', en: '⚠️ Report Hazard' },
+  tabMyHistory:       { ar: '📁 سجل تصاريح العمل', en: '📁 My Permits' },
+  tabMyHazards:       { ar: '📋 سجل بلاغاتي', en: '📋 My Reports' },
+  tabSup:             { ar: '📋 تصاريح العمل', en: '📋 Work Permits' },
+  tabSupHazard:       { ar: '⚠️ بلاغات الخطورة', en: '⚠️ Hazard Reports' },
+  tabUsers:           { ar: '👥 المستخدمون', en: '👥 Users' },
+  tabEmployees:       { ar: '🗂️ الموظفين', en: '🗂️ Employees' },
+  tabTrainingWorker:  { ar: '🎓 التدريب والتوعية', en: '🎓 Training' },
+  tabTrainingAdmin:   { ar: '🎓 إدارة المحاضرات', en: '🎓 Manage Training' },
+  tabDrillWorker:     { ar: '🚨 تجارب الطوارئ', en: '🚨 Emergency Drills' },
+  tabDrillAdmin:      { ar: '🚨 إدارة تجارب الطوارئ', en: '🚨 Manage Drills' },
+  tabPenaltiesWorker: { ar: '⚖️ الجزاءات', en: '⚖️ Penalties' },
+  tabPenaltiesAdmin:  { ar: '⚖️ الجزاءات', en: '⚖️ Penalties' },
+  tabInspections:     { ar: '🦺 الفحص الشهري', en: '🦺 Monthly Inspection' },
+  tabAuditLog:        { ar: '🛡️ سجل التدقيق', en: '🛡️ Audit Log' },
+  wlTitle:            { ar: 'مرحباً بك', en: 'Welcome' },
+  wlCodeLabel:        { ar: 'الكود الوظيفي', en: 'Employee Code' },
+  wlCodePlaceholder:  { ar: 'أدخل كودك الوظيفي', en: 'Enter your employee code' },
+  wlSubmit:           { ar: 'تسجيل الدخول ←', en: 'Login ←' },
+  wlOr:                { ar: 'أو', en: 'or' },
+  wlAdminLogin:       { ar: 'دخول المشرفين / الإدارة', en: 'Admin / Management Login' },
+  logout:             { ar: 'تسجيل الخروج', en: 'Logout' },
+};
+
+function applyLanguage(lang) {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const entry = I18N_DICT[el.getAttribute('data-i18n')];
+    if (entry) el.textContent = entry[lang] || entry.ar;
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const entry = I18N_DICT[el.getAttribute('data-i18n-placeholder')];
+    if (entry) el.placeholder = entry[lang] || entry.ar;
+  });
+  document.documentElement.lang = lang === 'en' ? 'en' : 'ar';
+  ['langToggleLabel', 'langToggleLabelPre'].forEach(id => {
+    const labelEl = document.getElementById(id);
+    if (labelEl) labelEl.textContent = lang === 'en' ? 'ع' : 'EN';
+  });
+  window._currentLang = lang;
+  // شاشات مبنية بالكامل عبر JS (لا تستخدم data-i18n) تحتاج إعادة رسم
+  // نفسها لتتغير لغتها فورًا لو كانت ظاهرة حاليًا.
+  if (sessionRole === 'ceo' && typeof renderExecutiveView === 'function') renderExecutiveView();
+}
+
+function toggleLanguage() {
+  const next = (window._currentLang === 'en') ? 'ar' : 'en';
+  applyLanguage(next);
+  try { localStorage.setItem('ep_lang', next); } catch (e) { /* ignore */ }
+}
+
+(function initLanguage() {
+  try {
+    const saved = localStorage.getItem('ep_lang');
+    applyLanguage(saved === 'en' ? 'en' : 'ar');
+  } catch (e) { /* ignore */ }
+})();
 
 // ============================================================
 // ⚠️ GLOBAL ERROR BOUNDARY & FALLBACKS
@@ -503,8 +575,15 @@ function applyRbacUI() {
   // ── Executive View (CEO): read-only, no tabs, no nav at all ─────────
   setDisplay('viewExecutive', isCeo);
   if (isCeo) {
-    const viewWorkerEl = document.getElementById('viewWorker');
-    if (viewWorkerEl) viewWorkerEl.style.display = 'none';
+    // Force-hide every other tab view — in particular #viewSup, which
+    // goToAdminLogin() leaves visible (with the filled-in login form
+    // still in the DOM) while the CEO types their credentials into it.
+    // Without this, that admin gate stayed on-screen underneath the
+    // Executive View after a successful CEO login.
+    ['viewDashboard','viewInspections','viewAuditLog','viewWorker','viewHazardWorker',
+     'viewMyHistory','viewMyHazards','viewSup','viewSupHazard','viewUsers','viewEmployees',
+     'viewTrainingWorker','viewTrainingAdmin','viewDrillWorker','viewDrillAdmin',
+     'viewPenaltiesWorker','viewPenaltiesAdmin'].forEach(id => setDisplay(id, false));
     const empArea = document.getElementById('empBadgeArea');
     if (empArea) empArea.style.display = 'none';
   }
@@ -707,6 +786,10 @@ function switchTab(which){
     clearInterval(window.drlWorkerPollTimer);
     window.drlWorkerPollTimer = null;
   }
+  if(which !== 'auditlog' && window.auditPollTimer){
+    clearInterval(window.auditPollTimer);
+    window.auditPollTimer = null;
+  }
 
   if(which==='sup'){
     if(isLoggedIn){ showDashboard(); } else { renderLoginGate(); }
@@ -859,6 +942,12 @@ async function attemptLogin(){
     }
     const data = await res.json();
     if(data.token) saveToken(data.token);
+    // Clear the password out of the DOM now that it's no longer needed —
+    // the login form stays mounted (just hidden) behind the dashboard/
+    // Executive View, so leaving it filled would keep the plaintext
+    // password sitting in the page.
+    const passField = document.getElementById('loginPass');
+    if (passField) passField.value = '';
     const mustChangePassword = data.mustChangePassword === true;
     isLoggedIn      = true;
     currentUsername = data.user.username;
@@ -874,28 +963,33 @@ async function attemptLogin(){
       super_admin: 'مدير النظام',
       hse_admin:   'مشرف السلامة',
       dept_admin:  'أدمن قسم',
-      maint_admin: 'أدمن صيانة'
+      maint_admin: 'أدمن صيانة',
+      ceo:         'Executive View'
     };
     const roleLabel = ADMIN_ROLE_LABELS[currentUserRole] || 'مشرف';
+    const isCeo = currentUserRole === 'ceo';
 
     // ✦ شاشة الترحيب المتحركة أولاً، ثم دخول لوحة التحكم بعد انتهائها
     showAnimatedWelcome({
       name: currentUserName,
-      subtitle: currentUserDept ? `${roleLabel} · ${currentUserDept}` : roleLabel,
+      subtitle: isCeo ? 'Executive View — عرض تنفيذي للمؤشرات' : (currentUserDept ? `${roleLabel} · ${currentUserDept}` : roleLabel),
       onDone: () => {
         // ── Set RBAC session role and rebuild UI ──────────────────
-        sessionRole = 'supervisor';
-        showUserBadge();
+        sessionRole = isCeo ? 'ceo' : 'supervisor';
+        if (!isCeo) showUserBadge();
         applyRbacUI();
 
-        try {
-          startNotificationPolling();
-        } catch (err) {
-          console.warn('Non-critical notification setup error:', err);
+        if (isCeo) {
+          renderExecutiveView();
+        } else {
+          try {
+            startNotificationPolling();
+          } catch (err) {
+            console.warn('Non-critical notification setup error:', err);
+          }
+          // Switch to supervisor view — دايماً افتراضي على لوحة التحكم لكل أدمن بما فيهم الصيانة
+          switchTab('dashboard'); // 📊 Default landing: Dashboard
         }
-
-        // Switch to supervisor view — دايماً افتراضي على لوحة التحكم لكل أدمن بما فيهم الصيانة
-        switchTab('dashboard'); // 📊 Default landing: Dashboard
 
         // ── إجبار تغيير كلمة المرور الافتراضية قبل السماح بأي استخدام فعلي ──
         // (11 سبتمبر 2026 — يظهر فقط لحسابات ما زالت تستخدم admin123/123456)
@@ -1122,26 +1216,6 @@ function initEmployeeSession(){
     const saved = localStorage.getItem('ep_currentEmployee');
     if(saved){
       currentEmployee = JSON.parse(saved);
-
-      // حساب Executive View: التوكن يعيش في sessionStorage (يُمسح عند
-      // إغلاق التبويب) — لو مفقود، الجلسة المحفوظة بقت غير صالحة ولازم
-      // إعادة تسجيل الدخول بدل عرض شاشة تنفيذية بدون بيانات.
-      if (currentEmployee.role === 'ceo') {
-        if (!getToken()) {
-          localStorage.removeItem('ep_currentEmployee');
-          currentEmployee = null;
-          sessionRole = 'none';
-          document.body.dataset.session = 'none';
-          showWorkerLoginOverlay();
-          renderForm();
-          return;
-        }
-        sessionRole = 'ceo';
-        applyRbacUI();
-        hideWorkerLoginOverlay();
-        renderExecutiveView();
-        return;
-      }
 
       // Restore RBAC state before touching UI
       sessionRole = 'worker';
@@ -1387,28 +1461,30 @@ async function renderExecutiveView(){
   if (view) view.style.display = 'block';
   const container = document.getElementById('executiveContent');
   if (!container) return;
-  container.innerHTML = '<div class="loading">جارِ تحميل المؤشرات…</div>';
+  const L = (window._currentLang === 'en');
+  container.innerHTML = `<div class="loading">${L ? 'Loading metrics…' : 'جارِ تحميل المؤشرات…'}</div>`;
 
   try{
     const res = await authFetch('/api/executive/overview');
     if (!res.ok) {
-      container.innerHTML = '<div class="empty"><div class="icon">✦</div>تعذّر تحميل المؤشرات، حاول تحديث الصفحة</div>';
+      container.innerHTML = `<div class="empty"><div class="icon">✦</div>${L ? 'Failed to load metrics, please refresh' : 'تعذّر تحميل المؤشرات، حاول تحديث الصفحة'}</div>`;
       return;
     }
     const d = await res.json();
     const t = d.totals || {};
     const permitsApproved = (d.permits && d.permits.byStatus && d.permits.byStatus.approved) || 0;
     const scoreLabel = d.companySafetyScore == null ? '—' : d.companySafetyScore;
+    const dayWord = L ? 'days' : 'يوم';
 
     const kpis = [
-      { value: t.employees ?? '—', label: 'إجمالي الموظفين' },
-      { value: t.permits ?? '—', label: 'تصاريح العمل', sub: `${permitsApproved} معتمد` },
-      { value: t.hazards ?? '—', label: 'بلاغات الخطورة', sub: `${t.openHazards ?? 0} مفتوح حاليًا` },
-      { value: d.permits && d.permits.avgApprovalDays != null ? d.permits.avgApprovalDays + ' يوم' : '—', label: 'متوسط زمن اعتماد التصريح' },
-      { value: d.hazards && d.hazards.avgClosureDays != null ? d.hazards.avgClosureDays + ' يوم' : '—', label: 'متوسط زمن إغلاق البلاغ' },
-      { value: t.activePenalties ?? '—', label: 'الجزاءات النشطة' },
-      { value: (d.training && d.training.uniqueEmployeesTrainedLast12Months) ?? '—', label: 'موظف تم تدريبه (آخر سنة)' },
-      { value: (d.drills && d.drills.sessionsLast12Months) ?? '—', label: 'تجارب طوارئ (آخر سنة)' },
+      { value: t.employees ?? '—', label: L ? 'Total Employees' : 'إجمالي الموظفين' },
+      { value: t.permits ?? '—', label: L ? 'Work Permits' : 'تصاريح العمل', sub: `${permitsApproved} ${L ? 'approved' : 'معتمد'}` },
+      { value: t.hazards ?? '—', label: L ? 'Hazard Reports' : 'بلاغات الخطورة', sub: `${t.openHazards ?? 0} ${L ? 'currently open' : 'مفتوح حاليًا'}` },
+      { value: d.permits && d.permits.avgApprovalDays != null ? `${d.permits.avgApprovalDays} ${dayWord}` : '—', label: L ? 'Avg. Permit Approval Time' : 'متوسط زمن اعتماد التصريح' },
+      { value: d.hazards && d.hazards.avgClosureDays != null ? `${d.hazards.avgClosureDays} ${dayWord}` : '—', label: L ? 'Avg. Hazard Closure Time' : 'متوسط زمن إغلاق البلاغ' },
+      { value: t.activePenalties ?? '—', label: L ? 'Active Penalties' : 'الجزاءات النشطة' },
+      { value: (d.training && d.training.uniqueEmployeesTrainedLast12Months) ?? '—', label: L ? 'Employees Trained (last year)' : 'موظف تم تدريبه (آخر سنة)' },
+      { value: (d.drills && d.drills.sessionsLast12Months) ?? '—', label: L ? 'Emergency Drills (last year)' : 'تجارب طوارئ (آخر سنة)' },
     ];
 
     const board = (d.departmentLeaderboard || []).slice(0, 12);
@@ -1416,12 +1492,12 @@ async function renderExecutiveView(){
 
     container.innerHTML = `
       <div class="exec-hero">
-        <div class="exec-hero-eyebrow">Executive View — عرض تنفيذي</div>
+        <div class="exec-hero-eyebrow">Executive View${L ? '' : ' — عرض تنفيذي'}</div>
         <div class="exec-hero-name">${escapeHtml(currentEmployee && currentEmployee.name || '')}</div>
-        <div class="exec-hero-role">${escapeHtml(currentEmployee && currentEmployee.jobTitle || 'المدير التنفيذي')} · قراءة فقط</div>
+        <div class="exec-hero-role">${escapeHtml(currentEmployee && currentEmployee.jobTitle || (L ? 'Managing Director' : 'المدير التنفيذي'))} · ${L ? 'Read only' : 'قراءة فقط'}</div>
         <div class="exec-hero-score">
           <div class="num">${scoreLabel}</div>
-          <div class="label">مؤشر السلامة العام للشركة (من 100) — متوسط أداء كل الأقسام</div>
+          <div class="label">${L ? 'Company-wide safety score (out of 100) — average across all departments' : 'مؤشر السلامة العام للشركة (من 100) — متوسط أداء كل الأقسام'}</div>
         </div>
       </div>
 
@@ -1435,7 +1511,7 @@ async function renderExecutiveView(){
         `).join('')}
       </div>
 
-      <div class="exec-section-title">ترتيب الأقسام حسب الالتزام بالسلامة</div>
+      <div class="exec-section-title">${L ? 'Department ranking by safety compliance' : 'ترتيب الأقسام حسب الالتزام بالسلامة'}</div>
       <div class="exec-leaderboard">
         ${board.length ? board.map((b, idx) => `
           <div class="exec-leaderboard-row">
@@ -1448,19 +1524,19 @@ async function renderExecutiveView(){
             </div>
             <div class="exec-leaderboard-score">${b.score}</div>
           </div>
-        `).join('') : '<div class="empty" style="padding:24px"><div class="icon">✦</div>لا توجد بيانات كافية بعد</div>'}
+        `).join('') : `<div class="empty" style="padding:24px"><div class="icon">✦</div>${L ? 'Not enough data yet' : 'لا توجد بيانات كافية بعد'}</div>`}
       </div>
 
       <div style="text-align:center; margin-top:26px">
-        <button class="logout-btn" onclick="logout()">تسجيل الخروج</button>
+        <button class="logout-btn" onclick="logout()">${L ? 'Logout' : 'تسجيل الخروج'}</button>
       </div>
       <div class="exec-footer-note">
-        بيانات لحظية — آخر تحديث ${new Date(d.generatedAt).toLocaleString('ar-EG')}
+        ${L ? 'Live data — last updated' : 'بيانات لحظية — آخر تحديث'} ${new Date(d.generatedAt).toLocaleString(L ? 'en-US' : 'ar-EG')}
       </div>
     `;
   } catch(e){
     console.error('renderExecutiveView error', e);
-    container.innerHTML = '<div class="empty"><div class="icon">✦</div>لا يوجد اتصال بالسيرفر</div>';
+    container.innerHTML = `<div class="empty"><div class="icon">✦</div>${L ? 'No connection to server' : 'لا يوجد اتصال بالسيرفر'}</div>`;
   }
 }
 
@@ -1474,36 +1550,26 @@ function finishEmployeeLogin(emp){
     }
   }
 
-  const isCeo = emp.role === 'ceo';
-
   currentEmployee = emp;
   try{
     localStorage.setItem('ep_currentEmployee', JSON.stringify(emp));
     if (emp.empCode) {
       sessionStorage.setItem('last_logged_emp_code', String(emp.empCode));
     }
-    if (isCeo && emp.ceoToken) saveToken(emp.ceoToken);
   } catch(e){ /* ignore */ }
 
   // ✦ شاشة الترحيب المتحركة أولاً، ثم دخول الواجهة الفعلية بعد انتهائها
   showAnimatedWelcome({
     name: emp.name,
-    subtitle: isCeo ? 'Executive View — عرض تنفيذي للمؤشرات' : (emp.department || ''),
+    subtitle: emp.department || '',
     onDone: () => {
-      sessionRole = isCeo ? 'ceo' : 'worker';
+      sessionRole = 'worker';
       applyRbacUI();
       hideWorkerLoginOverlay();
-
-      if (isCeo) {
-        renderExecutiveView();
-        return;
-      }
-
       showEmpBadge();
       autoFillForm();
       startNotificationPolling();
       subscribeUserToPush();
-      // switchTab guard now allows 'worker' since sessionRole === 'worker'
       switchTab('dashboard'); // 📊 Default landing: Dashboard
       if (typeof window.populateTrainerInfo === 'function') window.populateTrainerInfo();
     }
@@ -7428,12 +7494,17 @@ window.exportDashboardExcelWithCharts = async function() {
 function _dashExecSnapshotHTML(data) {
   const { permits, hazards, trainings, drills } = data;
 
-  // Paper saved: every digitized permit, hazard report, drill report and
-  // training attendance sheet replaces the ~2 paper sheets (form + copy)
-  // that used to be filled and filed by hand for the same record.
-  const PAPER_PER_RECORD = 2;
-  const digitizedRecords = (permits.total || 0) + (hazards.total || 0) + (drills.total || 0) + (trainings.total || 0);
-  const paperSaved = digitizedRecords * PAPER_PER_RECORD;
+  // Paper saved: a permit or a hazard report is one single-page paper form
+  // in the old process (1 sheet each). A training or drill session used to
+  // need a printed attendance/sign-in sheet on top of the session's own
+  // cover form (2 sheets each) — طلب صريح من المستخدم بتصحيح هذا الحساب.
+  const PAPER_PER_SINGLE_FORM = 1;   // تصريح عمل / بلاغ خطورة
+  const PAPER_PER_SESSION = 2;       // محاضرة تدريبية / تجربة طوارئ (كشف حضور + نموذج الجلسة)
+  const paperSaved =
+    (permits.total || 0) * PAPER_PER_SINGLE_FORM +
+    (hazards.total || 0) * PAPER_PER_SINGLE_FORM +
+    (trainings.total || 0) * PAPER_PER_SESSION +
+    (drills.total || 0) * PAPER_PER_SESSION;
 
   return `
     <div class="dash-exec-snapshot">
@@ -7453,7 +7524,7 @@ function _dashExecSnapshotHTML(data) {
           <span class="dash-exec-icon">${dicon('check', 28)}</span>
           <div class="dash-exec-value">${paperSaved.toLocaleString('en-US')}</div>
           <div class="dash-exec-label">ورقة تم توفيرها</div>
-          <div class="dash-exec-sub">≈ ${PAPER_PER_RECORD} ورقة لكل تصريح / بلاغ / تجربة / محاضرة تم رقمنتها بدل الفورم الورقي</div>
+          <div class="dash-exec-sub">ورقة واحدة لكل تصريح/بلاغ، وورقتان لكل محاضرة/تجربة طوارئ (كشف حضور)</div>
         </div>
       </div>
     </div>`;
@@ -8217,6 +8288,30 @@ function renderDashboardHTML(container, data) {
         </div>
       </div>
 
+      <!-- Speed & department leaderboard (من /api/executive/overview) — نظرة
+           على مستوى الشركة كلها، فتظهر فقط لـ super_admin/hse_admin؛ أدمن
+           القسم يبقى مقصورًا على بيانات قسمه فقط في باقي الصفحة. -->
+      ${(meta.role === 'super_admin' || meta.role === 'hse_admin') ? `
+      <div class="dash-section-title">${dicon('trend', 17)} كفاءة النظام مقارنة بالورقي</div>
+      <div class="dash-kpi-grid" id="dashSpeedKpis">
+        <div class="dash-kpi-card">
+          <span class="dash-kpi-icon">${dicon('doc', 26)}</span>
+          <div class="dash-kpi-value" id="kpiAvgApproval">…</div>
+          <div class="dash-kpi-label">متوسط زمن اعتماد التصريح</div>
+        </div>
+        <div class="dash-kpi-card">
+          <span class="dash-kpi-icon">${dicon('alert', 26)}</span>
+          <div class="dash-kpi-value" id="kpiAvgClosure">…</div>
+          <div class="dash-kpi-label">متوسط زمن إغلاق البلاغ</div>
+        </div>
+      </div>
+
+      <div class="dash-section-title">${dicon('bars', 17)} ترتيب الأقسام حسب الالتزام بالسلامة</div>
+      <div class="exec-leaderboard" id="dashDeptLeaderboard" style="margin-bottom:24px;">
+        <div class="loading">جارِ التحميل…</div>
+      </div>
+      ` : ''}
+
       <!-- Charts Row 1: Status pies -->
       <div class="dash-section-title">${dicon('trend', 17)} توزيع الإحصائيات</div>
       <div class="dash-chart-grid">
@@ -8303,6 +8398,50 @@ function renderDashboardHTML(container, data) {
     pctHazAchievedId:   'kpiHazardTargetPct',  subHazAchievedId:   'kpiHazardTargetSub',
     pctOverallId: 'execCompliancePct', subOverallId: 'execComplianceSub'
   });
+  if (meta.role === 'super_admin' || meta.role === 'hse_admin') {
+    _dashLoadSpeedAndLeaderboard();
+  }
+}
+
+/**
+ * _dashLoadSpeedAndLeaderboard — متوسط زمن اعتماد التصاريح/إغلاق البلاغات
+ * وترتيب الأقسام، من نفس تجميع /api/executive/overview المُستخدَم في
+ * حساب المدير التنفيذي — بدل تكرار نفس منطق التجميع مرتين.
+ */
+async function _dashLoadSpeedAndLeaderboard() {
+  const approvalEl = document.getElementById('kpiAvgApproval');
+  const closureEl  = document.getElementById('kpiAvgClosure');
+  const boardEl    = document.getElementById('dashDeptLeaderboard');
+  if (!approvalEl && !boardEl) return; // personal dashboard view — nothing to fill
+  try {
+    const res = await authFetch('/api/executive/overview');
+    if (!res.ok) throw new Error('fetch failed');
+    const d = await res.json();
+    if (approvalEl) approvalEl.textContent = d.permits && d.permits.avgApprovalDays != null ? `${d.permits.avgApprovalDays} يوم` : '—';
+    if (closureEl)  closureEl.textContent  = d.hazards && d.hazards.avgClosureDays != null ? `${d.hazards.avgClosureDays} يوم` : '—';
+
+    if (boardEl) {
+      const board = (d.departmentLeaderboard || []).slice(0, 8);
+      const maxScore = board.length ? Math.max(...board.map(b => b.score)) : 100;
+      boardEl.innerHTML = board.length ? board.map((b, idx) => `
+        <div class="exec-leaderboard-row">
+          <div class="exec-leaderboard-rank">${idx + 1}</div>
+          <div>
+            <div class="exec-leaderboard-name">${escapeHtml(b.department)}</div>
+            <div class="exec-leaderboard-bar-bg">
+              <div class="exec-leaderboard-bar-fill" style="width:${Math.max(2, (b.score / (maxScore || 100)) * 100)}%"></div>
+            </div>
+          </div>
+          <div class="exec-leaderboard-score">${b.score}</div>
+        </div>
+      `).join('') : '<div class="empty" style="padding:20px"><div class="icon">📊</div>لا توجد بيانات كافية بعد</div>';
+    }
+  } catch (e) {
+    console.error('_dashLoadSpeedAndLeaderboard error', e);
+    if (approvalEl) approvalEl.textContent = '—';
+    if (closureEl) closureEl.textContent = '—';
+    if (boardEl) boardEl.innerHTML = '<div class="empty" style="padding:20px;color:var(--danger);">فشل التحميل</div>';
+  }
 }
 
 // ── Quarterly target info ────────────────────────────────────────────────────
@@ -8657,16 +8796,18 @@ function renderInspectionCategoryPicker() {
   const root = document.getElementById('inspectionsContent');
   if (!root) return;
   root.innerHTML = `
-    <h3 class="section-title">🦺 الفحص الشهري</h3>
-    <p style="color:var(--muted);font-size:13.5px;margin:-8px 0 18px;">اختر برنامج الفحص</p>
+    <div class="insp-hero">
+      <div class="insp-hero-title">🦺 الفحص الشهري</div>
+      <div class="insp-hero-sub">اختر برنامج الفحص للبدء — سلامة المعدات وحواجز الحماية بالمصنع</div>
+    </div>
     <div class="insp-category-grid">
       <div class="insp-category-card" onclick="inspSelectCategory('P1')">
-        <div class="insp-cat-icon">🅟1</div>
+        <div class="insp-cat-icon">P1</div>
         <div class="insp-cat-title">برنامج P1</div>
         <div class="insp-cat-sub">33 بند فحص</div>
       </div>
       <div class="insp-category-card" onclick="inspSelectCategory('P2')">
-        <div class="insp-cat-icon">🅟2</div>
+        <div class="insp-cat-icon">P2</div>
         <div class="insp-cat-title">برنامج P2</div>
         <div class="insp-cat-sub">27 بند فحص</div>
       </div>
@@ -9283,12 +9424,22 @@ const AUDIT_ENTITY_LABELS = {
   'inspection-section': 'قسم فحص', 'inspection-item': 'صنف فحص', 'inspection-record': 'نتيجة فحص',
   database: 'قاعدة البيانات'
 };
-const AUDIT_ACTION_ICONS = {
-  create: '➕', update: '✏️', delete: '🗑️', approve: '✅', reject: '⛔',
-  close: '🔒', force_close: '🔒', restore: '↩️', 'import-legacy-excel': '📥'
+// كل إجراء بدائرة ملوّنة تدل على نوعه دلاليًا (أخضر=اعتماد، أحمر=رفض/حذف،
+// كحلي=إنشاء، برتقالي=تعديل) بدل إيموجي — شكل أقرب لسجل تدقيق مؤسسي رسمي.
+const AUDIT_ACTION_META = {
+  create:                { glyph: '+', cls: 'a-create',  label: 'إنشاء' },
+  update:                { glyph: '✎', cls: 'a-update',  label: 'تعديل' },
+  delete:                { glyph: '✕', cls: 'a-delete',  label: 'حذف' },
+  approve:               { glyph: '✓', cls: 'a-approve', label: 'اعتماد' },
+  reject:                { glyph: '✕', cls: 'a-reject',  label: 'رفض' },
+  close:                 { glyph: '✓', cls: 'a-close',   label: 'إغلاق' },
+  force_close:           { glyph: '✓', cls: 'a-close',   label: 'إغلاق قسري' },
+  restore:               { glyph: '↺', cls: 'a-restore', label: 'استرجاع' },
+  'import-legacy-excel':  { glyph: '↓', cls: 'a-import',  label: 'استيراد' },
 };
 
 let auditLogState = { entityType: '', q: '' };
+window.auditPollTimer = null;
 
 async function renderAuditLog() {
   const root = document.getElementById('auditLogContent');
@@ -9310,7 +9461,9 @@ async function renderAuditLog() {
     </div>` : ''}
 
     <div class="sup-header-row" style="margin-bottom:16px">
-      <h3>🛡️ سجل التدقيق — من عمل إيه وإمتى</h3>
+      <h3>سجل التدقيق — من عمل إيه وإمتى
+        <span class="audit-live-badge"><span class="audit-live-dot"></span> تحديث لحظي</span>
+      </h3>
     </div>
 
     <div class="adv-filter-box">
@@ -9333,9 +9486,17 @@ async function renderAuditLog() {
       </div>
     </div>
 
-    <div id="auditLogList"><div class="loading">جارِ التحميل…</div></div>
+    <div id="auditLogList"><div class="loading">جارِ تحميل السجل…</div></div>
   `;
   await auditLoadList();
+  if (!window.auditPollTimer) {
+    window.auditPollTimer = setInterval(() => auditLoadList(true), 8000);
+  }
+}
+
+/** يوقف تحديث سجل التدقيق اللحظي عند مغادرة التبويب — يُستدعى من switchTab */
+function stopAuditPolling() {
+  if (window.auditPollTimer) { clearInterval(window.auditPollTimer); window.auditPollTimer = null; }
 }
 
 function auditApplyFilters() {
@@ -9346,8 +9507,9 @@ function auditApplyFilters() {
   auditRenderList();
 }
 
-async function auditLoadList() {
+async function auditLoadList(isSilent) {
   const listEl = document.getElementById('auditLogList');
+  if (!listEl) { stopAuditPolling(); return; }
   try {
     const params = new URLSearchParams({ limit: '500' });
     if (auditLogState.entityType) params.set('entityType', auditLogState.entityType);
@@ -9357,9 +9519,25 @@ async function auditLoadList() {
     window._auditLogCache = data.entries || [];
     auditRenderList();
   } catch (e) {
-    console.error('Audit log load error', e);
-    if (listEl) listEl.innerHTML = '<div class="empty" style="color:var(--danger);">فشل تحميل سجل التدقيق</div>';
+    if (!isSilent) {
+      console.error('Audit log load error', e);
+      listEl.innerHTML = '<div class="empty" style="color:var(--danger);">فشل تحميل سجل التدقيق</div>';
+    }
   }
+}
+
+/** منذ متى؟ نص نسبي قريب ("منذ دقيقتين")، يتحول لتاريخ كامل بعد يوم */
+function auditRelativeTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  const diffSec = Math.round((Date.now() - d.getTime()) / 1000);
+  if (diffSec < 5) return 'الآن';
+  if (diffSec < 60) return `منذ ${diffSec} ثانية`;
+  const diffMin = Math.round(diffSec / 60);
+  if (diffMin < 60) return `منذ ${diffMin} دقيقة`;
+  const diffHr = Math.round(diffMin / 60);
+  if (diffHr < 24) return `منذ ${diffHr} ساعة`;
+  return d.toLocaleString('ar-EG');
 }
 
 function auditRenderList() {
@@ -9382,28 +9560,28 @@ function auditRenderList() {
     return;
   }
 
-  listEl.innerHTML = entries.map(e => {
-    const icon = AUDIT_ACTION_ICONS[e.action] || '•';
+  listEl.innerHTML = `<div class="audit-timeline">` + entries.map(e => {
+    const meta = AUDIT_ACTION_META[e.action] || { glyph: '•', cls: 'a-update', label: e.action };
     const entityLabel = AUDIT_ENTITY_LABELS[e.entityType] || e.entityType;
-    const when = e.timestamp ? new Date(e.timestamp).toLocaleString('ar-EG') : '—';
     const statusChange = (e.previousStatus || e.newStatus)
-      ? `<div class="review-note">${escapeHtml(e.previousStatus || '—')} ← ${escapeHtml(e.newStatus || '—')}</div>` : '';
+      ? `<div class="audit-item-status-chip">${escapeHtml(e.previousStatus || '—')} ← ${escapeHtml(e.newStatus || '—')}</div>` : '';
     return `
-      <div class="sup-card">
-        <div class="sup-top">
-          <div class="worker">${icon} ${escapeHtml(entityLabel)} <span class="type-pill">${escapeHtml(e.action)}</span></div>
-          <div class="tnum">${when}</div>
+      <div class="audit-item">
+        <div class="audit-item-icon ${meta.cls}">${meta.glyph}</div>
+        <div class="audit-item-head">
+          <div class="audit-item-title">${escapeHtml(entityLabel)} <span class="audit-item-action">${escapeHtml(meta.label)}</span></div>
+          <div class="audit-item-time" title="${e.timestamp ? new Date(e.timestamp).toLocaleString('ar-EG') : ''}">${auditRelativeTime(e.timestamp)}</div>
         </div>
-        <div class="meta-grid">
-          <div><span>المستخدم</span>${escapeHtml(e.actorName || e.actorUsername || '—')}</div>
-          <div><span>الدور</span>${escapeHtml(e.actorRole || '—')}</div>
-          <div><span>القسم</span>${escapeHtml(e.department || '—')}</div>
+        <div class="audit-item-meta">
+          <span><b>${escapeHtml(e.actorName || e.actorUsername || '—')}</b></span>
+          <span>${escapeHtml(e.actorRole || '—')}</span>
+          ${e.department ? `<span>${escapeHtml(e.department)}</span>` : ''}
         </div>
-        ${e.note ? `<div class="desc">${escapeHtml(e.note)}</div>` : ''}
+        ${e.note ? `<div class="audit-item-note">${escapeHtml(e.note)}</div>` : ''}
         ${statusChange}
       </div>
     `;
-  }).join('');
+  }).join('') + `</div>`;
 }
 
 /** downloadFullBackup — تنزيل نسخة احتياطية كاملة (super_admin فقط) */
