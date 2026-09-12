@@ -6312,27 +6312,40 @@ app.get('/api/executive/overview', authenticateToken, requireRole('ceo', 'super_
     // التنظيمي الحقيقي — هذه القيم تُنشئ عشرات "الأقسام" الوهمية بنتيجة
     // 100% كاذبة لو دخلت الليدربورد. نقصر الليدربورد على أسماء الأقسام
     // المعروفة فعليًا في قاعدة الموظفين فقط.
-    const knownDepartments = new Set(employees.map(e => String(e.department || '').trim()).filter(Boolean));
-    const departmentLeaderboard = Array.from(deptMap.values())
-      .filter(b => knownDepartments.has(b.department))
-      .filter(b => (b.hazardsTotal + b.permitsTotal) >= 3)
-      .map(b => {
-        // 70% نسبة البلاغات المغلقة + 30% نسبة التصاريح المعتمدة. قسم ملوش
-        // بلاغات (أو ملوش تصاريح) بيتحسب على الجزء اللي عنده بيانات بس — كان
-        // الجزء الفاضي بيتحسب 100% فالقسم ياخد درجة كاملة من غير أي بلاغ.
-        const parts = [];
-        if (b.hazardsTotal) parts.push({ rate: b.hazardsClosed / b.hazardsTotal, weight: 70 });
-        if (b.permitsTotal) parts.push({ rate: b.permitsApproved / b.permitsTotal, weight: 30 });
-        const totalWeight = parts.reduce((s, p) => s + p.weight, 0);
-        const score = Math.round((parts.reduce((s, p) => s + p.rate * p.weight, 0) / totalWeight) * 1000) / 10;
+    // ترتيب الأقسام بنفس معادلة لوحة التحكم والشات بوت بالظبط: نسبة تحقيق
+    // تارجت التدريب والبلاغات لكل موظف ناقص خصم الجزاءات، والقسم = متوسط
+    // موظفينه. المعادلة القديمة (نسبة إغلاق البلاغات + اعتماد التصاريح) كانت
+    // بتطلّع كل الأقسام 100 تقريبًا. (تصحيح بطلب بشمهندس أحمد، 13 سبتمبر 2026.)
+    const execCompliance = chatbotAnalytics.complianceData(
+      { data: { employees, trainings, hazards, penalties } },
+      { depts: [] }
+    );
+    const scoreByDept = new Map();
+    execCompliance.rows.forEach(r => {
+      const dept = String((r.emp && r.emp.department) || '').trim();
+      if (!dept) return;
+      if (!scoreByDept.has(dept)) scoreByDept.set(dept, { scores: [], trainOk: 0, hazOk: 0, penalties: 0 });
+      const b = scoreByDept.get(dept);
+      b.scores.push(r.score);
+      if (r.trainOk) b.trainOk++;
+      if (r.hazOk) b.hazOk++;
+      b.penalties += r.penalties;
+    });
+    const departmentLeaderboard = Array.from(scoreByDept.entries())
+      .filter(([, b]) => b.scores.length >= 3) // أقسام فيها 3 موظفين على الأقل
+      .map(([department, b]) => {
+        const act = deptMap.get(department) || {};
         return {
-          department: b.department,
-          employeeCount: b.employeeCount,
-          hazardsTotal: b.hazardsTotal,
-          hazardsClosed: b.hazardsClosed,
-          hazardsOpen: b.hazardsTotal - b.hazardsClosed,
-          permitsTotal: b.permitsTotal,
-          score
+          department,
+          employeeCount: b.scores.length,
+          score: Math.round((b.scores.reduce((s, v) => s + v, 0) / b.scores.length) * 10) / 10,
+          trainAchieved: b.trainOk,
+          hazardAchieved: b.hazOk,
+          penalties: b.penalties,
+          hazardsTotal: act.hazardsTotal || 0,
+          hazardsClosed: act.hazardsClosed || 0,
+          hazardsOpen: (act.hazardsTotal || 0) - (act.hazardsClosed || 0),
+          permitsTotal: act.permitsTotal || 0,
         };
       })
       .sort((a, b) => b.score - a.score);

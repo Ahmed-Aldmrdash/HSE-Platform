@@ -2226,6 +2226,7 @@ async function renderExecutiveView(){
             <div class="exec-leaderboard-rank">${idx + 1}</div>
             <div>
               <div class="exec-leaderboard-name">${escapeHtml(b.department)}</div>
+              <div class="exec-leaderboard-meta">${b.employeeCount} ${L ? 'employees' : T('موظف')} · ${L ? 'training target' : T('حققوا تارجت التدريب')}: ${b.trainAchieved ?? '—'} · ${L ? 'hazard target' : T('تارجت البلاغات')}: ${b.hazardAchieved ?? '—'}${b.penalties ? ` · ${L ? 'penalties' : T('جزاءات')}: ${b.penalties}` : ''}</div>
               <div class="exec-leaderboard-bar-bg">
                 <div class="exec-leaderboard-bar-fill" style="width:${Math.max(2, (b.score / (maxScore || 100)) * 100)}%"></div>
               </div>

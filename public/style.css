@@ -5761,6 +5761,12 @@ body[data-session="supervisor"] #empBadgeArea {
   font-size: 13.5px;
   color: var(--brand-slate-900);
 }
+/* سطر بيشرح الدرجة جاية منين (تدريب/بلاغات/جزاءات) */
+.exec-leaderboard-meta {
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
 .exec-leaderboard-bar-bg {
   margin-top: 6px;
   height: 6px;
