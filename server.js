@@ -3512,6 +3512,35 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
   });
 });
 
+// ── GET /api/auth/session — الجلسة الحالية من التوكن ─────────────────
+// لما الأدمن يعمل Refresh للصفحة كان بيترمي على شاشة الدخول من تاني رغم إن
+// التوكن لسه صالح في الـ sessionStorage. الواجهة بتنادي ده وترجّع نفس شكل رد
+// تسجيل الدخول عشان تكمّل الجلسة من غير كلمة سر. 12 سبتمبر 2026.
+app.get('/api/auth/session', authenticateToken, (req, res) => {
+  const users = getAppUsersSync();
+  const user = users.find(u => u.id === req.user.id
+    || String(u.username || '').toLowerCase() === String(req.user.username || '').toLowerCase());
+  if (!user) return res.status(401).json({ error: 'الحساب مش موجود' });
+
+  const profileKey = normalizeEmpCode(req.user.empCode || '');
+  const profile = (user.profiles && user.profiles[profileKey]) || null;
+  const lastHolder = user.lastHolder && user.lastHolder.empCode !== profileKey ? user.lastHolder : null;
+  const employee = readEmployees().find(e => normalizeEmpCode(String(e.empCode || e.code || '')) === profileKey);
+
+  res.json({
+    success: true,
+    mustChangePassword: user.mustChangePassword === true,
+    needsProfile: !(profile && profile.phone && profile.email),
+    profile: profile ? { phone: profile.phone || '', email: profile.email || '' } : null,
+    previousHolder: lastHolder ? { name: lastHolder.name || '', empCode: lastHolder.empCode || '' } : null,
+    user: {
+      id: user.id, username: user.username, role: req.user.role,
+      name: req.user.name || user.name, department: req.user.department || '',
+      jobTitle: (employee && employee.jobTitle) || '', empCode: req.user.empCode || '',
+    },
+  });
+});
+
 // ── POST /api/auth/profile — بيانات صاحب الحساب (موبايل + إيميل) ──────
 // بتتخزن تحت الكود الوظيفي اللي دخل بيه، فالحساب المشترك بيفضل يعرف مين
 // آخر واحد استخدمه، وكل واحد بيسجّل بياناته هو. الإيميل ده اللي بتتبعت عليه

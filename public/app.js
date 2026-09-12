@@ -1342,64 +1342,98 @@ async function attemptLogin(){
     // password sitting in the page.
     const passField = document.getElementById('loginPass');
     if (passField) passField.value = '';
-    const mustChangePassword = data.mustChangePassword === true;
-    isLoggedIn      = true;
-    currentUsername = data.user.username;
-    currentUserName = data.user.name || data.user.username;
-    currentUserRole = data.user.role;
-    currentUserDept = data.user.department || '';
-    if ((currentUserRole === 'dept_admin' && currentUserDept.toUpperCase() === 'HSE') || currentUsername === 'hse_admin') {
-      currentUserRole = 'hse_admin';
-      currentUserDept = '';
-    }
-
-    const ADMIN_ROLE_LABELS = {
-      super_admin:  T('مدير النظام'),
-      hse_admin:    T('مشرف السلامة'),
-      dept_admin:   T('أدمن قسم'),
-      maint_admin:  T('أدمن صيانة'),
-      hse_director: T('مدير السلامة والصحة المهنية — وضع المتابعة'),
-      ceo:          T('المدير التنفيذي — وضع المتابعة')
-    };
-    const roleLabel = ADMIN_ROLE_LABELS[currentUserRole] || T('مشرف');
-    // حسابات المتابعة (المدير التنفيذي ومدير السلامة): نفس شاشات الإدارة كلها
-    // بس من غير أي إجراء — بدل ما كان المدير التنفيذي يشوف شاشة واحدة بس.
-    const isViewer = VIEWER_ROLES_UI.includes(currentUserRole);
-
-    // ✦ شاشة الترحيب المتحركة أولاً، ثم دخول لوحة التحكم بعد انتهائها
-    showAnimatedWelcome({
-      name: currentUserName,
-      subtitle: isViewer
-        ? [roleLabel, data.user.jobTitle, T('وضع المتابعة — عرض فقط')].filter(Boolean).join(' · ')
-        : [roleLabel, data.user.jobTitle, currentUserDept].filter(Boolean).join(' · '),
-      onDone: () => {
-        // ── Set RBAC session role and rebuild UI ──────────────────
-        sessionRole = 'supervisor';
-        showUserBadge();
-        applyRbacUI();
-
-        try {
-          startNotificationPolling();
-        } catch (err) {
-          console.warn('Non-critical notification setup error:', err);
-        }
-        // المدير التنفيذي بيفتح على المؤشرات التنفيذية، وباقي الأدوار على لوحة التحكم
-        switchTab(currentUserRole === 'ceo' ? 'executive' : 'dashboard');
-
-        // ── إجبار تغيير كلمة المرور الافتراضية قبل السماح بأي استخدام فعلي ──
-        // (11 سبتمبر 2026 — يظهر فقط لحسابات ما زالت تستخدم admin123/123456،
-        //  أو حساب دخل بكلمة سر مؤقتة من "نسيت كلمة السر")
-        if (mustChangePassword) {
-          _pendingProfileModal = data.needsProfile ? (data.previousHolder || {}) : null;
-          showForcePasswordChangeModal();
-        } else if (data.needsProfile) {
-          // أول دخول لصاحب الكود ده على الحساب — لازم يسجّل موبايله وإيميله
-          showAdminProfileModal(data.previousHolder || null);
-        }
-      }
-    });
+    startAdminSession(data);
   } catch(e){
     showLoginError(T('لا يوجد اتصال بالسيرفر'));
+  }
+}
+
+/**
+ * startAdminSession — بيبني جلسة الأدمن من رد تسجيل الدخول (أو من
+ * /api/auth/session لما الصفحة تتعمل Refresh). animate=false معناها من غير
+ * شاشة الترحيب، عشان الـ Refresh ما يوقّفش الشغل ثواني في كل مرة.
+ */
+function startAdminSession(data, opts){
+  const animate = !opts || opts.animate !== false;
+  const mustChangePassword = data.mustChangePassword === true;
+  isLoggedIn      = true;
+  currentUsername = data.user.username;
+  currentUserName = data.user.name || data.user.username;
+  currentUserRole = data.user.role;
+  currentUserDept = data.user.department || '';
+  if ((currentUserRole === 'dept_admin' && currentUserDept.toUpperCase() === 'HSE') || currentUsername === 'hse_admin') {
+    currentUserRole = 'hse_admin';
+    currentUserDept = '';
+  }
+
+  const ADMIN_ROLE_LABELS = {
+    super_admin:  T('مدير النظام'),
+    hse_admin:    T('مشرف السلامة'),
+    dept_admin:   T('أدمن قسم'),
+    maint_admin:  T('أدمن صيانة'),
+    hse_director: T('مدير السلامة والصحة المهنية — وضع المتابعة'),
+    ceo:          T('المدير التنفيذي — وضع المتابعة')
+  };
+  const roleLabel = ADMIN_ROLE_LABELS[currentUserRole] || T('مشرف');
+  // حسابات المتابعة (المدير التنفيذي ومدير السلامة): نفس شاشات الإدارة كلها
+  // بس من غير أي إجراء — بدل ما كان المدير التنفيذي يشوف شاشة واحدة بس.
+  const isViewer = VIEWER_ROLES_UI.includes(currentUserRole);
+
+  const enterApp = () => {
+    // ── Set RBAC session role and rebuild UI ──────────────────
+    sessionRole = 'supervisor';
+    showUserBadge();
+    applyRbacUI();
+
+    try {
+      startNotificationPolling();
+    } catch (err) {
+      console.warn('Non-critical notification setup error:', err);
+    }
+    // المدير التنفيذي بيفتح على المؤشرات التنفيذية، وباقي الأدوار على لوحة التحكم
+    switchTab(currentUserRole === 'ceo' ? 'executive' : 'dashboard');
+
+    // ── إجبار تغيير كلمة المرور الافتراضية قبل السماح بأي استخدام فعلي ──
+    // (11 سبتمبر 2026 — يظهر فقط لحسابات ما زالت تستخدم admin123/123456،
+    //  أو حساب دخل بكلمة سر مؤقتة من "نسيت كلمة السر")
+    if (mustChangePassword) {
+      _pendingProfileModal = data.needsProfile ? (data.previousHolder || {}) : null;
+      showForcePasswordChangeModal();
+    } else if (data.needsProfile) {
+      // أول دخول لصاحب الكود ده على الحساب — لازم يسجّل موبايله وإيميله
+      showAdminProfileModal(data.previousHolder || null);
+    }
+  };
+
+  // ✦ شاشة الترحيب المتحركة أولاً، ثم دخول لوحة التحكم بعد انتهائها
+  // (الترحيب بيظهر عند تسجيل الدخول بس، مش مع كل Refresh للصفحة)
+  if (!animate) { enterApp(); return; }
+  showAnimatedWelcome({
+    name: currentUserName,
+    subtitle: isViewer
+      ? [roleLabel, data.user.jobTitle, T('وضع المتابعة — عرض فقط')].filter(Boolean).join(' · ')
+      : [roleLabel, data.user.jobTitle, currentUserDept].filter(Boolean).join(' · '),
+    onDone: enterApp
+  });
+}
+
+/**
+ * restoreAdminSession — الصفحة اتعملها Refresh والتوكن لسه في sessionStorage:
+ * بنسأل السيرفر إن الجلسة سليمة وبنكمّل من غير ما نطلب كلمة السر تاني.
+ * بيرجّع true لو الجلسة رجعت.
+ */
+async function restoreAdminSession(){
+  const token = getToken();
+  if (!token) return false;
+  try {
+    const res = await fetch('/api/auth/session', { headers: { Authorization: 'Bearer ' + token } });
+    if (!res.ok) { clearToken(); return false; }
+    const data = await res.json();
+    if (!data || !data.user) { clearToken(); return false; }
+    startAdminSession(data, { animate: false });
+    return true;
+  } catch (e) {
+    return false; // السيرفر مش راد — نسيب التوكن ونعرض شاشة الدخول
   }
 }
 
@@ -1754,6 +1788,17 @@ function goToAdminLogin(){
  * يفحص localStorage، إذا وُجدت جلسة موظف مخزّنة يُدخله مباشرةً.
  */
 function initEmployeeSession(){
+  // أدمن داخل في نفس التبويب (التوكن في sessionStorage) له الأولوية على أي
+  // جلسة عامل متخزنة على الجهاز — ده اللي بيحصل لما الأدمن يعمل Refresh.
+  if (getToken()) {
+    restoreAdminSession().then(ok => { if (!ok) _initWorkerOrLoginGate(); });
+    return;
+  }
+  _initWorkerOrLoginGate();
+}
+
+/** جلسة العامل المحفوظة، وإلا شاشة الدخول */
+function _initWorkerOrLoginGate(){
   try{
     const saved = localStorage.getItem('ep_currentEmployee');
     const parsed = saved ? JSON.parse(saved) : null;
