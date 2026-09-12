@@ -103,7 +103,19 @@
       class="worker-login-overlay"
       style="display: none"
     >
+      <!-- نفس خلفية شاشة دخول الإدارة: تدرّج + مهمات وقاية بتطفو -->
+      <div class="login-bg" aria-hidden="true">
+        <span class="login-bg-orb orb-a"></span>
+        <span class="login-bg-orb orb-b"></span>
+        <span class="login-float f1">🦺</span>
+        <span class="login-float f2">⛑️</span>
+        <span class="login-float f3">🥽</span>
+        <span class="login-float f4">🧯</span>
+        <span class="login-float f5">🧤</span>
+        <span class="login-float f6">⚠️</span>
+      </div>
       <div class="worker-login-card">
+        <div class="login-tape" aria-hidden="true"></div>
         <div class="login-pre-toggles">
           <button type="button" class="theme-toggle-btn lang-toggle-btn" onclick="toggleLanguage()" title="Language / اللغة"><span id="langToggleLabelPre">EN</span></button>
           <button type="button" class="theme-toggle-btn" onclick="toggleDarkMode()" title="الوضع الليلي"><span id="themeToggleIconPre">🌙</span></button>
@@ -218,7 +230,7 @@
             style="
               font-size: 15px;
               font-weight: 700;
-              color: #fff;
+              color: var(--ink);
               line-height: 1.8;
             "
           ></div>
@@ -226,7 +238,7 @@
             style="
               margin-top: 12px;
               font-size: 12px;
-              color: rgba(255, 255, 255, 0.5);
+              color: var(--muted);
             "
           >
             جارِ تحميل لوحة التحكم…
