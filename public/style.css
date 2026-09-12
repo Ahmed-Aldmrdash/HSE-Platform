@@ -194,14 +194,20 @@ body[data-theme="dark"] .theme-toggle-btn:hover { background: rgba(255,255,255,.
   z-index: 2;
 }
 .login-pre-toggles .theme-toggle-btn {
-  background: rgba(0,0,0,.04);
-  border-color: var(--paper-line);
-  color: var(--ink);
+  background: rgba(255,255,255,.08);
+  border-color: rgba(255,255,255,.18);
+  color: #fff;
   width: 32px;
   height: 32px;
   font-size: 13px;
 }
-body[data-theme="dark"] .login-pre-toggles .theme-toggle-btn {
+/* نفس الزرارين جوه كارت الإدارة الفاتح */
+.login-v2 .login-pre-toggles .theme-toggle-btn {
+  background: rgba(0,0,0,.04);
+  border-color: var(--paper-line);
+  color: var(--ink);
+}
+body[data-theme="dark"] .login-v2 .login-pre-toggles .theme-toggle-btn {
   background: rgba(255,255,255,.08);
   border-color: rgba(255,255,255,.18);
   color: #fff;
@@ -1788,7 +1794,19 @@ select {
   55%  { opacity: 0.85; transform: translateY(-14px) rotate(5deg) scale(1); }
   100% { opacity: 0; transform: translateY(-48px) rotate(-3deg) scale(1.05); }
 }
-/* شكل الكارت نفسه متعرّف مرة واحدة مع كارت شاشة الموظفين (تحت) */
+.login-v2 .login-card {
+  position: relative;
+  z-index: 2;
+  margin: auto;
+  max-width: 380px;
+  padding: 26px 24px 20px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.75);
+  overflow: hidden;
+  animation: loginCardIn 0.5s cubic-bezier(0.2, 0.8, 0.25, 1) both;
+}
 body[data-theme="dark"] .login-v2 .login-card { background: rgba(28, 28, 30, 0.97); border-color: rgba(255, 255, 255, 0.08); }
 @keyframes loginCardIn { from { opacity: 0; transform: translateY(18px) scale(0.97); } to { opacity: 1; transform: none; } }
 .login-tape {
@@ -2288,29 +2306,25 @@ body[data-theme="dark"] .login-v2 .login-card { background: rgba(28, 28, 30, 0.9
   /* مخفي بالافتراضي — initEmployeeSession يفعله عند الحاجة */
 }
 
-/* الكارت: نفس الكارت الزجاجي بتاع شاشة دخول الإدارة */
-.worker-login-card,
-.login-v2 .login-card {
+/* الكارت زي ما هو (زجاجي غامق) — الجديد هو الخلفية بس */
+.worker-login-card {
   position: relative;
   z-index: 2;
-  background: rgba(255, 255, 255, 0.97);
-  color: var(--ink);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  border-radius: 18px;
-  padding: 26px 24px 20px;
+  margin: auto;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: clamp(20px, 5vw, 32px) clamp(18px, 5vw, 28px) clamp(18px, 5vw, 28px);
   width: 100%;
   max-width: min(380px, calc(100vw - 24px));
-  max-height: 92dvh;
+  max-height: 95dvh;
   /* dvh = dynamic viewport height, accounts for browser chrome */
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.75);
-  animation: loginCardIn 0.5s cubic-bezier(0.2, 0.8, 0.25, 1) both;
-}
-
-body[data-theme="dark"] .worker-login-card {
-  background: rgba(28, 28, 30, 0.97);
-  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(213, 30, 39, 0.15);
+  animation: wlSlideIn .35s cubic-bezier(.22, .68, 0, 1.2) both;
 }
 
 @keyframes wlSlideIn {
@@ -2327,14 +2341,15 @@ body[data-theme="dark"] .worker-login-card {
 
 .login-logo-box {
   width: 130px;
-  height: 46px;
+  height: 60px;
   background: #fff;
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  margin: 0 auto 14px auto;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+  margin: 0 auto 16px auto;
 }
 
 .login-logo-box img {
@@ -2347,26 +2362,26 @@ body[data-theme="dark"] .worker-login-card {
 
 .wl-title {
   font-family: 'Oswald', sans-serif;
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
-  color: var(--ink);
+  color: #fff;
   text-align: center;
   margin-bottom: 4px;
   letter-spacing: 0.5px;
 }
 
 .wl-sub {
-  font-size: 11.5px;
-  color: var(--muted);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
   text-align: center;
   font-family: 'Oswald', sans-serif;
   letter-spacing: 1.5px;
   text-transform: uppercase;
-  margin-bottom: 22px;
+  margin-bottom: 24px;
 }
 
 .worker-login-card .field label {
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.75);
   font-size: 12.5px;
   font-weight: 700;
   margin-bottom: 6px;
@@ -2375,11 +2390,26 @@ body[data-theme="dark"] .worker-login-card {
 
 .worker-login-card .field input,
 .worker-login-card .field select {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
   border-radius: 10px;
   padding: 11px 14px;
+  font-family: 'Cairo', sans-serif;
   font-size: 15px;
   width: 100%;
-  transition: border-color .15s, box-shadow .15s;
+  transition: border-color .15s;
+}
+
+.worker-login-card .field input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.worker-login-card .field input:focus,
+.worker-login-card .field select:focus {
+  outline: none;
+  border-color: var(--amber);
+  background: rgba(213, 30, 39, 0.08);
 }
 
 .worker-login-card .submit-btn {
@@ -2396,45 +2426,50 @@ body[data-theme="dark"] .worker-login-card {
 }
 
 .wl-new-badge {
-  background: rgba(226, 0, 26, 0.07);
-  border: 1px dashed rgba(226, 0, 26, 0.35);
+  background: linear-gradient(135deg, rgba(213, 30, 39, 0.2), rgba(213, 30, 39, 0.08));
+  border: 1px dashed rgba(213, 30, 39, 0.4);
   border-radius: 10px;
   padding: 10px 14px;
   margin-bottom: 14px;
   font-size: 13px;
   font-weight: 700;
-  color: var(--ink);
+  color: rgba(255, 255, 255, 0.85);
   text-align: center;
 }
 
 .wl-back-btn {
   width: 100%;
   margin-top: 10px;
-  background: rgba(0, 0, 0, 0.035);
-  border: 1px solid var(--paper-line);
-  color: var(--muted);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.6);
   border-radius: 10px;
   padding: 10px;
   font-family: 'Cairo', sans-serif;
   font-size: 13.5px;
   font-weight: 700;
   cursor: pointer;
-  transition: background .12s, color .12s;
+  transition: background .12s;
 }
 
 .wl-back-btn:hover {
-  background: rgba(0, 0, 0, 0.07);
-  color: var(--ink);
+  background: rgba(255, 255, 255, 0.1);
 }
 
-body[data-theme="dark"] .wl-back-btn { background: rgba(255, 255, 255, 0.06); }
-body[data-theme="dark"] .wl-back-btn:hover { background: rgba(255, 255, 255, 0.1); }
+/* نفس الزرار جوه كارت الإدارة الفاتح */
+.login-v2 .wl-back-btn {
+  background: rgba(0, 0, 0, 0.035);
+  border-color: var(--paper-line);
+  color: var(--muted);
+}
+.login-v2 .wl-back-btn:hover { background: rgba(0, 0, 0, 0.07); color: var(--ink); }
+body[data-theme="dark"] .login-v2 .wl-back-btn { background: rgba(255, 255, 255, 0.06); color: rgba(255, 255, 255, 0.6); }
 
 .wl-divider {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 18px 0 12px;
+  margin: 20px 0 14px;
 }
 
 .wl-divider::before,
@@ -2442,12 +2477,12 @@ body[data-theme="dark"] .wl-back-btn:hover { background: rgba(255, 255, 255, 0.1
   content: '';
   flex: 1;
   height: 1px;
-  background: var(--paper-line);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .wl-divider span {
   font-size: 11px;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.3);
   font-family: 'Oswald', sans-serif;
 }
 
@@ -2455,9 +2490,9 @@ body[data-theme="dark"] .wl-back-btn:hover { background: rgba(255, 255, 255, 0.1
   width: 100%;
   padding: 11px;
   border-radius: 10px;
-  background: rgba(0, 0, 0, 0.035);
-  border: 1px solid var(--paper-line);
-  color: var(--ink);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.65);
   font-family: 'Cairo', sans-serif;
   font-size: 13.5px;
   font-weight: 700;
@@ -2466,12 +2501,9 @@ body[data-theme="dark"] .wl-back-btn:hover { background: rgba(255, 255, 255, 0.1
 }
 
 .wl-admin-btn:hover {
-  background: rgba(226, 0, 26, 0.08);
-  border-color: rgba(226, 0, 26, 0.35);
-  color: var(--brand-primary, #e2001a);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
 }
-
-body[data-theme="dark"] .wl-admin-btn { background: rgba(255, 255, 255, 0.05); }
 
 .wl-msg {
   font-size: 12.5px;
@@ -2483,39 +2515,34 @@ body[data-theme="dark"] .wl-admin-btn { background: rgba(255, 255, 255, 0.05); }
 }
 
 .wl-msg.error {
-  color: var(--danger, #dc2626);
+  color: #ff6b6b;
   font-weight: 700;
 }
 
 .wl-msg.info {
-  color: #1d6fd1;
+  color: #74c0fc;
   font-weight: 700;
 }
 
 .wl-msg.success {
-  color: #15803d;
+  color: #69db7c;
   font-weight: 700;
 }
 
-body[data-theme="dark"] .wl-msg.info { color: #74c0fc; }
-body[data-theme="dark"] .wl-msg.success { color: #69db7c; }
-
 /* بطاقة بيانات العامل في شاشة الدخول (الاسم + القسم + الوظيفة) */
 .wl-identity {
-  background: rgba(0, 0, 0, 0.035);
-  border: 1px solid var(--paper-line);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 12px;
   padding: 12px 14px;
   margin-bottom: 14px;
   text-align: center;
 }
 
-body[data-theme="dark"] .wl-identity { background: rgba(255, 255, 255, 0.06); }
-
 .wl-identity-name {
   font-size: 16px;
   font-weight: 800;
-  color: var(--ink);
+  color: #fff;
   margin-bottom: 6px;
 }
 
@@ -2525,11 +2552,11 @@ body[data-theme="dark"] .wl-identity { background: rgba(255, 255, 255, 0.06); }
   justify-content: center;
   gap: 4px 14px;
   font-size: 12.5px;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .wl-identity-meta b {
-  color: var(--ink);
+  color: #fff;
   font-weight: 700;
 }
 
@@ -2538,7 +2565,7 @@ body[data-theme="dark"] .wl-identity { background: rgba(255, 255, 255, 0.06); }
   font-family: 'Oswald', sans-serif;
   letter-spacing: 2px;
   font-size: 12px;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.45);
 }
 
 .wl-link-btn {
@@ -2546,7 +2573,7 @@ body[data-theme="dark"] .wl-identity { background: rgba(255, 255, 255, 0.06); }
   margin: 10px auto 0;
   background: none;
   border: none;
-  color: #1d6fd1;
+  color: #74c0fc;
   font-family: 'Cairo', sans-serif;
   font-size: 12.5px;
   font-weight: 700;
@@ -2555,11 +2582,13 @@ body[data-theme="dark"] .wl-identity { background: rgba(255, 255, 255, 0.06); }
 }
 
 .wl-link-btn:hover {
-  color: #12508f;
+  color: #a5d8ff;
 }
 
-body[data-theme="dark"] .wl-link-btn { color: #74c0fc; }
-body[data-theme="dark"] .wl-link-btn:hover { color: #a5d8ff; }
+/* على الكارت الفاتح بتاع الإدارة الأزرق الفاتح مش بيبان */
+.login-v2 .wl-link-btn { color: #1d6fd1; }
+.login-v2 .wl-link-btn:hover { color: #12508f; }
+body[data-theme="dark"] .login-v2 .wl-link-btn { color: #74c0fc; }
 
 /* كلمة سر العامل في نافذة تعديل الموظف (الأدمن بيعملها ويديهاله) */
 .em-pw-box {
