@@ -75,6 +75,70 @@ function T(s) {
 }
 window.T = T;
 
+// ترجمات الإضافات الجديدة (دخول العمال بكلمة سر، إيميل النسخة الاحتياطية، إعادة تعيين كلمة السر)
+Object.assign(I18N_STRINGS, {
+  'اكتب كلمة السر': 'Enter your password',
+  'كلمة السر لازم تكون 6 حروف أو أرقام على الأقل': 'Password must be at least 6 characters',
+  'كلمتين السر مش زي بعض': "Passwords don't match",
+  'رقم الموبايل غير صحيح — اكتبه كده: 01xxxxxxxxx': 'Invalid mobile number — use the format 01xxxxxxxxx',
+  'اكتب الكود المكوّن من 6 أرقام': 'Enter the 6-digit code',
+  '✅ الكود اتبعت على واتساب': '✅ Code sent on WhatsApp',
+  'تعذّر إرسال الكود': 'Could not send the code',
+  'هنبعتلك كود من 6 أرقام على واتساب على رقمك المسجل:': "We'll send a 6-digit code on WhatsApp to your registered number:",
+  'إرسال الكود على واتساب لسه مش مفعّل على المنصة. كلّم مشرف السلامة يعيد تعيين كلمة السر من شاشة الموظفين، وبعدها ادخل بكودك واعمل كلمة سر جديدة.': 'Sending codes on WhatsApp is not enabled on the platform yet. Ask the HSE supervisor to reset your password from the Employees screen, then log in with your code and create a new one.',
+  '🔑 إعادة تعيين كلمة سر العامل': "🔑 Reset worker's password",
+  'هيتمسح كلمة السر ورقم الاسترجاع بتوع العامل ده، وأول ما يدخل بكوده هيعمل كلمة سر جديدة. متأكد؟': "This clears the worker's password and recovery number; they will create a new password the next time they log in with their code. Are you sure?",
+  '✅ تم إعادة التعيين — العامل هيعمل كلمة سر جديدة أول ما يدخل': '✅ Reset done — the worker will create a new password at next login',
+  'العامل ده لسه ماعملش كلمة سر أصلاً — هيعملها أول ما يدخل': "This worker hasn't created a password yet — they will at first login",
+  'فشل إعادة التعيين': 'Reset failed',
+  '📧 إرسال النسخة الاحتياطية بالإيميل': '📧 Email backups',
+  'الإيميلات اللي هتستلم النسخة (إيميل في كل سطر أو افصل بينهم بفاصلة)': 'Recipient emails (one per line or comma-separated)',
+  'إرسال تلقائي كل يوم الساعة': 'Send automatically every day at',
+  '💾 حفظ الإعدادات': '💾 Save settings',
+  '📤 ابعت النسخة دلوقتي': '📤 Send backup now',
+  '⚠️ إيميل الإرسال مش متظبط لسه على السيرفر — لازم تتحط بيانات SMTP في ملف .env (الخطوات في .env.example). تقدر تحفظ المستلمين والميعاد من دلوقتي.': '⚠️ The sending email account is not configured on the server yet — SMTP settings must be added to the .env file (steps in .env.example). You can save recipients and the schedule now.',
+  'بيتبعت من:': 'Sent from:',
+  'آخر إرسال:': 'Last send:',
+  'يومي تلقائي': 'daily',
+  'يدوي': 'manual',
+  'لسه مفيش نسخة اتبعتت بالإيميل': 'No backup emailed yet',
+  'تم حفظ الإعدادات ✓': 'Settings saved ✓',
+  'جارِ تجهيز النسخة وإرسالها…': 'Preparing and sending the backup…',
+  'اتبعتت النسخة الاحتياطية إلى': 'Backup sent to',
+  'اكتب إيميل واحد على الأقل': 'Enter at least one email',
+  'فشل الإرسال': 'Sending failed',
+  'فشل تحميل إعدادات الإيميل': 'Failed to load email settings',
+  'النسخة الاحتياطية ملف واحد يشمل كل بيانات النظام (.json، أو .json.gz اللي بيوصل على الإيميل) — الاسترجاع يستبدل البيانات الحالية بالكامل.': 'A backup is one file with all system data (.json, or the .json.gz received by email) — restoring replaces all current data.',
+  'موظف': 'Employee',
+  'إعادة تعيين كلمة السر': 'Password reset',
+  'إرسال بالإيميل': 'Emailed',
+  'من أول السنة': 'since Jan 1',
+  'انتهت جلستك أو اتغيرت كلمة السر — ادخل من جديد': 'Your session ended or your password was changed — please log in again',
+  'اكتب اسم المستخدم والكود الوظيفي وكلمة المرور': 'Enter the username, employee code and password',
+  'أهلاً! أنا مساعد السلامة — اسألني عن أي حاجة في تعليمات السلامة (SE-W01) أو فرق الطوارئ، حتى لو كتبت بالعامية أو فيها غلطة إملائية 🙂': 'Hi! I am the safety assistant — ask me anything in the SE-W01 safety instructions or the emergency teams (Arabic questions work best) 🙂',
+  'كلّم مشرف السلامة أو أدمن قسمك يعملك كلمة سر جديدة من شاشة الموظفين ويديهالك، وبعدها ادخل بكودك وكلمة السر الجديدة.': 'Ask the HSE supervisor or your department admin to create a new password for you from the Employees screen, then log in with your code and the new password.',
+  '(عنده كلمة سر)': '(has a password)',
+  '(لسه ماعملش كلمة سر)': '(no password yet)',
+  'فشل حفظ كلمة السر': 'Failed to save the password',
+  '✅ اتحفظت كلمة السر — ادّيها للعامل:': '✅ Password saved — give it to the worker:',
+  '🔑 كلمة سر دخول العامل': "🔑 Worker's login password",
+  '🎲 توليد': '🎲 Generate',
+  '💾 حفظ كلمة السر': '💾 Save password',
+  'بعد الحفظ ادّي كلمة السر دي للعامل يدخل بيها بكوده. أي جلسة مفتوحة بكلمة السر القديمة هتتقفل.': 'After saving, give this password to the worker to log in with their code. Any session using the old password is closed.',
+  'توليد كلمات سر لحسابات الأقسام اللي على كلمة السر الافتراضية': 'Generate passwords for department accounts still on the default password',
+  'حسابات الأقسام اللي لسه على 123456 مقفولة لحمايتها — ولّد لها كلمات سر ووزّعها على رؤساء الأقسام.': 'Department accounts still on 123456 are locked for safety — generate passwords and hand them to the department heads.',
+  'هيتعمل كلمة سر عشوائية جديدة لكل حساب قسم/صيانة لسه على 123456، وهتظهرلك مرة واحدة بس عشان توزعها. نكمل؟': 'A new random password will be created for every department/maintenance account still on 123456, shown to you only once so you can hand them out. Continue?',
+  'جارِ التوليد… (ممكن ياخد نص دقيقة)': 'Generating… (may take up to half a minute)',
+  'فشل التوليد': 'Generation failed',
+  'مفيش حسابات على كلمة السر الافتراضية ✅': 'No accounts are on the default password ✅',
+  'كلمات السر الجديدة': 'New passwords',
+  'انسخها أو نزّلها دلوقتي، مش هتظهر تاني': 'copy or download them now, they will not be shown again',
+  'كلمة السر': 'Password',
+  'تنزيل القائمة (CSV)': 'Download list (CSV)',
+  'لازم تتغير كلمة السر': 'Password must be changed',
+  'اسأل عن تعليمات السلامة أو فرق الطوارئ...': 'Ask about safety instructions or emergency teams...',
+});
+
 /** لغة تنسيق التواريخ والأرقام: عربية بأرقام عربية، إنجليزية بأرقام لاتينية. */
 function LOC() { return window._currentLang === 'en' ? 'en-US' : 'ar-EG'; }
 /** مثل LOC() لكن بأرقام لاتينية داخل النص العربي (تواريخ لوحة التحكم). */
@@ -107,6 +171,21 @@ const I18N_DICT = {
   wlSubmit:           { ar: 'تسجيل الدخول ←', en: 'Login ←' },
   wlOr:               { ar: 'أو', en: 'or' },
   wlAdminLogin:       { ar: 'دخول المشرفين / الإدارة', en: 'Admin / Management Login' },
+  wlDept:             { ar: 'القسم', en: 'Department' },
+  wlPosition:         { ar: 'الوظيفة', en: 'Position' },
+  wlPassword:         { ar: 'كلمة السر', en: 'Password' },
+  wlLoginBtn:         { ar: 'دخول ←', en: 'Login ←' },
+  wlForgot:           { ar: 'نسيت كلمة السر؟', en: 'Forgot password?' },
+  wlBack:             { ar: 'رجوع / كود تاني', en: 'Back / another code' },
+  wlSetupNote:        { ar: 'أول مرة تدخل؟ اعمل كلمة سر خاصة بيك وسجّل رقم موبايلك. هتدخل بكلمة السر دي كل مرة بعد كده، ولو نسيتها هيوصلك كود على واتساب على الرقم ده.', en: 'First time here? Create your own password and register your mobile number. You will log in with this password from now on, and if you forget it a code will be sent to this number on WhatsApp.' },
+  wlNewPassword:      { ar: 'كلمة السر الجديدة (6 حروف/أرقام على الأقل)', en: 'New password (at least 6 characters)' },
+  wlConfirmPassword:  { ar: 'تأكيد كلمة السر', en: 'Confirm password' },
+  wlPhone:            { ar: 'رقم الموبايل (واتساب)', en: 'Mobile number (WhatsApp)' },
+  wlSetupBtn:         { ar: 'حفظ ودخول ✓', en: 'Save & log in ✓' },
+  wlSendCode:         { ar: '📲 ابعت الكود على واتساب', en: '📲 Send code on WhatsApp' },
+  wlOtp:              { ar: 'الكود اللي وصلك على واتساب', en: 'Code received on WhatsApp' },
+  wlResetBtn:         { ar: 'تغيير كلمة السر ودخول ✓', en: 'Change password & log in ✓' },
+  wlBackToPassword:   { ar: 'رجوع لكلمة السر', en: 'Back to password' },
   logout:             { ar: 'تسجيل الخروج', en: 'Logout' },
 };
 
@@ -282,6 +361,23 @@ function getToken() {
   try { return sessionStorage.getItem('wp_auth_token'); } catch(e) { return null; }
 }
 
+/** توكن جلسة العامل — بيتحفظ مع بياناته في localStorage بعد الدخول بكلمة السر */
+function getWorkerToken() {
+  try {
+    const e = JSON.parse(localStorage.getItem('ep_currentEmployee') || 'null');
+    return (e && e.token) || null;
+  } catch(e) { return null; }
+}
+
+/** جلسة العامل خلصت أو الأدمن غيّر كلمة سره — يرجع لشاشة الدخول مرة واحدة */
+function handleWorkerSessionExpired() {
+  if (window._workerExpiredShown) return;
+  window._workerExpiredShown = true;
+  setTimeout(() => { window._workerExpiredShown = false; }, 5000);
+  showToast(T('انتهت جلستك أو اتغيرت كلمة السر — ادخل من جديد'), 'error');
+  if (typeof workerLogout === 'function') workerLogout();
+}
+
 /** مسح الـ JWT Token عند تسجيل الخروج */
 function clearToken() {
   try { sessionStorage.removeItem('wp_auth_token'); } catch(e) {}
@@ -306,7 +402,8 @@ function navigateWithAuth(url) {
  * إذا انتهت صلاحية الجلسة (401 + expired)، يُسجّل خروج تلقائي.
  */
 async function authFetch(url, options = {}) {
-  const token = getToken();
+  const adminToken = getToken();
+  const token = adminToken || getWorkerToken();
   if (token) {
     options.headers = {
       ...options.headers,
@@ -315,12 +412,21 @@ async function authFetch(url, options = {}) {
   }
   try {
     const res = await fetch(url, options);
-    // انتهت صلاحية الجلسة — سجّل خروج تلقائي
-    if (res.status === 401) {
+    // الجلسة خلصت أو التوكن مبقاش صالح — خروج تلقائي مرة واحدة (بدل ما كل
+    // عملية تحديث دوري تفضل ترجع 401 وتملى الكونسول أخطاء)
+    if (res.status === 401 && token) {
       const data = await res.clone().json().catch(() => ({}));
       if (data.expired) {
-        showToast(T('انتهت صلاحية جلستك. يرجى تسجيل الدخول مجدداً.'), 'error');
-        logout();
+        if (adminToken) {
+          if (!window._adminExpiredShown) {
+            window._adminExpiredShown = true;
+            setTimeout(() => { window._adminExpiredShown = false; }, 5000);
+            showToast(T('انتهت صلاحية جلستك. يرجى تسجيل الدخول مجدداً.'), 'error');
+          }
+          logout();
+        } else {
+          handleWorkerSessionExpired();
+        }
       }
     }
     return res;
@@ -391,7 +497,7 @@ function showToast(msg, type = 'error') {
 async function apiGet(key){
   try{
     const cleanKey = key.startsWith('/') ? key.substring(1) : key;
-    const res = await fetch(`/api/storage/${cleanKey}`);
+    const res = await authFetch(`/api/storage/${cleanKey}`);
     if(!res.ok) return null;
     return await res.json();
   }catch(e){
@@ -1045,6 +1151,13 @@ function renderLoginGate(){
   `;
 }
 
+function showLoginError(msg){
+  const el = document.getElementById('loginErr');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
 async function attemptLogin(){
   // Request permission explicitly on button click for mobile browsers
   if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
@@ -1054,7 +1167,7 @@ async function attemptLogin(){
   const pass = document.getElementById('loginPass').value;
   const empCode = document.getElementById('loginEmpCode') ? document.getElementById('loginEmpCode').value.trim() : '';
   if(!user || !pass || !empCode){
-    document.getElementById('loginErr').classList.add('show');
+    showLoginError(T('اكتب اسم المستخدم والكود الوظيفي وكلمة المرور'));
     return;
   }
   try{
@@ -1064,7 +1177,10 @@ async function attemptLogin(){
       body: JSON.stringify({username: user, password: pass, empCode: empCode})
     });
     if(!res.ok){
-      document.getElementById('loginErr').classList.add('show');
+      // السبب الحقيقي من السيرفر (اسم مستخدم غلط / كلمة سر غلط / الكود مش في
+      // القسم ده / الحساب مقفول مؤقتًا) بدل رسالة "غلط" واحدة لكل الحالات
+      const errData = await res.json().catch(() => ({}));
+      showLoginError(errData.error || T('اسم المستخدم أو كلمة المرور غير صحيحة'));
       return;
     }
     const data = await res.json();
@@ -1099,7 +1215,7 @@ async function attemptLogin(){
     // ✦ شاشة الترحيب المتحركة أولاً، ثم دخول لوحة التحكم بعد انتهائها
     showAnimatedWelcome({
       name: currentUserName,
-      subtitle: isCeo ? T('Executive View — عرض تنفيذي للمؤشرات') : (currentUserDept ? `${roleLabel} · ${currentUserDept}` : roleLabel),
+      subtitle: isCeo ? T('Executive View — عرض تنفيذي للمؤشرات') : [roleLabel, data.user.jobTitle, currentUserDept].filter(Boolean).join(' · '),
       onDone: () => {
         // ── Set RBAC session role and rebuild UI ──────────────────
         sessionRole = isCeo ? 'ceo' : 'supervisor';
@@ -1126,7 +1242,7 @@ async function attemptLogin(){
       }
     });
   } catch(e){
-    document.getElementById('loginErr').classList.add('show');
+    showLoginError(T('لا يوجد اتصال بالسيرفر'));
   }
 }
 
@@ -1307,17 +1423,46 @@ function hideWorkerLoginOverlay(){
   if(mainApp) mainApp.style.display = 'block';
 }
 
+// جلسات العمال المحفوظة من قبل ما يبقى فيه كلمة سر (من غير authV) بتتلغي
+// ويدخلوا من جديد مرة واحدة بكلمة السر — شوف initEmployeeSession.
+const WORKER_AUTH_VERSION = 3; // 3 = الجلسة فيها توكن من السيرفر
+
+// العامل اللي كتب كوده ولسه في خطوة كلمة السر: { code, employee }
+let _wlPending = null;
+
+const WL_STEPS = ['wl-step1', 'wl-step-password', 'wl-step-setup', 'wl-step-forgot'];
+
+/** يعرض خطوة واحدة من شاشة دخول العامل ويخفي الباقي */
+function wlShowStep(stepId){
+  WL_STEPS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = (id === stepId) ? 'block' : 'none';
+  });
+  const onCodeStep = stepId === 'wl-step1';
+  const idCard = document.getElementById('wl-identity');
+  if (idCard) idCard.style.display = (onCodeStep || !_wlPending) ? 'none' : 'block';
+  // "دخول المشرفين" يظهر بس في خطوة الكود
+  document.querySelectorAll('#workerLoginOverlay .wl-divider, #workerLoginOverlay .wl-admin-btn')
+    .forEach(el => { el.style.display = onCodeStep ? '' : 'none'; });
+  const focusId = { 'wl-step1': 'wl_empCode', 'wl-step-password': 'wl_password', 'wl-step-setup': 'wl_newPw' }[stepId];
+  const focusEl = focusId && document.getElementById(focusId);
+  if (focusEl) setTimeout(() => focusEl.focus(), 50);
+}
+
 /** إعادة ضبط شاشة تسجيل دخول الموظف للمرحلة الأولى */
 function resetWorkerLogin(){
-  document.getElementById('wl-step1').style.display = 'block';
-  const step2 = document.getElementById('wl-step2');
-  if (step2) step2.style.display = 'none';
+  _wlPending = null;
+  wlShowStep('wl-step1');
   const welcome = document.getElementById('wl-welcome');
   if (welcome) welcome.style.display = 'none';
-  const codeEl = document.getElementById('wl_empCode');
-  if (codeEl) codeEl.value = '';
-  const msgEl = document.getElementById('wl_checkMsg');
-  if (msgEl) { msgEl.textContent = ''; msgEl.className = 'wl-msg'; }
+  ['wl_empCode', 'wl_password', 'wl_newPw', 'wl_newPw2', 'wl_phone', 'wl_otp', 'wl_resetPw', 'wl_resetPw2'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  ['wl_checkMsg', 'wl_pwMsg', 'wl_setupMsg', 'wl_forgotMsg'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = ''; el.className = 'wl-msg'; }
+  });
   const btn = document.getElementById('wl_checkBtn');
   if (btn) { btn.disabled = false; btn.textContent = T('تسجيل الدخول ←'); }
 }
@@ -1341,8 +1486,11 @@ function goToAdminLogin(){
 function initEmployeeSession(){
   try{
     const saved = localStorage.getItem('ep_currentEmployee');
-    if(saved){
-      currentEmployee = JSON.parse(saved);
+    const parsed = saved ? JSON.parse(saved) : null;
+    // جلسة محفوظة من قبل كلمة سر العمال — يدخل من جديد مرة واحدة بكلمة السر
+    if (parsed && (parsed.authV !== WORKER_AUTH_VERSION || !parsed.token)) localStorage.removeItem('ep_currentEmployee');
+    if(parsed && parsed.authV === WORKER_AUTH_VERSION && parsed.token){
+      currentEmployee = parsed;
 
       // Restore RBAC state before touching UI
       sessionRole = 'worker';
@@ -1419,8 +1567,9 @@ function workerLogout(){
 }
 
 /**
- * 1-Step Worker Login: looks up code → shows welcome card or error.
- * No registration form. Workers not in the DB must contact HR.
+ * Worker login, step 1: looks up the code → shows the worker's name,
+ * department and position, then the password step (or first-time password
+ * setup). No registration form — workers not in the DB must contact HR.
  */
 async function checkEmpCode(){
   // Request permission explicitly on button click for mobile browsers
@@ -1439,23 +1588,15 @@ async function checkEmpCode(){
   btn.textContent = T('جارِ التحقق…');
 
   try{
-    const res = await fetch(`/api/employees/lookup/${encodeURIComponent(codeRaw)}`);
+    const res = await fetch(`/api/worker-auth/status/${encodeURIComponent(codeRaw)}`);
     if(res.ok){
       const data = await res.json();
       if(data.found){
-        const emp = data.employee;
-        document.getElementById('wl-step1').style.display = 'none';
-        // finishEmployeeLogin() shows the full animated welcome screen and
-        // handles the CEO Executive View branch itself.
-        finishEmployeeLogin({
-          empCode:    emp.code,
-          name:       emp.name,
-          department: emp.department,
-          jobTitle:   emp.jobTitle || '',
-          role:       emp.role     || 'worker',
-          phone:      emp.phone    || '',
-          ceoToken:   data.token   || null
-        });
+        _wlPending = { code: data.employee.code, employee: data.employee };
+        wlShowIdentity(data.employee);
+        wlShowStep(data.hasPassword ? 'wl-step-password' : 'wl-step-setup');
+        btn.disabled = false;
+        btn.textContent = T('تسجيل الدخول ←');
       } else {
         // Code not in directory → hard error, no registration form
         showWlMsg('wl_checkMsg',
@@ -1476,6 +1617,106 @@ async function checkEmpCode(){
   }
 }
 
+
+/** بطاقة العامل في شاشة الدخول: الاسم + القسم + الوظيفة + الكود */
+function wlShowIdentity(emp){
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('wl_idName', emp.name || '');
+  set('wl_idDept', emp.department || '—');
+  set('wl_idJob',  emp.jobTitle || '—');
+  set('wl_idCode', emp.code || '');
+}
+
+/** أرقام عربية/فارسية (٠١٢ / ۰۱۲) → لاتينية، لرقم الموبايل وكود واتساب */
+function _wlDigits(s){
+  return String(s || '')
+    .replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+    .replace(/[۰-۹]/g, d => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
+}
+
+function _wlVal(id){ const el = document.getElementById(id); return el ? el.value : ''; }
+
+function _wlBusy(btnId, busy){
+  const b = document.getElementById(btnId);
+  if (!b) return;
+  b.disabled = busy;
+  b.style.opacity = busy ? '0.7' : '';
+}
+
+async function _wlPost(url, body){
+  try {
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok, data };
+  } catch (e) {
+    return { ok: false, data: { error: T('لا يوجد اتصال بالسيرفر') } };
+  }
+}
+
+/** نفس التحقق اللي على السيرفر (normalizeWorkerPhone): موبايل مصري أو رقم دولي */
+function _wlValidPhone(p){
+  const s = p.replace(/[\s-]/g, '');
+  return /^01[0125][0-9]{8}$/.test(s) || /^(\+|00)[1-9][0-9]{7,14}$/.test(s);
+}
+
+function _wlPasswordError(pw, pw2){
+  if (pw.length < 6) return T('كلمة السر لازم تكون 6 حروف أو أرقام على الأقل');
+  if (pw !== pw2) return T('كلمتين السر مش زي بعض');
+  return null;
+}
+
+/** بعد أي دخول ناجح (كلمة سر / أول مرة / بعد الاسترجاع) */
+function _wlEnter(emp, token){
+  WL_STEPS.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  const idCard = document.getElementById('wl-identity');
+  if (idCard) idCard.style.display = 'none';
+  _wlPending = null;
+  finishEmployeeLogin({
+    empCode:    emp.code,
+    name:       emp.name,
+    department: emp.department,
+    jobTitle:   emp.jobTitle || '',
+    role:       emp.role     || 'worker',
+    phone:      emp.phone    || '',
+    token:      token        || ''
+  });
+}
+
+/** دخول العامل بالكود + كلمة السر */
+async function workerPasswordLogin(){
+  if (!_wlPending) return resetWorkerLogin();
+  const pw = _wlVal('wl_password');
+  if (!pw) { showWlMsg('wl_pwMsg', T('اكتب كلمة السر'), 'error'); return; }
+  _wlBusy('wl_loginBtn', true);
+  const r = await _wlPost('/api/worker-auth/login', { code: _wlPending.code, password: pw });
+  _wlBusy('wl_loginBtn', false);
+  if (r.ok) return _wlEnter(r.data.employee, r.data.token);
+  showWlMsg('wl_pwMsg', r.data.error || T('حصل خطأ في التحقق، حاول تاني'), 'error');
+  if (r.data.needsSetup) wlShowStep('wl-step-setup');
+}
+
+/** أول دخول: كلمة سر جديدة + رقم الموبايل */
+async function workerSetupPassword(){
+  if (!_wlPending) return resetWorkerLogin();
+  const pw = _wlVal('wl_newPw');
+  const phone = _wlDigits(_wlVal('wl_phone')).trim();
+  const pwErr = _wlPasswordError(pw, _wlVal('wl_newPw2'));
+  if (pwErr) { showWlMsg('wl_setupMsg', pwErr, 'error'); return; }
+  if (!_wlValidPhone(phone)) { showWlMsg('wl_setupMsg', T('رقم الموبايل غير صحيح — اكتبه كده: 01xxxxxxxxx'), 'error'); return; }
+  _wlBusy('wl_setupBtn', true);
+  const r = await _wlPost('/api/worker-auth/setup', { code: _wlPending.code, password: pw, phone });
+  _wlBusy('wl_setupBtn', false);
+  if (r.ok) return _wlEnter(r.data.employee, r.data.token);
+  showWlMsg('wl_setupMsg', r.data.error || T('حصل خطأ في التحقق، حاول تاني'), 'error');
+}
+
+/** "نسيت كلمة السر؟" — الأدمن هو اللي بيعمل كلمة سر جديدة ويديهالك */
+function wlShowForgot(){
+  if (!_wlPending) return resetWorkerLogin();
+  const note = document.getElementById('wl_forgotNote');
+  if (note) note.textContent = T('كلّم مشرف السلامة أو أدمن قسمك يعملك كلمة سر جديدة من شاشة الموظفين ويديهالك، وبعدها ادخل بكودك وكلمة السر الجديدة.');
+  wlShowStep('wl-step-forgot');
+}
 
 /**
  * يُنفَّذ عند الضغط على "حفظ وتسجيل الدخول" للكود الجديد.
@@ -1601,14 +1842,10 @@ async function renderExecutiveView(){
     const t = d.totals || {};
     const permitsApproved = (d.permits && d.permits.byStatus && d.permits.byStatus.approved) || 0;
     const scoreLabel = d.companySafetyScore == null ? '—' : d.companySafetyScore;
-    const dayWord = L ? 'days' : T('يوم');
-
     const kpis = [
       { value: t.employees ?? '—', label: L ? 'Total Employees' : T('إجمالي الموظفين') },
       { value: t.permits ?? '—', label: L ? 'Work Permits' : T('تصاريح العمل'), sub: `${permitsApproved} ${L ? 'approved' : T('معتمد')}` },
       { value: t.hazards ?? '—', label: L ? 'Hazard Reports' : T('بلاغات الخطورة'), sub: `${t.openHazards ?? 0} ${L ? 'currently open' : T('مفتوح حاليًا')}` },
-      { value: d.permits && d.permits.avgApprovalDays != null ? `${d.permits.avgApprovalDays} ${dayWord}` : '—', label: L ? 'Avg. Permit Approval Time' : T('متوسط زمن اعتماد التصريح') },
-      { value: d.hazards && d.hazards.avgClosureDays != null ? `${d.hazards.avgClosureDays} ${dayWord}` : '—', label: L ? 'Avg. Hazard Closure Time' : T('متوسط زمن إغلاق البلاغ') },
       { value: t.activePenalties ?? '—', label: L ? 'Active Penalties' : T('الجزاءات النشطة') },
       { value: (d.training && d.training.uniqueEmployeesTrainedLast12Months) ?? '—', label: L ? 'Employees Trained (last year)' : T('موظف تم تدريبه (آخر سنة)') },
       { value: (d.drills && d.drills.sessionsLast12Months) ?? '—', label: L ? 'Emergency Drills (last year)' : T('تجارب طوارئ (آخر سنة)') },
@@ -1677,6 +1914,7 @@ function finishEmployeeLogin(emp){
     }
   }
 
+  emp.authV = WORKER_AUTH_VERSION;
   currentEmployee = emp;
   try{
     localStorage.setItem('ep_currentEmployee', JSON.stringify(emp));
@@ -1688,7 +1926,7 @@ function finishEmployeeLogin(emp){
   // ✦ شاشة الترحيب المتحركة أولاً، ثم دخول الواجهة الفعلية بعد انتهائها
   showAnimatedWelcome({
     name: emp.name,
-    subtitle: emp.department || '',
+    subtitle: [emp.jobTitle, emp.department].filter(Boolean).join(' · '),
     onDone: () => {
       sessionRole = 'worker';
       applyRbacUI();
@@ -1738,7 +1976,7 @@ async function lookupPermitEmpCode() {
   const rawInput = empEl.value;
   const cleanCode = String(rawInput || '').trim().replace(/^0+/, '') || '0';
   try {
-    const res  = await fetch(`/api/employees/lookup/${encodeURIComponent(cleanCode)}`);
+    const res  = await authFetch(`/api/employees/lookup/${encodeURIComponent(cleanCode)}`);
     const data = await res.json();
     if (data.found) {
       const emp = data.employee;
@@ -2122,10 +2360,9 @@ async function submitPermit(){
   btn.disabled = true;
   btn.textContent = T('جارِ الإرسال…');
 
-  const list = await loadPermits();
   const type = PERMIT_TYPES[selectedType];
   const permit = {
-    id: genId(list),
+    id: '', // رقم الطلب بيتولد في السيرفر
     typeKey: selectedType,
     typeLabel: type.label,
     typeFullLabel: type.fullLabel,
@@ -2157,8 +2394,18 @@ async function submitPermit(){
     reviewedAt: '',
     closure: null
   };
-  list.push(permit);
-  const ok = await savePermits(list);
+  // طلب واحد بيتبعت للسيرفر (مش القائمة كلها) والسيرفر هو اللي بيدّيله رقمه
+  let ok = false;
+  try {
+    const res = await authFetch('/api/permits', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ permit })
+    });
+    const data = await res.json().catch(() => ({}));
+    ok = !!(res.ok && data.permit);
+    if (ok) permit.id = data.permit.id;
+  } catch (e) { ok = false; }
 
   if(!ok){
     btn.disabled = false;
@@ -2838,10 +3085,10 @@ async function workerClosePermit(id, type) {
   const reason = reasonEl ? reasonEl.value.trim() : '';
 
   try {
-    const res = await fetch(`/api/permits/${encodeURIComponent(id)}/worker-close`, {
+    const res = await authFetch(`/api/permits/${encodeURIComponent(id)}/worker-close`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ employeeId: currentEmployee.empCode, closureType: type, closureReason: reason })
+      body: JSON.stringify({ closureType: type, closureReason: reason })
     });
     const data = await res.json();
     if (res.ok) {
@@ -3051,6 +3298,11 @@ async function renderUsersPanel(){
       return;
     }
     listEl.innerHTML = `
+      <div class="um-bulk-bar">
+        <button class="um-btn pass" onclick="generateDefaultPasswords()">🔐 ${T("توليد كلمات سر لحسابات الأقسام اللي على كلمة السر الافتراضية")}</button>
+        <span class="um-bulk-hint">${T("حسابات الأقسام اللي لسه على 123456 مقفولة لحمايتها — ولّد لها كلمات سر ووزّعها على رؤساء الأقسام.")}</span>
+      </div>
+      <div id="umGeneratedBox"></div>
       <div class="um-table-wrap">
         <table class="um-table">
           <thead>
@@ -3071,7 +3323,8 @@ async function renderUsersPanel(){
                 <td style="font-family:'Oswald',sans-serif;font-size:13px;">${escapeHtml(u.username)}</td>
                 <td>
                   <span class="role-badge ${u.role}">${roleLabel(u.role)}</span>
-                  ${u.role === 'dept_admin' && u.department ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">${escapeHtml(u.department)}</div>` : ''}
+                  ${(u.role === 'dept_admin' || u.role === 'maint_admin') && u.department ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">${escapeHtml(u.department)}</div>` : ''}
+                  ${u.mustChangePassword ? `<div class="um-default-pw">⚠️ ${T("لازم تتغير كلمة السر")}</div>` : ''}
                 </td>
                 <td style="color:var(--muted);font-size:12px;">${u.createdAt ? new Date(u.createdAt).toLocaleDateString(LOC()) : '—'}</td>
                 <td>
@@ -3090,6 +3343,44 @@ async function renderUsersPanel(){
   } catch(e){
     listEl.innerHTML = T('<div class="empty" style="color:var(--danger);">فشل تحميل المستخدمين</div>');
   }
+}
+
+/** كلمات سر عشوائية لكل حسابات الأقسام اللي لسه على 123456 (بتظهر مرة واحدة بس) */
+async function generateDefaultPasswords() {
+  if (!confirm(T('هيتعمل كلمة سر عشوائية جديدة لكل حساب قسم/صيانة لسه على 123456، وهتظهرلك مرة واحدة بس عشان توزعها. نكمل؟'))) return;
+  const box = document.getElementById('umGeneratedBox');
+  if (box) box.innerHTML = `<div class="loading">${T('جارِ التوليد… (ممكن ياخد نص دقيقة)')}</div>`;
+  try {
+    const res = await authFetch('/api/users/generate-default-passwords', { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { if (box) box.innerHTML = ''; showToast(data.error || T('فشل التوليد'), 'error'); return; }
+    if (!data.count) { if (box) box.innerHTML = `<div class="um-gen-box">${T('مفيش حسابات على كلمة السر الافتراضية ✅')}</div>`; return; }
+    window._generatedAccounts = data.accounts;
+    if (box) box.innerHTML = `
+      <div class="um-gen-box">
+        <div class="um-gen-title">🔐 ${T('كلمات السر الجديدة')} (${data.count}) — ${T('انسخها أو نزّلها دلوقتي، مش هتظهر تاني')}</div>
+        <div class="um-table-wrap"><table class="um-table">
+          <thead><tr><th>${T('القسم')}</th><th>${T('اسم المستخدم')}</th><th>${T('كلمة السر')}</th></tr></thead>
+          <tbody>${data.accounts.map(a => `<tr><td>${escapeHtml(a.department || a.name)}</td><td dir="ltr">${escapeHtml(a.username)}</td><td dir="ltr" class="um-gen-pw">${escapeHtml(a.password)}</td></tr>`).join('')}</tbody>
+        </table></div>
+        <button class="um-btn pass" onclick="downloadGeneratedAccounts()">⬇ ${T('تنزيل القائمة (CSV)')}</button>
+      </div>`;
+  } catch (e) {
+    if (box) box.innerHTML = '';
+    showToast(T('خطأ في الاتصال'), 'error');
+  }
+}
+
+function downloadGeneratedAccounts() {
+  const rows = [['department', 'username', 'password'], ...(window._generatedAccounts || []).map(a => [a.department || a.name, a.username, a.password])];
+  const csv = '﻿' + rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  link.download = `كلمات سر حسابات الأقسام - ${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 2000);
 }
 
 async function addUser(){
@@ -3246,7 +3537,13 @@ initEmployeeSession();
 // 🗂️ EMPLOYEE DIRECTORY — إدارة دليل الموظفين
 // =====================================================================
 
-let _allEmployees   = [];   // full list fetched from server
+let _allEmployees   = [];   // (قديم — مكانش بيتملى أبدًا؛ استخدم findListedEmployee)
+
+/** الموظف من القائمة اللي اتحملت من /api/employees في شاشة الموظفين */
+function findListedEmployee(code) {
+  const target = String(code || '').trim().replace(/^0+/, '');
+  return (window._masterEmployeesList || []).find(e => String(e.empCode || e.code || '').trim().replace(/^0+/, '') === target) || null;
+}
 let _empEditCode    = null; // code being edited (null = add mode)
 let _allHazardsCache = [];
 
@@ -3382,10 +3679,31 @@ function getTrainingDuration(t) {
   if (t && (t.hours !== undefined && t.hours !== null && t.hours !== '')) {
     return Number(t.hours);
   }
+  // المحاضرات المسجلة على المنصة والمستوردة من الإكسيل بتتخزن مدتها بالساعات
+  // في "duration" (0.5 / 1 ...) — كانت بتتجاهل فكل محاضرة كانت بتتحسب نص ساعة.
+  if (t && t.duration !== undefined && t.duration !== null && t.duration !== '' && !isNaN(Number(t.duration))) {
+    return Number(t.duration);
+  }
   if (t && t.durationMinutes) {
     return Number(t.durationMinutes) / 60;
   }
   return 0.5; // Default standard session is strictly 0.5 hours (30 mins)
+}
+
+// مطابقة سجل (بلاغ / حضور تدريب) بموظف: بالكود الوظيفي لو السجل فيه كود،
+// وبالاسم الكامل بالظبط لو مفيهوش. المطابقة القديمة بجزء من الاسم ("محمد
+// أحمد" جوه "محمد أحمد علي") كانت بتحسب بلاغات وتدريبات ناس تانية للموظف.
+// ملحوظة: normalizeCode('') بترجع '0'، فـ '0' معناها "مفيش كود".
+function _statsRecordMatches(recCode, recName, empCode, empName) {
+  const rc = recCode && recCode !== '0' ? recCode : '';
+  if (rc) return !!empCode && rc === empCode;
+  return !!recName && !!empName && recName === empName;
+}
+
+// البلاغات المرفوضة أو المحذوفة ماتتحسبش في تارجت الموظف (نفس قاعدة السيرفر في GET /api/employees)
+function _statsHazardCounts(h) {
+  if (!h || h.deleted || h.deletedAt || h.isDeleted) return false;
+  return h.status !== 'rejected' && h.status !== 'rejected_by_maintenance';
 }
 
 function computeEmployeeLiveStats(emp, cutoffDate = null, targetMonths = 1) {
@@ -3455,6 +3773,7 @@ function computeEmployeeLiveStats(emp, cutoffDate = null, targetMonths = 1) {
 function computeAllStats(fullList, cutoffDate, targetMonths) {
   // Pre-process hazards and trainings to drastically improve performance (avoid freezing)
   const hazardsList = toArray(window._allHazardsCache).filter(h => {
+    if (!_statsHazardCounts(h)) return false;
     if (!cutoffDate) return true;
     const hDate = new Date(h.createdAt || h.date || h.submittedAt);
     return hDate >= cutoffDate;
@@ -3465,6 +3784,7 @@ function computeAllStats(fullList, cutoffDate, targetMonths) {
   });
 
   const trainingsList = toArray(window._trainingsCache).filter(t => {
+    if (t.isDeleted || t.deletedAt) return false;
     if (!cutoffDate) return true;
     const tDate = new Date(t.date || t.createdAt);
     return tDate >= cutoffDate;
@@ -3476,7 +3796,7 @@ function computeAllStats(fullList, cutoffDate, targetMonths) {
     let att = [];
     if (Array.isArray(t.attendees)) att = t.attendees;
     else if (Array.isArray(t.attendedEmployees)) att = t.attendedEmployees;
-    t._att = att.map(a => ({
+    t._att = att.filter(a => a && a.verified !== false).map(a => ({
       _nCode: normalizeCode(a.id || a.code || a.empCode || ''),
       _nName: normalizeName(a.name || a.workerName || '')
     }));
@@ -3492,9 +3812,7 @@ function computeAllStats(fullList, cutoffDate, targetMonths) {
     let hCount = 0;
     for (let i = 0; i < hazardsList.length; i++) {
       const h = hazardsList[i];
-      if ((h._nCode && eCode && h._nCode === eCode) || (h._nName && eName && (h._nName === eName || h._nName.includes(eName) || eName.includes(h._nName)))) {
-        hCount++;
-      }
+      if (_statsRecordMatches(h._nCode, h._nName, eCode, eName)) hCount++;
     }
 
     let tHours = 0;
@@ -3506,7 +3824,7 @@ function computeAllStats(fullList, cutoffDate, targetMonths) {
       let matched = false;
       for (let j = 0; j < t._att.length; j++) {
         const a = t._att[j];
-        if ((a._nCode && eCode && a._nCode === eCode) || (a._nName && eName && (a._nName === eName || a._nName.includes(eName) || eName.includes(a._nName)))) {
+        if (_statsRecordMatches(a._nCode, a._nName, eCode, eName)) {
           matched = true;
           break;
         }
@@ -3561,15 +3879,11 @@ function renderEmployeesPanelUI() {
   
   let totalTHours = 0;
   let totalHCount = 0;
-  let totalTPerc = 0;
   
   scoredEmployees.forEach(emp => {
     totalTHours += emp._stats.trainingHours;
     totalHCount += emp._stats.hazardsCount;
-    totalTPerc += emp._stats.tPerc;
   });
-
-  const avgTPerc = scoredEmployees.length > 0 ? Math.round(totalTPerc / scoredEmployees.length) : 0;
   
 
 
@@ -3590,11 +3904,6 @@ function renderEmployeesPanelUI() {
         <div class="emp-kpi-icon">⚠️</div>
         <div class="emp-kpi-value">${totalHCount}</div>
         <div class="emp-kpi-label">${T("بلاغات الخطورة المقدمة")}</div>
-      </div>
-      <div class="emp-kpi-card">
-        <div class="emp-kpi-icon">📈</div>
-        <div class="emp-kpi-value">${avgTPerc}%</div>
-        <div class="emp-kpi-label">${T("متوسط نسبة الالتزام")}</div>
       </div>
     </div>
   `;
@@ -3902,7 +4211,8 @@ function openEmpModal(code = null) {
 
   if (code) {
     // Edit mode
-    const emp = _allEmployees.find(e => e.empCode === code);
+    // كان بيدور في _allEmployees (فاضية دايمًا) فزرار "تعديل" مكانش بيفتح أي حاجة
+    const emp = findListedEmployee(code);
     if (!emp) return;
     if (titleEl) titleEl.textContent = `${T("✏️ تعديل:")} ${emp.empCode}`;
     if (codeEl) { codeEl.value = emp.empCode; codeEl.setAttribute('readonly','readonly'); }
@@ -3925,12 +4235,59 @@ function openEmpModal(code = null) {
 
   const msgEl = document.getElementById('em_msg');
   if (msgEl) { msgEl.className = 'um-msg'; msgEl.textContent = ''; }
+  const pwBox = document.getElementById('em_pwBox');
+  if (pwBox) {
+    pwBox.style.display = code ? 'block' : 'none';
+    const pwEmp = code ? findListedEmployee(code) : null;
+    const st = document.getElementById('em_pwStatus');
+    if (st) {
+      const has = !!(pwEmp && pwEmp.hasWorkerPassword);
+      st.textContent = has ? T('(عنده كلمة سر)') : T('(لسه ماعملش كلمة سر)');
+      st.className = 'em-pw-status ' + (has ? 'ok' : 'none');
+    }
+    const pwInput = document.getElementById('em_newWorkerPw');
+    if (pwInput) pwInput.value = '';
+  }
   document.getElementById('empModal').style.display = 'flex';
 }
 
 function closeEmpModal() {
   document.getElementById('empModal').style.display = 'none';
   _empEditCode = null;
+}
+
+/** كلمة سر عشوائية سهلة القراءة (من غير حروف متشابهة زي O/0 و l/1) */
+function generateWorkerPassword() {
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+  const buf = new Uint32Array(8);
+  window.crypto.getRandomValues(buf);
+  const pw = Array.from(buf, n => chars[n % chars.length]).join('');
+  const inp = document.getElementById('em_newWorkerPw');
+  if (inp) { inp.value = pw; inp.focus(); inp.select(); }
+}
+
+/** الأدمن بيعمل أو بيغيّر كلمة سر دخول العامل ويديهاله (بدل الاسترجاع بواتساب) */
+async function setEmployeePassword() {
+  if (!_empEditCode) return;
+  const msgEl = document.getElementById('em_msg');
+  const inp = document.getElementById('em_newWorkerPw');
+  const password = inp ? inp.value.trim() : '';
+  const say = (text, ok) => { if (msgEl) { msgEl.textContent = text; msgEl.className = `um-msg ${ok ? 'success' : 'error'} show`; } };
+  if (password.length < 6) return say(T('كلمة السر لازم تكون 6 حروف أو أرقام على الأقل'), false);
+  try {
+    const res = await authFetch(`/api/employees/${encodeURIComponent(_empEditCode)}/set-password`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return say(data.error || T('فشل حفظ كلمة السر'), false);
+    say(`${T('✅ اتحفظت كلمة السر — ادّيها للعامل:')} ${password}`, true);
+    const emp = findListedEmployee(_empEditCode);
+    if (emp) emp.hasWorkerPassword = true;
+    const st = document.getElementById('em_pwStatus');
+    if (st) { st.textContent = T('(عنده كلمة سر)'); st.className = 'em-pw-status ok'; }
+  } catch (e) {
+    say(T('خطأ في الاتصال'), false);
+  }
 }
 
 /** Save (add or update) an employee */
@@ -4230,7 +4587,7 @@ async function renderMyHazards(isSilent = false) {
   if (!isSilent && listEl) listEl.innerHTML = T('<div class="loading">جارِ تحميل بلاغاتك…</div>');
 
   try {
-    const res = await fetch(`/api/my-hazards/${encodeURIComponent(currentEmployee.name)}?empCode=${encodeURIComponent(currentEmployee.empCode || currentEmployee.code || '')}`);
+    const res = await authFetch(`/api/my-hazards/${encodeURIComponent(currentEmployee.name)}?empCode=${encodeURIComponent(currentEmployee.empCode || currentEmployee.code || '')}`);
     if (!res.ok) throw new Error('Failed to fetch');
     const data = await res.json();
     const myHazards = data.hazards || [];
@@ -4377,7 +4734,7 @@ async function lookupHazardEmpCode() {
   const rawInput = codeEl.value;
   const cleanCode = String(rawInput || '').trim().replace(/^0+/, '') || '0';
   try {
-    const res  = await fetch(`/api/employees/lookup/${encodeURIComponent(cleanCode)}`);
+    const res  = await authFetch(`/api/employees/lookup/${encodeURIComponent(cleanCode)}`);
     const data = await res.json();
     if (data.found) {
       const emp = data.employee;
@@ -4513,7 +4870,7 @@ async function submitHazardReport() {
     
     console.log('[submitHazardReport] Sending payload:', payload);
 
-    const res = await fetch('/api/hazards', {
+    const res = await authFetch('/api/hazards', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -4915,7 +5272,7 @@ async function renderHzFilters() {
     `<div class="chip ${currentHzStatusFilter===s?'active':''}" onclick="setHzFilter('${s}')">${T(s)}</div>`
   ).join('');
 
-  if (currentUserRole !== 'area_head' && currentUserRole !== 'maint_admin') {
+  if (currentUserRole !== 'dept_admin' && currentUserRole !== 'maint_admin') {
     dToolbar.style.display = 'flex';
     // Skip rebuilding the combobox while the user is actively typing in it
     // (re-creating the <input> mid-keystroke would drop focus/cursor).
@@ -5517,7 +5874,7 @@ function startHazardPolling() {
 
     if (sessionRole === 'supervisor' && currentAdminToken) {
       try {
-        const res = await fetch('/api/hazards', { headers: { 'Authorization': `Bearer ${currentAdminToken}` }});
+        const res = await authFetch('/api/hazards');
         if (res.ok) {
           const data = await res.json();
           const list = data.hazards || [];
@@ -5534,7 +5891,7 @@ function startHazardPolling() {
 async function updateHazardBadgeCount() {
   if (!currentAdminToken || sessionRole !== 'supervisor') return;
   try {
-    const res = await fetch('/api/hazards', { headers: { 'Authorization': `Bearer ${currentAdminToken}` }});
+    const res = await authFetch('/api/hazards');
     if (!res.ok) return;
     const data = await res.json();
     _applyHazardBadgeCount(data.hazards || []);
@@ -5547,14 +5904,14 @@ async function silentRefreshHazards() {
 
   if (viewSup && viewSup.style.display !== 'none' && sessionRole === 'supervisor' && currentAdminToken) {
     try {
-      const res = await fetch('/api/hazards', { headers: { 'Authorization': `Bearer ${currentAdminToken}` }});
+      const res = await authFetch('/api/hazards');
       if (!res.ok) return;
       const data = await res.json();
       _applySupHazardDiff(data.hazards || []);
     } catch(e) {}
   } else if (viewMy && viewMy.style.display !== 'none' && currentEmployee) {
     try {
-      const res = await fetch(`/api/my-hazards/${encodeURIComponent(currentEmployee.name)}?empCode=${encodeURIComponent(currentEmployee.empCode || currentEmployee.code || '')}`);
+      const res = await authFetch(`/api/my-hazards/${encodeURIComponent(currentEmployee.name)}?empCode=${encodeURIComponent(currentEmployee.empCode || currentEmployee.code || '')}`);
       if (!res.ok) return;
       const data = await res.json();
       const raw = JSON.stringify(data.hazards || []);
@@ -5586,7 +5943,7 @@ async function loadWorkerTraining(isSilent = false) {
   const historyList = document.getElementById('trnWorkerHistoryList');
 
   try {
-    const res = await fetch(`/api/trainings/worker/${encodeURIComponent(currentEmployee.empCode)}`);
+    const res = await authFetch(`/api/trainings/worker/${encodeURIComponent(currentEmployee.empCode)}`);
     const data = await res.json();
     
     const activeSession = data.activeSession;
@@ -5680,7 +6037,7 @@ async function submitAttendance(sessionId) {
   }
   
   try {
-    const res = await fetch(`/api/trainings/${sessionId}/attend`, {
+    const res = await authFetch(`/api/trainings/${sessionId}/attend`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ empCode: currentEmployee.empCode, pin: pin })
@@ -6165,7 +6522,7 @@ async function loadWorkerDrill(isSilent = false) {
   const historyList = document.getElementById('drlWorkerHistoryList');
 
   try {
-    const res = await fetch(`/api/drills/worker/` + encodeURIComponent(currentEmployee.empCode));
+    const res = await authFetch(`/api/drills/worker/` + encodeURIComponent(currentEmployee.empCode));
     const data = await res.json();
     
     const activeSession = data.activeSession;
@@ -6250,7 +6607,7 @@ async function submitDrillAttendance(sessionId) {
     return;
   }
   try {
-    const res = await fetch(`/api/drills/${sessionId}/attend`, {
+    const res = await authFetch(`/api/drills/${sessionId}/attend`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ empCode: currentEmployee.empCode, pin: pin })
@@ -6881,20 +7238,10 @@ function urlB64ToUint8Array(base64String) {
 }
 
 async function fetchNotifications() {
-  let params = new URLSearchParams();
-  const token = getToken();
-  if (token && sessionRole !== 'worker' && sessionRole !== 'none') {
-    params.append('role', sessionRole);
-    if (currentUserDept) params.append('department', currentUserDept);
-  } else if (currentEmployee && currentEmployee.empCode) {
-    params.append('role', 'worker');
-    params.append('empCode', currentEmployee.empCode);
-  } else {
-    return;
-  }
-
+  // الهوية من توكن الجلسة (إدارة أو عامل) — السيرفر مبقاش بياخدها من الرابط
+  if (!getToken() && !getWorkerToken()) return;
   try {
-    const res = await fetch(`/api/notifications?${params.toString()}`);
+    const res = await authFetch('/api/notifications');
     if (res.ok) {
       const data = await res.json();
       currentNotifications = data.notifications || [];
@@ -6928,9 +7275,10 @@ function timeAgo(isoString) {
   return T("الآن");
 }
 
+// لازم يطابق اللي السيرفر بيسجله في readBy: دور الأدمن، أو كود العامل
 function getIdentifier() {
   const token = getToken();
-  if (token && sessionRole !== 'worker' && sessionRole !== 'none') return sessionRole;
+  if (token && sessionRole !== 'worker' && sessionRole !== 'none') return currentUserRole || sessionRole;
   if (currentEmployee && currentEmployee.empCode) return currentEmployee.empCode;
   return 'unknown';
 }
@@ -6987,7 +7335,7 @@ function renderNotifications() {
 async function handleNotificationClick(id, link, targetId, type) {
   // Mark read API
   const identifier = getIdentifier();
-  await fetch(`/api/notifications/read/${id}`, {
+  await authFetch(`/api/notifications/read/${encodeURIComponent(id)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ empCode: identifier })
@@ -7031,7 +7379,7 @@ async function handleNotificationClick(id, link, targetId, type) {
 
 async function markAllNotificationsAsRead() {
   const identifier = getIdentifier();
-  await fetch('/api/notifications/read-all', {
+  await authFetch('/api/notifications/read-all', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ empCode: identifier })
@@ -7316,10 +7664,8 @@ async function loadDashboard() {
         params.set('dept', _dashDeptFilter);
     }
 
+    // authFetch بيبعت توكن الجلسة (إدارة أو عامل) — اتشال هيدر X-Worker-Code
     const fetchOptions = { headers: {} };
-    if (sessionRole === 'worker' && typeof currentEmployee !== 'undefined' && currentEmployee) {
-      fetchOptions.headers['X-Worker-Code'] = currentEmployee.empCode || currentEmployee.code;
-    }
 
     const res = await authFetch('/api/analytics?' + params.toString(), fetchOptions);
     if (!res.ok) throw new Error('API error ' + res.status);
@@ -7340,7 +7686,17 @@ async function loadDashboard() {
     // to their own department. They only drop into the simpler personal-style
     // view when drilling into one specific employee via the search filter.
     if (role === 'worker' || isSingleEmployeeView) {
-      renderPersonalDashboard(container, data, role, isSingleEmployeeView);
+      // كارت "تارجتك" بيتقاس على تارجت سنوي (8 ساعات / 2 بلاغ)، فلازم يتحسب من
+      // أول السنة — مش من فترة الفلتر (افتراضيًا آخر 30 يوم) زي باقي الصفحة.
+      let ytdData = null;
+      try {
+        const ytdParams = new URLSearchParams(params);
+        ytdParams.set('dateFrom', `${new Date().getFullYear()}-01-01`);
+        ytdParams.delete('dateTo');
+        const ytdRes = await authFetch('/api/analytics?' + ytdParams.toString(), fetchOptions);
+        if (ytdRes.ok) ytdData = await ytdRes.json();
+      } catch (e) { /* لو فشل، الكارت بيرجع لبيانات الفترة المختارة */ }
+      renderPersonalDashboard(container, data, role, isSingleEmployeeView, ytdData);
     } else {
       // Only super_admin/hse_admin get to pick a department to drill into —
       // fetch the real department list once (cached) before rendering the filter bar.
@@ -7768,7 +8124,7 @@ function _dashListCard(opts) {
 // ══════════════════════════════════════════════════════════════
 // PERSONAL / DEPARTMENT DASHBOARD — worker & dept_admin
 // ══════════════════════════════════════════════════════════════
-function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
+function renderPersonalDashboard(container, data, role, isSingleEmployeeView, ytdData) {
   const { permits, hazards, trainings, drills, penalties, meta } = data;
   const viewingEmp = meta && meta.viewingEmployee;
   // An admin/HSE/dept_admin user who drilled down via the employee-code filter
@@ -7803,16 +8159,19 @@ function renderPersonalDashboard(container, data, role, isSingleEmployeeView) {
     </div>
   ` : '';
 
-  // 🎯 Personal target progress (worker only) — remaining hours/reports to hit the fixed annual target
-  const trainHoursSoFar = trainings.totalHours || 0;
-  const hazSoFar         = hazards.total || 0;
+  // 🎯 Personal target progress (worker only) — remaining hours/reports to hit
+  // the fixed annual target, counted since Jan 1 (ytdData) rather than the
+  // selected dashboard period, which is only the last 30 days by default.
+  const targetSrc = ytdData || data;
+  const trainHoursSoFar = (targetSrc.trainings && targetSrc.trainings.totalHours) || 0;
+  const hazSoFar         = (targetSrc.hazards && targetSrc.hazards.total) || 0;
   const trainPct = Math.min(100, Math.round((trainHoursSoFar / EMP_TARGET_TRAIN_HOURS) * 100));
   const hazPct   = Math.min(100, Math.round((hazSoFar / EMP_TARGET_HAZARDS) * 100));
   const trainRemaining = Math.max(0, EMP_TARGET_TRAIN_HOURS - trainHoursSoFar);
   const hazRemaining   = Math.max(0, EMP_TARGET_HAZARDS - hazSoFar);
 
   const myTargetSection = (!isDept) ? `
-      <div class="dash-section-title">${dicon('target', 17)} ${T("تارجتك (تدريب")} ${EMP_TARGET_TRAIN_HOURS} ${T("ساعات /")} ${EMP_TARGET_HAZARDS} ${T("بلاغ خطورة)")}</div>
+      <div class="dash-section-title">${dicon('target', 17)} ${T("تارجتك (تدريب")} ${EMP_TARGET_TRAIN_HOURS} ${T("ساعات /")} ${EMP_TARGET_HAZARDS} ${T("بلاغ خطورة)")}${ytdData ? ` · ${T('من أول السنة')}` : ''}</div>
       <div class="dash-chart-grid">
         <div class="dash-chart-card">
           <div class="dash-chart-title">${dicon('cap', 17)} <span>${T("ساعات التدريب")}</span></div>
@@ -8093,7 +8452,7 @@ async function renderMyPenalties() {
 
   try {
     const code = encodeURIComponent(currentEmployee.empCode || currentEmployee.code || '');
-    const res = await fetch(`/api/my-penalties/${code}`);
+    const res = await authFetch(`/api/my-penalties/${code}`);
     if (!res.ok) throw new Error('Failed to fetch');
     const data = await res.json();
     const penalties = data.penalties || [];
@@ -8420,20 +8779,6 @@ function renderDashboardHTML(container, data) {
 
       <${T("!-- Speed & department leaderboard (من /api/executive/overview) — نظرة\n           على مستوى الشركة كلها، فتظهر فقط لـ super_admin/hse_admin؛ أدمن\n           القسم يبقى مقصورًا على بيانات قسمه فقط في باقي الصفحة. --")}>
       ${(meta.role === 'super_admin' || meta.role === 'hse_admin') ? `
-      <div class="dash-section-title">${dicon('trend', 17)} ${T("كفاءة النظام مقارنة بالورقي")}</div>
-      <div class="dash-kpi-grid" id="dashSpeedKpis">
-        <div class="dash-kpi-card">
-          <span class="dash-kpi-icon">${dicon('doc', 26)}</span>
-          <div class="dash-kpi-value" id="kpiAvgApproval">…</div>
-          <div class="dash-kpi-label">${T("متوسط زمن اعتماد التصريح")}</div>
-        </div>
-        <div class="dash-kpi-card">
-          <span class="dash-kpi-icon">${dicon('alert', 26)}</span>
-          <div class="dash-kpi-value" id="kpiAvgClosure">…</div>
-          <div class="dash-kpi-label">${T("متوسط زمن إغلاق البلاغ")}</div>
-        </div>
-      </div>
-
       <div class="dash-section-title">${dicon('bars', 17)} ${T("ترتيب الأقسام حسب الالتزام بالسلامة")}</div>
       <div class="exec-leaderboard" id="dashDeptLeaderboard" style="margin-bottom:24px;">
         <div class="loading">${T("جارِ التحميل…")}</div>
@@ -8527,48 +8872,40 @@ function renderDashboardHTML(container, data) {
     pctOverallId: 'execCompliancePct', subOverallId: 'execComplianceSub'
   });
   if (meta.role === 'super_admin' || meta.role === 'hse_admin') {
-    _dashLoadSpeedAndLeaderboard();
+    _dashLoadDeptLeaderboard();
   }
 }
 
 /**
- * _dashLoadSpeedAndLeaderboard — متوسط زمن اعتماد التصاريح/إغلاق البلاغات
- * وترتيب الأقسام، من نفس تجميع /api/executive/overview المُستخدَم في
- * حساب المدير التنفيذي — بدل تكرار نفس منطق التجميع مرتين.
+ * _dashLoadDeptLeaderboard — ترتيب الأقسام، من نفس تجميع
+ * /api/executive/overview المُستخدَم في حساب المدير التنفيذي — بدل تكرار
+ * نفس منطق التجميع مرتين. (كروت متوسط زمن الاعتماد/الإغلاق اتشالت بطلب
+ * بشمهندس أحمد 12 سبتمبر 2026.)
  */
-async function _dashLoadSpeedAndLeaderboard() {
-  const approvalEl = document.getElementById('kpiAvgApproval');
-  const closureEl  = document.getElementById('kpiAvgClosure');
-  const boardEl    = document.getElementById('dashDeptLeaderboard');
-  if (!approvalEl && !boardEl) return; // personal dashboard view — nothing to fill
+async function _dashLoadDeptLeaderboard() {
+  const boardEl = document.getElementById('dashDeptLeaderboard');
+  if (!boardEl) return; // personal dashboard view — nothing to fill
   try {
     const res = await authFetch('/api/executive/overview');
     if (!res.ok) throw new Error('fetch failed');
     const d = await res.json();
-    if (approvalEl) approvalEl.textContent = d.permits && d.permits.avgApprovalDays != null ? `${d.permits.avgApprovalDays} ${T("يوم")}` : '—';
-    if (closureEl)  closureEl.textContent  = d.hazards && d.hazards.avgClosureDays != null ? `${d.hazards.avgClosureDays} ${T("يوم")}` : '—';
-
-    if (boardEl) {
-      const board = (d.departmentLeaderboard || []).slice(0, 8);
-      const maxScore = board.length ? Math.max(...board.map(b => b.score)) : 100;
-      boardEl.innerHTML = board.length ? board.map((b, idx) => `
-        <div class="exec-leaderboard-row">
-          <div class="exec-leaderboard-rank">${idx + 1}</div>
-          <div>
-            <div class="exec-leaderboard-name">${escapeHtml(b.department)}</div>
-            <div class="exec-leaderboard-bar-bg">
-              <div class="exec-leaderboard-bar-fill" style="width:${Math.max(2, (b.score / (maxScore || 100)) * 100)}%"></div>
-            </div>
+    const board = (d.departmentLeaderboard || []).slice(0, 8);
+    const maxScore = board.length ? Math.max(...board.map(b => b.score)) : 100;
+    boardEl.innerHTML = board.length ? board.map((b, idx) => `
+      <div class="exec-leaderboard-row">
+        <div class="exec-leaderboard-rank">${idx + 1}</div>
+        <div>
+          <div class="exec-leaderboard-name">${escapeHtml(b.department)}</div>
+          <div class="exec-leaderboard-bar-bg">
+            <div class="exec-leaderboard-bar-fill" style="width:${Math.max(2, (b.score / (maxScore || 100)) * 100)}%"></div>
           </div>
-          <div class="exec-leaderboard-score">${b.score}</div>
         </div>
-      `).join('') : T('<div class="empty" style="padding:20px"><div class="icon">📊</div>لا توجد بيانات كافية بعد</div>');
-    }
+        <div class="exec-leaderboard-score">${b.score}</div>
+      </div>
+    `).join('') : T('<div class="empty" style="padding:20px"><div class="icon">📊</div>لا توجد بيانات كافية بعد</div>');
   } catch (e) {
-    console.error('_dashLoadSpeedAndLeaderboard error', e);
-    if (approvalEl) approvalEl.textContent = '—';
-    if (closureEl) closureEl.textContent = '—';
-    if (boardEl) boardEl.innerHTML = T('<div class="empty" style="padding:20px;color:var(--danger);">فشل التحميل</div>');
+    console.error('_dashLoadDeptLeaderboard error', e);
+    boardEl.innerHTML = T('<div class="empty" style="padding:20px;color:var(--danger);">فشل التحميل</div>');
   }
 }
 
@@ -8579,7 +8916,8 @@ async function _dashLoadSpeedAndLeaderboard() {
 // elapsed so far this year (Q1→¼, Q2→½, Q3→¾, Q4→full), and measured
 // CUMULATIVELY SINCE THE START OF THE CALENDAR YEAR (not reset each quarter,
 // not a rolling 12-month window). Example — by Q3: training target =
-// 8/4×3 = 6h, hazard target = 2/4×3 = 1.5 reports, both counted since Jan 1.
+// 8/4×3 = 6h, hazard target = 2/4×3 = 1.5 → rounded up to 2 reports, both
+// counted since Jan 1.
 // This applies ONLY to this one dashboard KPI section — nowhere else in the
 // app (leaderboard, personal target progress, etc. keep using the fixed
 // annual target with no window restriction).
@@ -8593,7 +8931,9 @@ function _dashGetCurrentQuarterInfo() {
     yearStart,
     quartersElapsed,
     targetHours:    (EMP_TARGET_TRAIN_HOURS / 4) * quartersElapsed,
-    targetHazards:  (EMP_TARGET_HAZARDS / 4) * quartersElapsed,
+    // البلاغ مايتقسمش: 1.5 بلاغ في الربع التالت معناها عمليًا 2، فبنقرّب لفوق
+    // عشان التارجت المكتوب في الكارت هو نفسه اللي بيتقاس بيه.
+    targetHazards:  Math.ceil((EMP_TARGET_HAZARDS / 4) * quartersElapsed),
     label: `${quarterNames[quarterIdx]} ${now.getFullYear()}`,
   };
 }
@@ -9550,7 +9890,7 @@ async function inspDeleteRecord(recordId) {
 const AUDIT_ENTITY_LABELS = {
   permit: 'تصريح عمل', hazard: 'بلاغ خطورة', training: 'محاضرة', drill: 'تجربة طوارئ',
   'inspection-section': 'قسم فحص', 'inspection-item': 'صنف فحص', 'inspection-record': 'نتيجة فحص',
-  database: 'قاعدة البيانات'
+  database: 'قاعدة البيانات', employee: 'موظف'
 };
 // كل إجراء بدائرة ملوّنة تدل على نوعه دلاليًا (أخضر=اعتماد، أحمر=رفض/حذف،
 // كحلي=إنشاء، برتقالي=تعديل) بدل إيموجي — شكل أقرب لسجل تدقيق مؤسسي رسمي.
@@ -9564,6 +9904,8 @@ const AUDIT_ACTION_META = {
   force_close:           { glyph: '✓', cls: 'a-close',   label: 'إغلاق قسري' },
   restore:               { glyph: '↺', cls: 'a-restore', label: 'استرجاع' },
   'import-legacy-excel':  { glyph: '↓', cls: 'a-import',  label: 'استيراد' },
+  reset_password:        { glyph: '⟲', cls: 'a-update',  label: 'إعادة تعيين كلمة السر' },
+  email_backup:          { glyph: '✉', cls: 'a-import',  label: 'إرسال بالإيميل' },
 };
 
 let auditLogState = { entityType: '', q: '' };
@@ -9582,9 +9924,12 @@ async function renderAuditLog() {
         <button class="btn btn-primary" type="button" onclick="downloadFullBackup()">${T("⬇ تنزيل نسخة احتياطية كاملة")}</button>
         <label class="btn btn-secondary" style="cursor:pointer;margin:0;">
           ${T("⬆ استرجاع من نسخة احتياطية")}
-          <input type="file" id="backupRestoreInput" accept=".json" style="display:none" onchange="restoreFullBackup(event)" />
+          <input type="file" id="backupRestoreInput" accept=".json,.gz" style="display:none" onchange="restoreFullBackup(event)" />
         </label>
-        <span style="font-size:12px;color:var(--muted);">${T("النسخة الاحتياطية ملف JSON واحد يشمل كل بيانات النظام — الاسترجاع يستبدل البيانات الحالية بالكامل.")}</span>
+        <span style="font-size:12px;color:var(--muted);">${T("النسخة الاحتياطية ملف واحد يشمل كل بيانات النظام (.json، أو .json.gz اللي بيوصل على الإيميل) — الاسترجاع يستبدل البيانات الحالية بالكامل.")}</span>
+      </div>
+      <div class="ticket-body" id="backupEmailBox" style="border-top:1px solid var(--paper-line);">
+        <div class="loading">${T("جارِ التحميل…")}</div>
       </div>
     </div>` : ''}
 
@@ -9616,6 +9961,7 @@ async function renderAuditLog() {
 
     <div id="auditLogList"><div class="loading">${T("جارِ تحميل السجل…")}</div></div>
   `;
+  if (isSuperAdmin) loadBackupEmailSettings();
   await auditLoadList();
   if (!window.auditPollTimer) {
     window.auditPollTimer = setInterval(() => auditLoadList(true), 8000);
@@ -9718,6 +10064,15 @@ function downloadFullBackup() {
   navigateWithAuth('/api/admin/backup/export');
 }
 
+/** يقرأ ملف نسخة احتياطية: .json عادي، أو .json.gz المضغوط اللي بيوصل على الإيميل */
+async function _readBackupFile(file) {
+  const head = new Uint8Array(await file.slice(0, 2).arrayBuffer());
+  const isGzip = head[0] === 0x1f && head[1] === 0x8b;
+  if (!isGzip) return JSON.parse(await file.text());
+  const stream = file.stream().pipeThrough(new DecompressionStream('gzip'));
+  return JSON.parse(await new Response(stream).text());
+}
+
 /** restoreFullBackup — استرجاع نسخة احتياطية كاملة (super_admin فقط، يستبدل كل البيانات الحالية) */
 async function restoreFullBackup(event) {
   const file = event.target.files[0];
@@ -9727,8 +10082,7 @@ async function restoreFullBackup(event) {
     return;
   }
   try {
-    const text = await file.text();
-    const backup = JSON.parse(text);
+    const backup = await _readBackupFile(file);
     showToast(T('جارِ استرجاع النسخة الاحتياطية…'), 'info');
     const res = await authFetch('/api/admin/backup/import', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -9745,4 +10099,186 @@ async function restoreFullBackup(event) {
     showToast(T('ملف النسخة الاحتياطية غير صالح'), 'error');
   }
   event.target.value = '';
+}
+
+// ── إرسال النسخة الاحتياطية بالإيميل (super_admin) — أُضيف 12 سبتمبر 2026 ──
+// المستلمين + الإرسال اليومي بيتحفظوا على السيرفر، و"ابعت دلوقتي" بيبعت
+// للإيميلات المكتوبة في الخانة حاليًا (حتى لو لسه ماتحفظتش).
+async function loadBackupEmailSettings() {
+  const box = document.getElementById('backupEmailBox');
+  if (!box) return;
+  try {
+    const res = await authFetch('/api/admin/backup/email-settings');
+    if (!res.ok) throw new Error('fetch failed');
+    _renderBackupEmailBox(await res.json());
+  } catch (e) {
+    box.innerHTML = `<div style="color:var(--danger);font-size:13px;">${T('فشل تحميل إعدادات الإيميل')}</div>`;
+  }
+}
+
+function _backupEmailStatusText(r) {
+  if (!r) return T('لسه مفيش نسخة اتبعتت بالإيميل');
+  const when = new Date(r.at).toLocaleString(LOC());
+  const kind = r.trigger === 'daily' ? T('يومي تلقائي') : T('يدوي');
+  const to = escapeHtml((r.recipients || []).join(', '));
+  return r.ok
+    ? `${T('آخر إرسال:')} ✅ ${when} (${kind}) → <span dir="ltr">${to}</span>${r.sizeKB ? ` · ${r.sizeKB} KB` : ''}`
+    : `${T('آخر إرسال:')} <span style="color:var(--danger);">❌ ${when} (${kind}) — ${escapeHtml(r.error || '')}</span>`;
+}
+
+function _renderBackupEmailBox(s) {
+  const box = document.getElementById('backupEmailBox');
+  if (!box) return;
+  box.innerHTML = `
+    <div style="font-weight:800;margin-bottom:8px;">${T('📧 إرسال النسخة الاحتياطية بالإيميل')}</div>
+    ${s.smtpConfigured
+      ? `<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">${T('بيتبعت من:')} <b dir="ltr">${escapeHtml(s.from || '')}</b></div>`
+      : `<div class="bk-email-warn">${T('⚠️ إيميل الإرسال مش متظبط لسه على السيرفر — لازم تتحط بيانات SMTP في ملف .env (الخطوات في .env.example). تقدر تحفظ المستلمين والميعاد من دلوقتي.')}</div>`}
+    <div class="field" style="margin-bottom:10px;">
+      <label>${T('الإيميلات اللي هتستلم النسخة (إيميل في كل سطر أو افصل بينهم بفاصلة)')}</label>
+      <textarea id="bkEmailRecipients" rows="3" dir="ltr" placeholder="name@company.com">${escapeHtml((s.recipients || []).join('\n'))}</textarea>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+      <label style="display:flex;align-items:center;gap:6px;font-weight:700;cursor:pointer;margin:0;">
+        <input type="checkbox" id="bkEmailEnabled" ${s.enabled ? 'checked' : ''} />
+        ${T('إرسال تلقائي كل يوم الساعة')}
+      </label>
+      <input type="time" id="bkEmailTime" value="${escapeHtml(s.time || '00:00')}" style="width:auto;" />
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn btn-primary" type="button" onclick="saveBackupEmailSettings()">${T('💾 حفظ الإعدادات')}</button>
+      <button class="btn btn-secondary" type="button" id="bkEmailSendBtn" onclick="sendBackupEmailNow()" ${s.smtpConfigured ? '' : 'disabled'}>${T('📤 ابعت النسخة دلوقتي')}</button>
+    </div>
+    <div id="bkEmailStatus" style="font-size:12px;margin-top:10px;color:var(--muted);">${_backupEmailStatusText(s.lastResult)}</div>
+  `;
+}
+
+async function saveBackupEmailSettings() {
+  const body = {
+    recipients: document.getElementById('bkEmailRecipients').value,
+    enabled:    document.getElementById('bkEmailEnabled').checked,
+    time:       document.getElementById('bkEmailTime').value || '00:00',
+  };
+  try {
+    const res = await authFetch('/api/admin/backup/email-settings', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { showToast(data.error || T('فشل الحفظ'), 'error'); return; }
+    _renderBackupEmailBox(data);
+    showToast(T('تم حفظ الإعدادات ✓'), 'success');
+  } catch (e) {
+    showToast(T('خطأ في الاتصال'), 'error');
+  }
+}
+
+async function sendBackupEmailNow() {
+  const recipients = document.getElementById('bkEmailRecipients').value;
+  if (!recipients.trim()) { showToast(T('اكتب إيميل واحد على الأقل'), 'error'); return; }
+  const btn = document.getElementById('bkEmailSendBtn');
+  if (btn) btn.disabled = true;
+  showToast(T('جارِ تجهيز النسخة وإرسالها…'), 'info');
+  try {
+    const res = await authFetch('/api/admin/backup/email-now', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ recipients })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) showToast(`${T('اتبعتت النسخة الاحتياطية إلى')} ${data.recipients.join(', ')}`, 'success');
+    else showToast(data.error || T('فشل الإرسال'), 'error');
+  } catch (e) {
+    showToast(T('خطأ في الاتصال'), 'error');
+  }
+  if (btn) btn.disabled = false;
+  // حدّث سطر "آخر إرسال" بس، من غير ما نمسح اللي مكتوب في الخانات
+  try {
+    const r = await authFetch('/api/admin/backup/email-settings');
+    const statusEl = document.getElementById('bkEmailStatus');
+    if (r.ok && statusEl) statusEl.innerHTML = _backupEmailStatusText((await r.json()).lastResult);
+  } catch (e) { /* السطر ده معلوماتي بس */ }
+}
+// ============================================================
+// 🤖 مساعد السلامة الذكي (Chatbot Widget) — أُضيف 12 سبتمبر 2026
+// ============================================================
+let _cbOpen = false;
+let _cbHistory = [];
+
+function toggleChatbot() {
+  _cbOpen = !_cbOpen;
+  const panel = document.getElementById('cbPanel');
+  if (!panel) return;
+  panel.style.display = _cbOpen ? 'flex' : 'none';
+  if (_cbOpen && _cbHistory.length === 0) {
+    appendChatbotMessage('bot', T('أهلاً! أنا مساعد السلامة — اسألني عن أي حاجة في تعليمات السلامة (SE-W01) أو فرق الطوارئ، حتى لو كتبت بالعامية أو فيها غلطة إملائية 🙂'));
+  }
+}
+
+function appendChatbotMessage(role, text, sourceText) {
+  const box = document.getElementById('cbMessages');
+  if (!box) return;
+  const div = document.createElement('div');
+  div.className = 'cbMsg ' + (role === 'user' ? 'user' : 'bot');
+  div.textContent = text;
+  box.appendChild(div);
+  if (sourceText) {
+    const src = document.createElement('div');
+    src.className = 'cbMsg source';
+    src.textContent = '📎 ' + sourceText;
+    box.appendChild(src);
+  }
+  box.scrollTop = box.scrollHeight;
+}
+
+/**
+ * ينفّذ الإجراء اللي رجّعه البوت (لو موجود) — بيوجّه المستخدم للفورم
+ * الصحيح مع تعبئة مبدئية، بدل ما ينفّذ العملية مباشرة من جوه الشات
+ * (راجع التعليق في lib/chatbot.js لشرح سبب هذا القرار المعماري).
+ */
+function applyChatbotAction(action) {
+  if (!action) return;
+  if (action.type === 'navigate' && action.tab) {
+    try { switchTab(action.tab); } catch (e) { /* لو التبويب مش متاح في السياق الحالي */ }
+    if (action.prefill && action.prefill.permitType && typeof selectType === 'function') {
+      setTimeout(() => { try { selectType(action.prefill.permitType); } catch (e) {} }, 150);
+    }
+    if (action.prefill && action.prefill.description) {
+      setTimeout(() => {
+        const el = document.getElementById('hz_desc');
+        if (el) el.value = action.prefill.description;
+      }, 150);
+    }
+    toggleChatbot(); // اقفل الشات بعد التوجيه عشان الفورم يبان كامل
+  }
+}
+
+async function sendChatbotMessage() {
+  const input = document.getElementById('cbInput');
+  const text = (input.value || '').trim();
+  if (!text) return;
+  input.value = '';
+  appendChatbotMessage('user', text);
+  _cbHistory.push({ role: 'user', text });
+
+  const payload = { text };
+  // هوية المستخدم: عامل (currentEmployee) أو أدمن (JWT عبر authFetch تلقائيًا)
+  if (typeof currentEmployee !== 'undefined' && currentEmployee) {
+    payload.empCode = currentEmployee.empCode;
+    payload.name = currentEmployee.name;
+    payload.department = currentEmployee.department;
+  }
+
+  try {
+    const useAuth = typeof isLoggedIn !== 'undefined' && isLoggedIn && typeof authFetch === 'function';
+    const res = useAuth
+      ? await authFetch('/api/chatbot/message', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      : await fetch('/api/chatbot/message', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (!res.ok) {
+      appendChatbotMessage('bot', data.error || 'حصل خطأ، حاول تاني.');
+      return;
+    }
+    appendChatbotMessage('bot', data.reply, data.source);
+    applyChatbotAction(data.action);
+  } catch (err) {
+    appendChatbotMessage('bot', 'تعذّر الاتصال بالسيرفر، تأكد من اتصالك وحاول تاني.');
+  }
 }

@@ -10,6 +10,7 @@ const express    = require('express');
 const fs         = require('fs');
 const path       = require('path');
 const crypto     = require('crypto');
+const zlib       = require('zlib');
 const ExcelJS    = require('exceljs');
 const { Document: DocxDocument, Packer: DocxPacker, Paragraph: DocxParagraph, TextRun: DocxTextRun, AlignmentType: DocxAlign } = require('docx');
 const bcrypt     = require('bcryptjs');
@@ -23,6 +24,9 @@ const { migrateJsonToDb, sweepOrphanJsonFiles } = require('./lib/migrate-json-to
 const PDFDocument = require('pdfkit');
 const QRCode = require('qrcode');
 const { prepareBidiText } = require('./lib/pdf-arabic');
+const chatbot = require('./lib/chatbot');
+const whatsapp = require('./lib/whatsapp');
+const mailer = require('./lib/mailer');
 
 const app  = express();
 
@@ -223,6 +227,13 @@ const subscriptionsStore     = makeStore('subscriptions', []);
 const inspectionSectionsStore = makeStore('inspection-sections', []);
 const inspectionItemsStore    = makeStore('inspection-items', []);
 const inspectionRecordsStore  = makeStore('inspection-records', []);
+// كلمات سر العمال + رقم الموبايل المعتمد لاسترجاعها. مجموعة منفصلة عن
+// "employees" عمدًا: استيراد شيت الموظفين من الإكسيل بيعيد كتابة سجلات
+// الموظفين فمينفعش يمسح كلمات السر، والـ hash ميظهرش أبدًا في
+// GET /api/employees. الشكل: { "<normalizedCode>": { hash, phone, setAt } }
+const workerCredsStore        = makeStore('worker-credentials', {});
+// المستلمين + ميعاد الإرسال اليومي + نتيجة آخر إرسال للنسخة الاحتياطية بالإيميل
+const backupEmailStore        = makeStore('backup-email-settings', {});
 
 // ── First-boot-only defaults (نفس منطق "أنشئ الملف لو مش موجود" القديم) ──
 if (!trainingTopicsStore.exists()) trainingTopicsStore.write(INITIAL_TOPICS);
@@ -255,14 +266,18 @@ app.get('/llms.txt', (req, res) => {
 
 // ── Middleware ────────────────────────────────────────────────
 // Tighter payload limit — workers submit text only; 2 MB is generous
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({
+  limit: '50mb',
+  // جسم رسائل واتساب الخام محتاجينه عشان نتحقق من توقيع ميتا (X-Hub-Signature-256)
+  verify: (req, res, buf) => { if (req.originalUrl && req.originalUrl.startsWith('/api/whatsapp/webhook')) req.rawBody = buf; }
+}));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // ── Rate Limiters ─────────────────────────────────────────────
-/** Auth: max 10 login attempts per 15 min per IP */
+/** Auth: max 60 login attempts per 15 min per IP (+ قفل لكل اسم مستخدم بعد 5 محاولات غلط) */
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 1000,
+  max: 60,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'تجاوزت عدد محاولات تسجيل الدخول. حاول مجدداً بعد 15 دقيقة.' }
@@ -293,6 +308,15 @@ const attendLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'تجاوزت عدد محاولات تسجيل الحضور. حاول مجدداً بعد 15 دقيقة.' }
+});
+
+/** Chatbot: max 60 messages per 15 min per IP — يمنع إساءة استخدام/إغراق البحث */
+const chatbotLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'تجاوزت عدد الرسائل المسموح بها للشات بوت. حاول مجدداً بعد قليل.' }
 });
 
 // ── HTML Cache-Busting ─────────────────────────────────────────
@@ -655,6 +679,61 @@ function writeInspectionItems(data) { return inspectionItemsStore.write(data); }
 function readInspectionRecords() { return inspectionRecordsStore.read(); }
 function writeInspectionRecords(data) { return inspectionRecordsStore.write(data); }
 
+// ── WhatsApp Notification Helpers ─────────────────────────────────
+// إضافة 12 سبتمبر 2026. best-effort بالكامل: أي خطأ هنا (رقم غلط، واتساب
+// مش متصل، الخ) بيتسجّل بس في اللوج ومبيوقفش أي عملية حقيقية في النظام —
+// نفس فلسفة الحماية من الانهيار المطبّقة على باقي السيرفر.
+function getAppUsersSync() {
+  try {
+    const storage = readStorage();
+    return storage['app-users'] ? JSON.parse(storage['app-users']) : [];
+  } catch { return []; }
+}
+
+/** يبعت تنبيه واتساب (بأزرار قبول/رفض) للأدمنز المعنيين ببلاغ خطورة جديد. */
+function notifyAdminsWhatsAppNewHazard(hazard) {
+  if (!whatsapp.isConfigured()) return; // معطّل بأمان لحد ما تتحط بيانات الاعتماد
+  try {
+    const users = getAppUsersSync();
+    const relevant = users.filter(u => {
+      if (!u.phone || u.whatsappOptIn === false) return false;
+      if (['super_admin', 'hse_admin'].includes(u.role)) return true;
+      if (u.role === 'dept_admin' && u.department && u.department === hazard.department) return true;
+      return false;
+    });
+    const bodyText = `🚨 بلاغ خطورة جديد (${hazard.id})\nالقسم: ${hazard.department || '—'}\nالوصف: ${(hazard.description || '').slice(0, 200)}`;
+    relevant.forEach(u => {
+      whatsapp.sendInteractiveButtons(u.phone, bodyText, [
+        { id: `hzact_accept_${hazard.id}`, title: 'قبول ومتابعة ✅' },
+        { id: `hzact_reject_${hazard.id}`, title: 'رفض ❌' },
+      ]).catch(err => console.error('[whatsapp] فشل تنبيه بلاغ خطورة:', err.message));
+    });
+  } catch (err) {
+    console.error('[whatsapp] notifyAdminsWhatsAppNewHazard error:', err.message);
+  }
+}
+
+/** يبعت تحديث حالة تصريح للعامل على واتساب لو رقمه مسجّل. */
+function notifyWorkerWhatsAppPermitStatus(permit) {
+  if (!whatsapp.isConfigured() || !permit.employeeId) return;
+  try {
+    const employees = readEmployees();
+    const emp = employees.find(e => normalizeEmpCode(e.code || e.empCode) === normalizeEmpCode(permit.employeeId));
+    if (!emp || !emp.phone) return;
+    const s = String(permit.status || '');
+    let statusLabel = s;
+    if (s === 'approved') statusLabel = 'تمت الموافقة النهائية ✅';
+    else if (s === 'pending_hse') statusLabel = 'وافق رئيس القسم، بانتظار اعتماد السلامة ⏳';
+    else if (s === 'pending_dept') statusLabel = 'قيد الانتظار عند رئيس القسم ⏳';
+    else if (s === 'rejected' || s.startsWith('rejected_')) statusLabel = 'مرفوض ❌';
+    else if (s.startsWith('closed_')) statusLabel = 'مغلق 🔒';
+    whatsapp.sendText(emp.phone, `تحديث تصريح العمل ${permit.id}\nالحالة الجديدة: ${statusLabel}`)
+      .catch(err => console.error('[whatsapp] فشل تنبيه تحديث تصريح:', err.message));
+  } catch (err) {
+    console.error('[whatsapp] notifyWorkerWhatsAppPermitStatus error:', err.message);
+  }
+}
+
 /**
  * Creates a notification and appends it to the storage safely using enqueueWrite.
  * @param {Object} options - { targetRole, targetEmpCode, targetGroup, type, title, message, link }
@@ -702,7 +781,7 @@ function createNotification({ targetRole, targetEmpCode, targetGroup, type, titl
       if (newNotif.targetRole === 'all') shouldSend = true;
       if (newNotif.targetEmpCode && sub.empCode && normalizeEmpCode(newNotif.targetEmpCode) === normalizeEmpCode(sub.empCode)) shouldSend = true;
       if (newNotif.targetRole && sub.role) {
-        if (newNotif.targetRole === 'admin' && ['superadmin', 'admin', 'supervisor', 'area_head'].includes(sub.role)) shouldSend = true;
+        if (newNotif.targetRole === 'admin' && ADMIN_TIER_ROLES.includes(sub.role)) shouldSend = true;
         if (newNotif.targetRole === sub.role) shouldSend = true;
         if (newNotif.targetRole === 'dept_admin' && sub.role === 'maint_admin') shouldSend = true;
         if (newNotif.targetRole === 'maint_admin' && sub.role === 'dept_admin') shouldSend = true;
@@ -739,7 +818,7 @@ function createNotification({ targetRole, targetEmpCode, targetGroup, type, titl
       if (newNotif.targetRole === 'all') shouldSend = true;
       if (newNotif.targetEmpCode && client.empCode && normalizeEmpCode(newNotif.targetEmpCode) === normalizeEmpCode(client.empCode)) shouldSend = true;
       if (newNotif.targetRole && client.role) {
-        if (newNotif.targetRole === 'admin' && ['superadmin', 'admin', 'supervisor', 'area_head'].includes(client.role)) shouldSend = true;
+        if (newNotif.targetRole === 'admin' && ADMIN_TIER_ROLES.includes(client.role)) shouldSend = true;
         if (newNotif.targetRole === client.role) shouldSend = true;
       }
       
@@ -1248,6 +1327,11 @@ function authenticateToken(req, res, next) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded; // { id, username, role, iat, exp }
+    // توكن العامل (بيتعمل من دخول العامل بكلمة السر) مسموح بس على مسارات
+    // العمال (authenticateSession) — مش على أي مسار إداري.
+    if (decoded.role === 'worker') {
+      return res.status(403).json({ error: 'غير مصرح: هذه العملية للإدارة فقط' });
+    }
     
     // Dynamic role patches for legacy compatibility
     if (req.user.role === 'dept_admin') {
@@ -1262,10 +1346,9 @@ function authenticateToken(req, res, next) {
     
     next();
   } catch (err) {
-    if (err.name === 'TokenExpiredError') {
-      return res.status(401).json({ error: 'انتهت صلاحية الجلسة، يرجى تسجيل الدخول مجدداً', expired: true });
-    }
-    return res.status(403).json({ error: 'Token غير صالح' });
+    // منتهي أو غير صالح (مثلاً السيرفر اتغير JWT_SECRET بتاعه): في الحالتين
+    // الواجهة لازم تسجّل خروج وتطلب دخول جديد — بدل ما تفضل تبعت طلبات مرفوضة.
+    return res.status(401).json({ error: 'انتهت صلاحية الجلسة، يرجى تسجيل الدخول مجدداً', expired: true });
   }
 }
 
@@ -1273,6 +1356,48 @@ function authenticateToken(req, res, next) {
  * مصنع Middleware للتحقق من الدور (Role-Based Access Control).
  * الاستخدام: requireRole('super_admin') أو requireRole('hse_admin', 'dept_admin')
  */
+// ── جلسة العامل (Worker JWT) ────────────────────────────────────
+// قبل كده العامل كان "بيتعرّف" بكوده بس، وأي حد يعرف كود يقدر يقدّم تصاريح
+// وبلاغات باسمه ويشوف جزاءاته. دلوقتي دخول العامل بكلمة السر بيدّيله توكن،
+// ومسارات العمال بتاخد الكود من التوكن مش من الطلب. pwv = "نسخة كلمة السر":
+// أول ما الأدمن يغيّر كلمة سر العامل، أي جلسة قديمة مفتوحة بيها بتتقفل.
+const WORKER_JWT_EXPIRES = process.env.WORKER_JWT_EXPIRES_IN || '30d';
+
+function signWorkerToken(emp, cred) {
+  return jwt.sign({
+    role: 'worker',
+    empCode: normalizeEmpCode(emp.empCode),
+    name: emp.name || '',
+    department: emp.department || '',
+    pwv: (cred && cred.pwv) || '',
+  }, JWT_SECRET, { expiresIn: WORKER_JWT_EXPIRES });
+}
+
+/**
+ * يقبل توكن عامل أو توكن إدارة. للعامل: req.worker = { empCode, name, department }.
+ * للإدارة: نفس authenticateToken بالظبط (req.worker مش بيتحط).
+ */
+function authenticateSession(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) return res.status(401).json({ error: 'غير مصرح: يجب تسجيل الدخول أولاً' });
+  let decoded;
+  try {
+    decoded = jwt.verify(token, JWT_SECRET);
+  } catch (err) {
+    return res.status(401).json({ error: 'انتهت الجلسة — سجّل الدخول من جديد', expired: true });
+  }
+  if (decoded.role !== 'worker') return authenticateToken(req, res, next);
+  const code = normalizeEmpCode(decoded.empCode);
+  const cred = readWorkerCreds()[code];
+  if (!code || !cred || !cred.hash || (cred.pwv || '') !== (decoded.pwv || '')) {
+    return res.status(401).json({ error: 'كلمة السر اتغيرت أو الجلسة انتهت — سجّل الدخول من جديد', expired: true });
+  }
+  req.user = decoded;
+  req.worker = { empCode: code, name: decoded.name || '', department: decoded.department || '' };
+  next();
+}
+
 function requireRole(...roles) {
   return (req, res, next) => {
     if (!req.user) {
@@ -1286,6 +1411,15 @@ function requireRole(...roles) {
     next();
   };
 }
+
+// ── قائمة الأدوار الرسمية الموحّدة (Canonical Role Enum) ──────────
+// أُضيفت 12 سبتمبر 2026 كإصلاح أمني: كانت عدة نقاط في الكود تتحقق من
+// أسماء أدوار قديمة انقرضت فعليًا بعد migratePasswordsIfNeeded/role
+// normalization أعلاه ('superadmin', 'admin', 'supervisor', 'area_head', 'hse')
+// بينما كل حساب حقيقي في النظام دوره أحد القيم التالية فقط. النتيجة كانت
+// مسارات وتنبيهات لا تعمل أبدًا لأي مستخدم حقيقي (انظر تقرير الفحص).
+// استخدم هذا الثابت بدل تكرار الأسماء يدويًا لمنع تكرار نفس الخطأ مستقبلاً.
+const ADMIN_TIER_ROLES = ['super_admin', 'hse_admin', 'dept_admin', 'maint_admin'];
 
 /**
  * مثل authenticateToken تمامًا، لكن يقبل التوكن أيضًا عبر query string (?dt=...)
@@ -1304,6 +1438,9 @@ function authenticateTokenFlexible(req, res, next) {
   }
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role === 'worker') {
+      return res.status(403).json({ error: 'غير مصرح: هذه العملية للإدارة فقط' });
+    }
     req.user = decoded;
     if (req.user.role === 'dept_admin') {
       if (req.user.department && req.user.department.toUpperCase() === 'HSE') {
@@ -1316,10 +1453,9 @@ function authenticateTokenFlexible(req, res, next) {
     if (req.user.username === 'hse_admin') req.user.role = 'hse_admin';
     next();
   } catch (err) {
-    if (err.name === 'TokenExpiredError') {
-      return res.status(401).json({ error: 'انتهت صلاحية الجلسة، يرجى تسجيل الدخول مجدداً', expired: true });
-    }
-    return res.status(403).json({ error: 'Token غير صالح' });
+    // منتهي أو غير صالح (مثلاً السيرفر اتغير JWT_SECRET بتاعه): في الحالتين
+    // الواجهة لازم تسجّل خروج وتطلب دخول جديد — بدل ما تفضل تبعت طلبات مرفوضة.
+    return res.status(401).json({ error: 'انتهت صلاحية الجلسة، يرجى تسجيل الدخول مجدداً', expired: true });
   }
 }
 
@@ -1480,184 +1616,153 @@ async function syncHazardsExcelFromData(hazards) {
 const READ_PROTECTED_KEYS = ['app-users', 'users'];
 const KEY_PATTERN = /^[a-zA-Z0-9_\-]+$/;
 
-// ── GET /api/storage/:key
-app.get('/api/storage/:key', (req, res, next) => {
+// ── GET /api/storage/:key — لازم جلسة (عامل أو إدارة)
+// كان مفتوح لأي حد: أي زائر كان يقدر يقرأ كل التصاريح بأسماء وأرقام العمال.
+// العامل بيشوف تصاريحه هو بس (بكوده من التوكن)، و app-users مقفول تمامًا.
+app.get('/api/storage/:key', authenticateSession, (req, res) => {
   const key = req.params.key;
   if (!KEY_PATTERN.test(key) || key.length > 64) {
     return res.status(400).json({ error: 'Invalid storage key format' });
   }
   if (READ_PROTECTED_KEYS.includes(key)) {
-    return authenticateToken(req, res, () => requireRole('super_admin')(req, res, next));
+    return res.status(403).json({ error: 'غير مصرح' });
   }
-  next();
-}, (req, res) => {
+  if (req.worker) {
+    if (key !== 'work-permits') return res.status(403).json({ error: 'غير مصرح' });
+    const mine = getPermitsArray().filter(p => normalizeEmpCode(p.employeeId || '') === req.worker.empCode);
+    return res.json({ key, value: JSON.stringify(mine) });
+  }
   const data = readStorage();
-  const key = req.params.key;
   res.json({ key, value: data[key] || '[]' });
 });
 
-// ── POST /api/storage/:key — حفظ قيمة (rate-limited on work-permits key)
-const WRITABLE_KEYS_UNAUTH = ['work-permits'];
-
-app.post('/api/storage/:key', (req, res, next) => {
+// ── POST /api/storage/:key — مقفول للكتابة الجماعية
+// كان بيقبل من أي حد (من غير تسجيل دخول) قائمة التصاريح كلها ويكتبها مكان
+// الموجودة — يعني أي حد يقدر يمسح أو يعدّل كل التصاريح. التصاريح الجديدة
+// دلوقتي بتتقدم واحد واحد من POST /api/permits، وحالتها من PATCH /api/permits/:id.
+app.post('/api/storage/:key', authenticateToken, requireRole('super_admin'), async (req, res) => {
   const key = req.params.key;
-  // Path traversal / injection guard
   if (!KEY_PATTERN.test(key) || key.length > 64) {
     return res.status(400).json({ error: 'Invalid storage key format' });
   }
-  // Apply submit rate limit only for work-permits writes
-  if (key === 'work-permits') {
-    return submitLimiter(req, res, next);
+  if (READ_PROTECTED_KEYS.includes(key) || key === 'work-permits') {
+    return res.status(403).json({ error: 'كتابة هذا المفتاح غير مسموح بها من هنا' });
   }
-  next();
-}, (req, res, next) => {
-  const key = req.params.key;
-
-  if (READ_PROTECTED_KEYS.includes(key)) {
-    return authenticateToken(req, res, () => {
-      requireRole('super_admin')(req, res, next);
-    });
-  }
-  // Block any key not in the unauth-writable allowlist
-  if (!WRITABLE_KEYS_UNAUTH.includes(key)) {
-    return res.status(403).json({ error: 'كتابة هذا المفتاح غير مسموح به' });
-  }
-  next();
-}, async (req, res) => {
-  let { value } = req.body;
-  const key = req.params.key;
-
+  const { value } = req.body || {};
   if (value === undefined || value === null) {
     return res.status(400).json({ error: 'القيمة (value) مطلوبة في جسم الطلب' });
   }
-
-  // ── Security: strip status forgery + sanitize all string fields on new permits ─
-  if (key === 'work-permits') {
-    try {
-      let permits = JSON.parse(value);
-      // Prototype pollution guard
-      if (typeof permits !== 'object' || permits === null) throw new Error('invalid permits payload');
-      if (Array.isArray(permits)) {
-        // Load existing permits to compare and preserve authenticated statuses
-        const existing = readStorage();
-        let existingPermits = [];
-        if (existing['work-permits']) {
-          try { existingPermits = JSON.parse(existing['work-permits']); } catch { existingPermits = []; }
-        }
-        const existingMap = new Map(existingPermits.map(p => [p.id, p]));
-
-        permits = permits.map(p => {
-          const prev = existingMap.get(p.id);
-          if (prev) {
-            // Existing permit: preserve authenticated status and review fields
-            return {
-              ...p,
-              status:            prev.status,
-              reviewedBy:        prev.reviewedBy,
-              reviewedAt:        prev.reviewedAt,
-              safetyOfficerName: prev.safetyOfficerName,
-              areaManagerName:   prev.areaManagerName,
-              reviewNote:        prev.reviewNote,
-              closure:           prev.closure
-            };
-          }
-          // New permit: sanitize free-text fields, force status to pending_area_head
-          
-          createNotification({
-            targetRole: 'dept_admin',
-            targetDept: p.department,
-            type: 'permit',
-            title: 'طلب جديد 📋',
-            message: `مقدم من ${p.workerName || 'موظف'} نوع ${p.typeLabel || 'غير محدد'} في ${p.location || 'غير محدد'}`,
-            link: 'tabPermits'
-          });
-          
-          if (p.employeeId) {
-            createNotification({
-              targetEmpCode: p.employeeId,
-              type: 'permit',
-              title: 'استلام طلب طلب ✅',
-              message: 'تم استلام طلب طلبك بنجاح وهو قيد المراجعة',
-              link: 'tabMyHistory'
-            });
-          }
-
-          const safeTools = Array.isArray(p.tools)
-            ? p.tools.map(t => sanitizeStr(String(t), 100)).slice(0, 10)
-            : sanitizeStr(String(p.tools || ''), 300);
-          const safeChecklist = Array.isArray(p.checklist)
-            ? p.checklist.map(c => ({
-                section:  sanitizeStr(String(c.section  || ''), 100),
-                question: sanitizeStr(String(c.question || ''), 300),
-                answer:   ['\u0646\u0639\u0645', '\u0644\u0627', '\u0644\u0627 \u064a\u0646\u0637\u0628\u0642'].includes(c.answer) ? c.answer : '\u0644\u0627 \u064a\u0646\u0637\u0628\u0642'
-              }))
-            : [];
-          const safeRisks = Array.isArray(p.risks)
-            ? p.risks.slice(0, 10).map(r => ({
-                source:  sanitizeStr(String(r.source  || ''), 200),
-                l:       Math.min(5, Math.max(1, parseInt(r.l, 10) || 1)),
-                s:       Math.min(5, Math.max(1, parseInt(r.s, 10) || 1)),
-                score:   Math.min(25, Math.max(1, parseInt(r.score, 10) || 1)),
-                control: sanitizeStr(String(r.control || ''), 300)
-              }))
-            : [];
-          return {
-            id:               sanitizeStr(String(p.id || ''), 30),
-            typeKey:          sanitizeStr(String(p.typeKey || 'general'), 30),
-            typeLabel:        sanitizeStr(String(p.typeLabel || ''), 30),
-            typeFullLabel:    sanitizeStr(String(p.typeFullLabel || ''), 60),
-            department:       sanitizeStr(String(p.department || ''), 100),
-            shift:            sanitizeStr(String(p.shift || ''), 30),
-            date:             sanitizeStr(String(p.date || ''), 15),
-            previousPermitNo: sanitizeStr(String(p.previousPermitNo || ''), 50),
-            timeFrom:         sanitizeStr(String(p.timeFrom || ''), 50),
-            timeTo:           sanitizeStr(String(p.timeTo || ''), 50),
-            workerName:       sanitizeStr(String(p.workerName || ''), 100),
-            requesterKind:    ['\u0645\u0648\u0638\u0641', '\u0645\u0642\u0627\u0648\u0644'].includes(p.requesterKind) ? p.requesterKind : '\u0645\u0648\u0638\u0641',
-            requesterPhone:   sanitizeStr(String(p.requesterPhone || ''), 20),
-            employeeId:       sanitizeStr(String(p.employeeId || ''), 50),
-            description:      sanitizeStr(String(p.description || ''), 1000),
-            location:         sanitizeStr(String(p.location || ''), 150),
-            equipment:        sanitizeStr(String(p.equipment || ''), 200),
-            tools:            safeTools,
-            workersNames:     sanitizeStr(String(p.workersNames || ''), 500),
-            checklist:        safeChecklist,
-            checklistNote:    sanitizeStr(String(p.checklistNote || ''), 500),
-            risks:            safeRisks,
-            status:           'pending_dept',
-            reviewedBy:       '',
-            reviewedAt:       '',
-            reviewNote:       '',
-            closure:          null,
-            areaHeadReviewedBy:  '',
-            areaHeadReviewedAt:  '',
-            safetyOfficerName:   '',
-            areaManagerName:     '',
-            deletedBy: { areaAdmin: false, safetyAdmin: false, superAdmin: false, worker: false },
-            submittedAt:      p.submittedAt || new Date().toISOString()
-          };
-        });
-        value = JSON.stringify(permits);
-      }
-    } catch (e) {
-      console.error('work-permits sanitize error:', e.message);
-      return res.status(400).json({ error: 'Invalid permit payload' });
-    }
-  }
-
   await enqueueWrite(async () => {
     const data = readStorage();
-    data[key]  = value;
-    if (writeStorage(data)) {
-      if (key === 'work-permits') {
-        schedulePermitsExcelSync(value);
-      }
-    } else {
-      throw new Error('Failed to write storage');
-    }
+    data[key] = typeof value === 'string' ? value : JSON.stringify(value);
+    writeStorage(data);
   });
-
   res.json({ success: true, key });
+});
+
+/** تنظيف كل حقول تصريح جديد + فرض الحالة المبدئية (مفيش حالة/اعتماد من العميل). */
+function sanitizeNewPermit(p, id, employeeId) {
+  const YES_NO = ['نعم', 'لا', 'لا ينطبق'];
+  const safeTools = Array.isArray(p.tools)
+    ? p.tools.slice(0, 10).map(t => sanitizeStr(String(t), 100))
+    : sanitizeStr(String(p.tools || ''), 300);
+  const safeChecklist = Array.isArray(p.checklist)
+    ? p.checklist.slice(0, 60).map(c => ({
+        section:  sanitizeStr(String((c && c.section) || ''), 100),
+        question: sanitizeStr(String((c && c.question) || ''), 300),
+        answer:   YES_NO.includes(c && c.answer) ? c.answer : 'لا ينطبق'
+      }))
+    : [];
+  const safeRisks = Array.isArray(p.risks)
+    ? p.risks.slice(0, 10).map(r => ({
+        source:  sanitizeStr(String((r && r.source) || ''), 200),
+        l:       Math.min(5, Math.max(1, parseInt(r && r.l, 10) || 1)),
+        s:       Math.min(5, Math.max(1, parseInt(r && r.s, 10) || 1)),
+        score:   Math.min(25, Math.max(1, parseInt(r && r.score, 10) || 1)),
+        control: sanitizeStr(String((r && r.control) || ''), 300)
+      }))
+    : [];
+  return {
+    id,
+    typeKey:          sanitizeStr(String(p.typeKey || 'general'), 30),
+    typeLabel:        sanitizeStr(String(p.typeLabel || ''), 30),
+    typeFullLabel:    sanitizeStr(String(p.typeFullLabel || ''), 60),
+    department:       sanitizeStr(String(p.department || ''), 100),
+    shift:            sanitizeStr(String(p.shift || ''), 30),
+    date:             sanitizeStr(String(p.date || ''), 15),
+    previousPermitNo: sanitizeStr(String(p.previousPermitNo || ''), 50),
+    timeFrom:         sanitizeStr(String(p.timeFrom || ''), 50),
+    timeTo:           sanitizeStr(String(p.timeTo || ''), 50),
+    workerName:       sanitizeStr(String(p.workerName || ''), 100),
+    requesterKind:    ['موظف', 'مقاول'].includes(p.requesterKind) ? p.requesterKind : 'موظف',
+    requesterPhone:   sanitizeStr(String(p.requesterPhone || ''), 20),
+    employeeId:       sanitizeStr(String(employeeId || ''), 50),
+    description:      sanitizeStr(String(p.description || ''), 1000),
+    location:         sanitizeStr(String(p.location || ''), 150),
+    equipment:        sanitizeStr(String(p.equipment || ''), 200),
+    tools:            safeTools,
+    workersNames:     sanitizeStr(String(p.workersNames || ''), 500),
+    checklist:        safeChecklist,
+    checklistNote:    sanitizeStr(String(p.checklistNote || ''), 500),
+    risks:            safeRisks,
+    status:           'pending_dept',
+    reviewedBy:       '',
+    reviewedAt:       '',
+    reviewNote:       '',
+    closure:          null,
+    areaHeadReviewedBy:  '',
+    areaHeadReviewedAt:  '',
+    safetyOfficerName:   '',
+    areaManagerName:     '',
+    deletedBy: { areaAdmin: false, safetyAdmin: false, superAdmin: false, worker: false },
+    submittedAt:      new Date().toISOString()
+  };
+}
+
+// ── POST /api/permits — تقديم طلب تصريح عمل جديد (عامل بجلسته، أو إدارة)
+// رقم الطلب بيتولد في السيرفر (العميل مبقاش شايف كل التصاريح عشان يحسبه).
+app.post('/api/permits', submitLimiter, authenticateSession, async (req, res) => {
+  const p = req.body && req.body.permit;
+  if (!p || typeof p !== 'object' || Array.isArray(p)) {
+    return res.status(400).json({ error: 'بيانات الطلب غير صالحة' });
+  }
+  const employeeId = req.worker ? req.worker.empCode : normalizeEmpCode(p.employeeId || '');
+  let saved = null;
+  await enqueueWrite(async () => {
+    const permits = getPermitsArray();
+    const year = new Date().getFullYear();
+    const maxN = permits.reduce((mx, x) => {
+      const n = parseInt(String(x.id || '').split('-').pop(), 10) || 0;
+      return Math.max(mx, n);
+    }, 0);
+    const permit = sanitizeNewPermit(p, `WP-${year}-${String(maxN + 1).padStart(4, '0')}`, employeeId);
+    if (req.worker && !permit.workerName) permit.workerName = req.worker.name;
+    permits.push(permit);
+    const storage = readStorage();
+    storage['work-permits'] = JSON.stringify(permits);
+    if (!writeStorage(storage)) return;
+    schedulePermitsExcelSync(storage['work-permits']);
+    saved = permit;
+  });
+  if (!saved) return res.status(500).json({ error: 'فشل حفظ الطلب، حاول تاني' });
+  createNotification({
+    targetRole: 'dept_admin',
+    targetDept: saved.department,
+    type: 'permit',
+    title: 'طلب جديد 📋',
+    message: `مقدم من ${saved.workerName || 'موظف'} نوع ${saved.typeLabel || 'غير محدد'} في ${saved.location || 'غير محدد'}`,
+    link: 'tabPermits'
+  });
+  if (saved.employeeId) {
+    createNotification({
+      targetEmpCode: saved.employeeId,
+      type: 'permit',
+      title: 'استلام الطلب ✅',
+      message: 'تم استلام طلبك بنجاح وهو قيد المراجعة',
+      link: 'tabMyHistory'
+    });
+  }
+  res.status(201).json({ success: true, permit: saved });
 });
 
 // ── GET /api/export-excel — تصدير ملف الإكسيل (supervisors only)
@@ -1821,6 +1926,7 @@ app.patch(
               message: `تم اعتماد طلبك النهائي برقم ${permits[idx].id} من إدارة السلامة، يمكنك بدء العمل`,
               link: 'tabMyHistory'
             });
+            notifyWorkerWhatsAppPermitStatus(permits[idx]);
             createNotification({
               targetRole: 'dept_admin',
               targetDept: permits[idx].department,
@@ -1852,6 +1958,7 @@ app.patch(
               message: `تم رفض طلبك رقم ${permits[idx].id} - السبب: ${reviewNote || 'غير محدد'}`,
               link: 'tabMyHistory'
             });
+            notifyWorkerWhatsAppPermitStatus(permits[idx]);
             createNotification({
               targetRole: 'dept_admin',
               targetDept: permits[idx].department,
@@ -2079,11 +2186,20 @@ app.post('/api/permits/upload-excel', authenticateToken, requireRole('super_admi
   }
 });
 
-app.post('/api/hazards', submitLimiter, async (req, res) => {
-  const payload = req.body;
-  console.log('[POST /api/hazards] Received hazard report from:', payload.reporterName || 'Unknown');
-  if (!payload || !payload.reporterName || !payload.department || !payload.description) {
+app.post('/api/hazards', submitLimiter, authenticateSession, async (req, res) => {
+  const payload = req.body || {};
+  // العامل: اسمه وكوده من جلسته (مش من الفورم) — محدش يقدر يبلّغ باسم حد تاني
+  if (req.worker) {
+    const emp = findEmployeeByCode(req.worker.empCode);
+    payload.empCode = req.worker.empCode;
+    payload.reporterName = (emp && emp.name) || req.worker.name || payload.reporterName;
+    if (!payload.department) payload.department = (emp && emp.department) || req.worker.department;
+  }
+  if (!payload.reporterName || !payload.department || !payload.description) {
     return res.status(400).json({ error: 'البيانات غير مكتملة' });
+  }
+  if (payload.photo && String(payload.photo).length > 8 * 1024 * 1024) {
+    return res.status(413).json({ error: 'الصورة كبيرة جدًا — صغّرها وجرب تاني' });
   }
 
   let result;
@@ -2157,7 +2273,8 @@ app.post('/api/hazards', submitLimiter, async (req, res) => {
         message: `بلاغ خطورة جديد في ${newHazard.location || newHazard.area} - ${newHazard.description}`,
         link: 'tabSupHazard'
       });
-      
+      notifyAdminsWhatsAppNewHazard(newHazard);
+
       if (newHazard.empCode) {
         createNotification({
           targetEmpCode: newHazard.empCode,
@@ -2244,9 +2361,11 @@ app.get('/api/hazards', authenticateToken, requireRole('super_admin', 'hse_admin
   res.json({ hazards });
 });
 
-app.get('/api/my-hazards/:name', (req, res) => {
-  const reporterName = (req.params.name || '').trim();
-  const empCodeQ = req.query.empCode ? normalizeEmpCode(req.query.empCode) : '';
+app.get('/api/my-hazards/:name', authenticateSession, (req, res) => {
+  // العامل: بلاغاته هو بس (بكوده واسمه من الجلسة، مش من الرابط)
+  const workerEmp = req.worker ? findEmployeeByCode(req.worker.empCode) : null;
+  const reporterName = req.worker ? String((workerEmp && workerEmp.name) || '').trim() : (req.params.name || '').trim();
+  const empCodeQ = req.worker ? req.worker.empCode : (req.query.empCode ? normalizeEmpCode(req.query.empCode) : '');
   if (!reporterName && !empCodeQ) {
     return res.status(400).json({ error: 'الاسم أو الكود الوظيفي مطلوب' });
   }
@@ -3011,87 +3130,75 @@ app.delete('/api/permits/:id/permanent', authenticateToken, requireRole('super_a
 // 🔑 API ROUTES — AUTH
 // ============================================================
 
-// ── PATCH /api/permits/:id/worker-close — إغلاق الطلب من قِبل الموظف
-// لا يتطلب JWT — التحقق من الملكية يتم عبر employeeId
-app.patch('/api/permits/:id/worker-close', async (req, res) => {
+// ── PATCH /api/permits/:id/worker-close — إغلاق الطلب من العامل صاحبه
+// الملكية بتتحدد من جلسة العامل (قبل كده كانت من employeeId في الطلب نفسه،
+// فأي حد يعرف كود العامل ورقم التصريح كان يقفله).
+app.patch('/api/permits/:id/worker-close', authenticateSession, async (req, res) => {
+  if (!req.worker) return res.status(403).json({ error: 'الإغلاق من هنا للعامل صاحب الطلب فقط' });
   const permitId = req.params.id;
-  const { employeeId, closureType, closureReason } = req.body;
-
+  const { closureType, closureReason } = req.body || {};
   const VALID_CLOSURE = ['safe', 'incomplete', 'forced'];
-  if (!employeeId) {
-    return res.status(400).json({ error: 'الكود الوظيفي مطلوب للإغلاق' });
-  }
   if (!closureType || !VALID_CLOSURE.includes(closureType)) {
     return res.status(400).json({ error: 'نوع الإغلاق غير صالح. المتاح: safe | incomplete | forced' });
   }
-
   let result;
   await enqueueWrite(async () => {
     const storage = readStorage();
     let permits = [];
-    if (storage['work-permits']) {
-      try { permits = JSON.parse(storage['work-permits']); } catch { permits = []; }
-    }
-
+    try { permits = JSON.parse(storage['work-permits'] || '[]'); } catch { permits = []; }
     const idx = permits.findIndex(p => p.id === permitId);
-    if (idx === -1) {
-      result = { status: 404, body: { error: 'الطلب غير موجود' } };
-      return;
+    if (idx === -1) { result = { status: 404, body: { error: 'الطلب غير موجود' } }; return; }
+    if (normalizeEmpCode(permits[idx].employeeId || '') !== req.worker.empCode) {
+      result = { status: 403, body: { error: 'غير مصرح لك بإغلاق هذا الطلب' } }; return;
     }
-
-    // Ownership check: only the worker who submitted can close it
-    if (!permits[idx].employeeId ||
-        permits[idx].employeeId.toLowerCase() !== String(employeeId).toLowerCase()) {
-      result = { status: 403, body: { error: 'غير مصرح لك بإغلاق هذا الطلب' } };
-      return;
-    }
-
-    // Only approved permits can be closed by workers
     if (permits[idx].status !== 'approved') {
-      result = { status: 409, body: { error: 'يمكن إغلاق الطلبات الموافق عليها فقط' } };
-      return;
+      result = { status: 409, body: { error: 'يمكن إغلاق الطلبات الموافق عليها فقط' } }; return;
     }
-
-    const now = new Date().toISOString();
     permits[idx].status  = 'closed_' + closureType;
     permits[idx].closure = {
       type:     closureType,
       reason:   sanitizeStr(closureReason, 300),
-      time:     now,
-      closedBy: sanitizeStr(String(employeeId), 50) + ' (worker)'
+      time:     new Date().toISOString(),
+      closedBy: req.worker.empCode + ' (worker)'
     };
-
-    const newValue = JSON.stringify(permits);
-    storage['work-permits'] = newValue;
-    if (writeStorage(storage)) {
-      schedulePermitsExcelSync(newValue);
-      
-      createNotification({
-        targetRole: 'admin',
-        type: 'permit',
-        title: 'إغلاق طلب من العامل 🔒',
-        message: `تم إنهاء وإغلاق الطلب رقم ${permits[idx].id} من قِبل ${permits[idx].workerName || employeeId}`,
-        link: 'tabPermits'
-      });
-      
-      createNotification({
-        targetEmpCode: permits[idx].employeeId,
-        type: 'permit',
-        title: 'تأكيد إغلاق الطلب ✅',
-        message: 'تم إغلاق الطلب بسلامة',
-        link: 'tabMyHistory'
-      });
-      
-      result = { status: 200, body: { success: true, permit: permits[idx] } };
-    } else {
-      result = { status: 500, body: { error: 'فشل حفظ الإغلاق' } };
-    }
+    storage['work-permits'] = JSON.stringify(permits);
+    if (!writeStorage(storage)) { result = { status: 500, body: { error: 'فشل حفظ الإغلاق' } }; return; }
+    schedulePermitsExcelSync(storage['work-permits']);
+    createNotification({
+      targetRole: 'admin', type: 'permit', title: 'إغلاق طلب من العامل 🔒',
+      message: `تم إنهاء وإغلاق الطلب رقم ${permits[idx].id} من قِبل ${permits[idx].workerName || req.worker.empCode}`,
+      link: 'tabPermits'
+    });
+    createNotification({
+      targetEmpCode: permits[idx].employeeId, type: 'permit', title: 'تأكيد إغلاق الطلب ✅',
+      message: 'تم إغلاق الطلب بسلامة', link: 'tabMyHistory'
+    });
+    result = { status: 200, body: { success: true, permit: permits[idx] } };
   });
-
   res.status(result ? result.status : 500).json(result ? result.body : { error: 'حدث خطأ غير متوقع أثناء المعالجة، حاول مرة أخرى' });
 });
 
 // ============================================================
+
+// قفل مؤقت لكل اسم مستخدم بعد 5 محاولات غلط (بالإضافة لحد الـ IP في loginLimiter)
+const ADMIN_LOGIN_MAX_FAILS = 5;
+const ADMIN_LOGIN_LOCK_MS = 15 * 60 * 1000;
+const _adminLoginFails = new Map(); // username -> { count, lockedUntil }
+
+function adminLockMinutesLeft(username) {
+  const st = _adminLoginFails.get(username);
+  if (st && st.lockedUntil > Date.now()) return Math.ceil((st.lockedUntil - Date.now()) / 60000);
+  return 0;
+}
+
+function recordAdminLoginFail(username) {
+  const st = _adminLoginFails.get(username) || { count: 0, lockedUntil: 0 };
+  if (st.lockedUntil && st.lockedUntil <= Date.now()) { st.count = 0; st.lockedUntil = 0; }
+  st.count++;
+  if (st.count >= ADMIN_LOGIN_MAX_FAILS) st.lockedUntil = Date.now() + ADMIN_LOGIN_LOCK_MS;
+  _adminLoginFails.set(username, st);
+  return Math.max(0, ADMIN_LOGIN_MAX_FAILS - st.count);
+}
 
 // ── POST /api/auth/login — تسجيل الدخول (rate-limited)
 app.post('/api/auth/login', loginLimiter, async (req, res) => {
@@ -3120,17 +3227,34 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
     return res.status(401).json({ error: `اسم المستخدم غير موجود: ${usernameStr}` });
   }
 
-  // Check password (support both plaintext and bcrypt)
+  const lockLeft = adminLockMinutesLeft(usernameStr);
+  if (lockLeft) {
+    return res.status(429).json({ error: `محاولات غلط كتير على الحساب ده — استنى ${lockLeft} دقيقة وجرب تاني` });
+  }
+
+  // كلمات السر كلها متشفرة bcrypt (migratePasswordsIfNeeded بيشفّر أي نص عادي
+  // عند التشغيل) — اتشال الـ fallback اللي كان بيقارن كلمة سر نص عادي.
   let isMatch = false;
-  if (user.password.startsWith('$2')) {
-    isMatch = await bcrypt.compare(password, user.password);
-  } else {
-    isMatch = (password === user.password); // Fallback for plaintext
+  if (typeof user.password === 'string' && user.password.startsWith('$2')) {
+    isMatch = await bcrypt.compare(String(password), user.password);
   }
 
   if (!isMatch) {
+    const left = recordAdminLoginFail(usernameStr);
     console.log(`[LOGIN ERROR] Invalid password for username: ${usernameStr}`);
-    return res.status(401).json({ error: 'كلمة المرور غير صحيحة' });
+    return res.status(401).json({ error: left > 0 ? `كلمة المرور غير صحيحة — فاضل ${left} محاولات قبل قفل الحساب 15 دقيقة` : 'كلمة المرور غير صحيحة — الحساب اتقفل 15 دقيقة' });
+  }
+  _adminLoginFails.delete(usernameStr);
+
+  // حسابات الأقسام/الصيانة اللي اتعملت تلقائيًا كلمة سرها الافتراضية معروفة
+  // (123456)، وأي حد يعرف كود موظف في القسم كان يقدر يدخل بيها ويغيّرها
+  // لنفسه. لازم السوبر أدمن يعملها كلمة سر جديدة الأول (شاشة المستخدمين).
+  const isAutoDeptAccount = typeof user.id === 'string' && (user.id.startsWith('auto-dept-') || user.id.startsWith('auto-maint-'));
+  if (isAutoDeptAccount && user.mustChangePassword === true && String(password) === '123456') {
+    return res.status(403).json({
+      error: 'الحساب ده لسه على كلمة السر الافتراضية المعروفة (123456) ومقفول لحمايته. السوبر أدمن يعمله كلمة سر جديدة من شاشة "المستخدمين" ويديهالك.',
+      defaultPassword: true
+    });
   }
 
   // Check empCode in employees sheet — يجب إن الكود الوظيفي يبقى موظف
@@ -3192,7 +3316,7 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
     success: true,
     token,
     mustChangePassword: user.mustChangePassword === true,
-    user: { id: user.id, username: user.username, role: tokenPayload.role, name: employee.name, department: tokenPayload.department }
+    user: { id: user.id, username: user.username, role: tokenPayload.role, name: employee.name, department: tokenPayload.department, jobTitle: employee.jobTitle || '' }
   });
 });
 
@@ -3243,13 +3367,50 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
   res.status(result ? result.status : 500).json(result ? result.body : { error: 'حدث خطأ غير متوقع أثناء المعالجة، حاول مرة أخرى' });
 });
 
+// ── PATCH /api/auth/phone — تسجيل/تحديث رقم واتساب حساب الأدمن الحالي
+// إضافة 12 سبتمبر 2026: أي أدمن (super_admin/hse_admin/dept_admin/maint_admin)
+// يسجّل رقمه هنا عشان يستقبل تنبيهات البلاغات/التصاريح على واتساب. مفيش
+// endpoint منفصل لكل دور — بيحدّث حساب req.user نفسه فقط (مش حسابات تانية).
+app.patch('/api/auth/phone', authenticateToken, async (req, res) => {
+  const phone = sanitizeStr(req.body.phone || '', 20);
+  if (!/^\+?[0-9]{8,15}$/.test(phone.replace(/\s/g, ''))) {
+    return res.status(400).json({ error: 'رقم الهاتف غير صالح — أدخل رقمًا يحتوي أرقامًا فقط (8-15 رقم)' });
+  }
+  let result;
+  await enqueueWrite(async () => {
+    const storage = readStorage();
+    let users = [];
+    if (storage['app-users']) {
+      try { users = JSON.parse(storage['app-users']); } catch { users = []; }
+    }
+    const idx = users.findIndex(u => u.id === req.user.id || String(u.username || '').toLowerCase() === String(req.user.username || '').toLowerCase());
+    if (idx === -1) {
+      result = { status: 404, body: { error: 'المستخدم غير موجود' } };
+      return;
+    }
+    users[idx].phone = phone;
+    users[idx].whatsappOptIn = Boolean(req.body.optIn !== false);
+    storage['app-users'] = JSON.stringify(users);
+    if (writeStorage(storage)) {
+      result = { status: 200, body: { success: true, phone, whatsappOptIn: users[idx].whatsappOptIn } };
+    } else {
+      result = { status: 500, body: { error: 'فشل حفظ رقم الهاتف' } };
+    }
+  });
+  res.status(result ? result.status : 500).json(result ? result.body : { error: 'حدث خطأ غير متوقع' });
+});
+
 // ── POST /api/auth/refresh — تجديد الـ Token (للجلسات الطويلة)
 app.post('/api/auth/refresh', authenticateToken, (req, res) => {
+  // لازم القسم يفضل في التوكن الجديد — من غيره أدمن القسم كان بيشوف كل الأقسام
   const tokenPayload = {
-    id:       req.user.id,
-    username: req.user.username,
-    role:     req.user.role,
-    name:     req.user.name
+    id:         req.user.id,
+    username:   req.user.username,
+    role:       req.user.role,
+    name:       req.user.name,
+    fullName:   req.user.fullName || req.user.name,
+    empCode:    req.user.empCode,
+    department: req.user.department || ''
   };
   const newToken = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: JWT_EXPIRES });
   res.json({ success: true, token: newToken });
@@ -3276,7 +3437,8 @@ app.get('/api/users',
       role:       u.role,
       name:       u.name,
       department: u.department || '',
-      createdAt:  u.createdAt
+      createdAt:  u.createdAt,
+      mustChangePassword: u.mustChangePassword === true
     }));
     res.json({ users: safeUsers });
   }
@@ -3292,7 +3454,7 @@ app.post('/api/users',
     if (!username || !password || !role || !name) {
       return res.status(400).json({ error: 'جميع الحقول مطلوبة' });
     }
-    const VALID_ROLES = ['super_admin', 'hse_admin', 'dept_admin', 'ceo'];
+    const VALID_ROLES = ['super_admin', 'hse_admin', 'dept_admin', 'maint_admin', 'ceo'];
     if (!VALID_ROLES.includes(role)) {
       return res.status(400).json({ error: `الدور غير صالح. الأدوار المتاحة: ${VALID_ROLES.join(', ')}` });
     }
@@ -3324,6 +3486,8 @@ app.post('/api/users',
         role:       role,
         name:       name.trim(),
         department: role === 'dept_admin' ? (req.body.department || '').trim() : '',
+        phone:      sanitizeStr(req.body.phone || '', 20), // لتنبيهات واتساب — 12 سبتمبر 2026
+        whatsappOptIn: req.body.phone ? true : false,
         createdAt:  new Date().toISOString()
       };
       users.push(newUser);
@@ -3382,6 +3546,48 @@ app.delete('/api/users/:id',
   }
 );
 
+// ── POST /api/users/generate-default-passwords — كلمات سر جديدة (عشوائية) لكل
+// حسابات الأقسام/الصيانة اللي لسه على 123456. السوبر أدمن بيوزّعها على رؤساء
+// الأقسام، وكل واحد بيغيّرها لكلمة سر خاصة بيه أول ما يدخل.
+app.post('/api/users/generate-default-passwords', authenticateToken, requireRole('super_admin'), async (req, res) => {
+  const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  const genPw = () => Array.from(crypto.randomBytes(10)).map(b => ALPHABET[b % ALPHABET.length]).join('');
+  let snapshot = [];
+  try { snapshot = JSON.parse(readStorage()['app-users'] || '[]'); } catch { snapshot = []; }
+  // التشفير بطيء عمدًا (bcrypt) — بيتحسب برّه طابور الكتابة عشان ميعطلش باقي النظام
+  const planned = [];
+  for (const u of snapshot) {
+    const isAuto = typeof u.id === 'string' && (u.id.startsWith('auto-dept-') || u.id.startsWith('auto-maint-'));
+    if (!isAuto || typeof u.password !== 'string' || !u.password.startsWith('$2')) continue;
+    if (!(await bcrypt.compare('123456', u.password))) continue;
+    const pw = genPw();
+    planned.push({ id: u.id, oldHash: u.password, newHash: await bcrypt.hash(pw, BCRYPT_ROUNDS), pw, username: u.username, name: u.name || '', department: u.department || '' });
+  }
+  const accounts = [];
+  let saved = true;
+  await enqueueWrite(async () => {
+    const storage = readStorage();
+    let users = [];
+    try { users = JSON.parse(storage['app-users'] || '[]'); } catch { users = []; }
+    planned.forEach(p => {
+      const u = users.find(x => x.id === p.id && x.password === p.oldHash);
+      if (!u) return;
+      u.password = p.newHash;
+      u.mustChangePassword = true;
+      accounts.push({ username: p.username, name: p.name, department: p.department, password: p.pw });
+    });
+    if (accounts.length) {
+      storage['app-users'] = JSON.stringify(users);
+      saved = writeStorage(storage);
+    }
+  });
+  if (!saved) return res.status(500).json({ error: 'فشل حفظ كلمات السر' });
+  if (accounts.length) {
+    logAuditEvent({ entityType: 'database', entityId: 'app-users', action: 'update', actor: req.user, note: `توليد كلمات سر جديدة لـ ${accounts.length} حساب كان على كلمة السر الافتراضية` });
+  }
+  res.json({ success: true, count: accounts.length, accounts });
+});
+
 // ── PUT /api/users/:id — تعديل بيانات المستخدم كاملة
 app.put('/api/users/:id',
   authenticateToken,
@@ -3418,13 +3624,21 @@ app.put('/api/users/:id',
         return;
       }
 
+      const VALID_ROLES = ['super_admin', 'hse_admin', 'dept_admin', 'maint_admin', 'ceo'];
+      if (!VALID_ROLES.includes(role)) {
+        result = { status: 400, body: { error: 'الدور غير صالح' } };
+        return;
+      }
       users[idx].name = name;
       users[idx].username = username;
       users[idx].role = role;
-      users[idx].department = role === 'dept_admin' ? department : '';
+      users[idx].department = (role === 'dept_admin' || role === 'maint_admin') ? (department || users[idx].department || '') : '';
 
       if (newPassword) {
         users[idx].password = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+        // صاحب الحساب يغيّرها لكلمة سر خاصة بيه أول ما يدخل
+        users[idx].mustChangePassword = users[idx].id !== req.user.id;
+        _adminLoginFails.delete(String(users[idx].username || '').toLowerCase());
       }
 
       storage['app-users'] = JSON.stringify(users);
@@ -3441,12 +3655,192 @@ app.put('/api/users/:id',
 );
 
 // ============================================================
+// 🔑 WORKER AUTH — كلمة سر للعامل + استرجاعها بكود على واتساب
+// ============================================================
+// أُضيف 12 سبتمبر 2026 بطلب بشمهندس أحمد: أول مرة العامل يدخل بكوده بيعمل
+// كلمة سر ويسجل رقم موبايله، وبعد كده بيدخل بالكود + كلمة السر. لو نسيها،
+// الأدمن (أو مشرف قسمه) بيعمله كلمة سر جديدة من شاشة الموظفين ويديهاله —
+// استرجاع كلمة السر بكود واتساب اتشال بطلب بشمهندس أحمد.
+const WORKER_PW_MIN = 6;
+const WORKER_LOGIN_MAX_FAILS = 5;             // محاولات غلط متتالية لكل كود
+const WORKER_LOGIN_LOCK_MS = 15 * 60 * 1000;  // قفل الكود 15 دقيقة بعدها
+// في الذاكرة بس (بتتصفّر لو السيرفر اتعمله restart)
+const _workerLoginFails = new Map(); // code -> { count, lockedUntil }
+
+// عمال المصنع غالبًا خارجين من نفس الـ IP، فالحد هنا واسع، والحماية الحقيقية
+// من التخمين هي القفل لكل كود (_workerLoginFails).
+const workerAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'تجاوزت عدد المحاولات المسموح بها. حاول مجدداً بعد 15 دقيقة.' }
+});
+
+function readWorkerCreds() {
+  const c = workerCredsStore.read();
+  return (c && typeof c === 'object' && !Array.isArray(c)) ? c : {};
+}
+
+function findEmployeeByCode(code) {
+  const target = normalizeEmpCode(code);
+  if (!target) return null;
+  return readEmployees().find(e => normalizeEmpCode(e.code || e.empCode) === target) || null;
+}
+
+function publicEmployeeInfo(emp) {
+  return {
+    code:       emp.empCode,
+    name:       emp.name       || '',
+    department: emp.department || '',
+    jobTitle:   emp.jobTitle   || '',
+    role:       (emp.role === 'ceo' ? 'worker' : (emp.role || 'worker')),
+  };
+}
+
+function normalizeWorkerPhone(raw) {
+  const s = String(raw || '').replace(/[\s-]/g, '');
+  if (/^01[0125][0-9]{8}$/.test(s)) return s;                          // موبايل مصري
+  if (/^(\+|00)[1-9][0-9]{7,14}$/.test(s)) return s.replace(/^00/, '+'); // رقم دولي
+  return null;
+}
+
+function validateWorkerPassword(pw) {
+  const s = String(pw || '');
+  if (s.length < WORKER_PW_MIN) return `كلمة السر لازم تكون ${WORKER_PW_MIN} حروف أو أرقام على الأقل`;
+  if (s.length > 100) return 'كلمة السر طويلة جدًا';
+  return null;
+}
+
+/** عدد الدقايق الباقية على فك قفل الكود (0 = مش مقفول) */
+function workerLockMinutesLeft(key) {
+  const st = _workerLoginFails.get(key);
+  if (st && st.lockedUntil > Date.now()) return Math.ceil((st.lockedUntil - Date.now()) / 60000);
+  return 0;
+}
+
+/** يسجل محاولة غلط ويرجع عدد المحاولات الباقية قبل القفل */
+function recordWorkerLoginFail(key) {
+  const st = _workerLoginFails.get(key) || { count: 0, lockedUntil: 0 };
+  if (st.lockedUntil && st.lockedUntil <= Date.now()) { st.count = 0; st.lockedUntil = 0; }
+  st.count++;
+  if (st.count >= WORKER_LOGIN_MAX_FAILS) st.lockedUntil = Date.now() + WORKER_LOGIN_LOCK_MS;
+  _workerLoginFails.set(key, st);
+  return Math.max(0, WORKER_LOGIN_MAX_FAILS - st.count);
+}
+
+// ── GET /api/worker-auth/status/:code — بعد ما العامل يكتب كوده: اسمه وقسمه
+// ووظيفته (بتظهر في شاشة الدخول) + هل عمل كلمة سر قبل كده ولا دي أول مرة.
+app.get('/api/worker-auth/status/:code', workerAuthLimiter, (req, res) => {
+  const emp = findEmployeeByCode(req.params.code);
+  if (!emp) return res.json({ found: false });
+  const cred = readWorkerCreds()[normalizeEmpCode(emp.empCode)];
+  res.json({
+    found: true,
+    employee: publicEmployeeInfo(emp),
+    hasPassword: Boolean(cred && cred.hash),
+  });
+});
+
+// ── POST /api/worker-auth/setup — أول دخول: عمل كلمة سر + تسجيل رقم الموبايل.
+// مقبول بس لو الكود ملوش كلمة سر لسه (غير كده لازم "نسيت كلمة السر").
+app.post('/api/worker-auth/setup', workerAuthLimiter, async (req, res) => {
+  const { code, password } = req.body || {};
+  const emp = findEmployeeByCode(code);
+  if (!emp) return res.status(404).json({ error: 'الكود الوظيفي غير مسجل' });
+  const pwErr = validateWorkerPassword(password);
+  if (pwErr) return res.status(400).json({ error: pwErr });
+  const phone = normalizeWorkerPhone(req.body.phone);
+  if (!phone) return res.status(400).json({ error: 'رقم الموبايل غير صحيح — اكتبه كده: 01xxxxxxxxx' });
+
+  const key = normalizeEmpCode(emp.empCode);
+  const hash = await bcrypt.hash(String(password), BCRYPT_ROUNDS);
+  let result;
+  await enqueueWrite(async () => {
+    const creds = readWorkerCreds();
+    if (creds[key] && creds[key].hash) {
+      result = { status: 409, body: { error: 'الكود ده عليه كلمة سر بالفعل — ادخل بيها أو اضغط "نسيت كلمة السر"' } };
+      return;
+    }
+    creds[key] = { hash, phone, pwv: crypto.randomBytes(8).toString('hex'), setAt: new Date().toISOString() };
+    if (!workerCredsStore.write(creds)) {
+      result = { status: 500, body: { error: 'فشل حفظ كلمة السر' } };
+      return;
+    }
+    // نفس الرقم في سجل الموظف عشان تنبيهات واتساب (تحديث التصاريح...) توصله
+    const employees = readEmployees();
+    const idx = employees.findIndex(e => normalizeEmpCode(e.code || e.empCode) === key);
+    if (idx !== -1) {
+      employees[idx].phone = phone;
+      employees[idx].phoneUpdatedAt = new Date().toISOString();
+      writeEmployees(employees);
+    }
+    result = { status: 200, body: { success: true, token: signWorkerToken(emp, creds[key]), employee: { ...publicEmployeeInfo(emp), phone } } };
+  });
+  res.status(result ? result.status : 500).json(result ? result.body : { error: 'حدث خطأ غير متوقع' });
+});
+
+// ── POST /api/worker-auth/login — دخول العامل بالكود + كلمة السر
+app.post('/api/worker-auth/login', workerAuthLimiter, async (req, res) => {
+  const { code, password } = req.body || {};
+  const emp = findEmployeeByCode(code);
+  if (!emp) return res.status(404).json({ error: 'الكود الوظيفي غير مسجل' });
+  const key = normalizeEmpCode(emp.empCode);
+  const lockedMin = workerLockMinutesLeft(key);
+  if (lockedMin) {
+    return res.status(429).json({ error: `محاولات غلط كتير — استنى ${lockedMin} دقيقة أو اضغط "نسيت كلمة السر"` });
+  }
+  const cred = readWorkerCreds()[key];
+  if (!cred || !cred.hash) return res.status(409).json({ error: 'لسه ماعملتش كلمة سر', needsSetup: true });
+  const ok = await bcrypt.compare(String(password || ''), cred.hash);
+  if (!ok) {
+    const left = recordWorkerLoginFail(key);
+    return res.status(401).json({ error: left > 0 ? `كلمة السر غلط — فاضل ${left} محاولات` : 'كلمة السر غلط — الكود اتقفل 15 دقيقة' });
+  }
+  _workerLoginFails.delete(key);
+  res.json({ success: true, token: signWorkerToken(emp, cred), employee: { ...publicEmployeeInfo(emp), phone: cred.phone || emp.phone || '' } });
+});
+
+// ── POST /api/employees/:code/set-password — الأدمن بيعمل أو بيغيّر كلمة سر
+// العامل بنفسه ويديهاله (بدل استرجاع كلمة السر بكود واتساب). أي جلسة مفتوحة
+// للعامل بكلمة السر القديمة بتتقفل فورًا لأن pwv بيتغيّر.
+app.post('/api/employees/:code/set-password',
+  authenticateToken,
+  requireRole(...ADMIN_TIER_ROLES),
+  async (req, res) => {
+    const emp = findEmployeeByCode(req.params.code);
+    if (!emp) return res.status(404).json({ error: 'الموظف غير موجود' });
+    if ((req.user.role === 'dept_admin' || req.user.role === 'maint_admin') && req.user.department && emp.department !== req.user.department) {
+      return res.status(403).json({ error: 'الموظف ده مش في قسمك' });
+    }
+    const password = String((req.body || {}).password || '');
+    const pwErr = validateWorkerPassword(password);
+    if (pwErr) return res.status(400).json({ error: pwErr });
+    const key = normalizeEmpCode(emp.empCode);
+    const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    let hadPassword = false, ok = false;
+    await enqueueWrite(async () => {
+      const creds = readWorkerCreds();
+      hadPassword = Boolean(creds[key] && creds[key].hash);
+      const now = new Date().toISOString();
+      creds[key] = { ...(creds[key] || {}), hash, pwv: crypto.randomBytes(8).toString('hex'), updatedAt: now, setBy: req.user.username || '' };
+      if (!creds[key].setAt) creds[key].setAt = now;
+      ok = workerCredsStore.write(creds);
+    });
+    if (!ok) return res.status(500).json({ error: 'فشل حفظ كلمة السر' });
+    _workerLoginFails.delete(key);
+    logAuditEvent({ entityType: 'employee', entityId: key, action: 'reset_password', actor: req.user, note: `${hadPassword ? 'تغيير' : 'إنشاء'} كلمة سر العامل ${emp.name || key}` });
+    res.json({ success: true, hadPassword });
+  }
+);
+
+// ============================================================
 // 👷 API ROUTES — EMPLOYEES
 // ============================================================
 
 // ── GET /api/employees/lookup/:code — بحث عام بالكود (Public)
 // NOTE: Must be declared BEFORE /api/employees/:code to prevent route conflict
-app.get('/api/employees/lookup/:code', (req, res) => {
+app.get('/api/employees/lookup/:code', authenticateSession, (req, res) => {
   const searchCode = normalizeEmpCode(req.params.code);
   const employees = readEmployees();
   const emp = employees.find(e => normalizeEmpCode(e.code || e.empCode) === searchCode);
@@ -3465,8 +3859,9 @@ app.get('/api/employees/lookup/:code', (req, res) => {
       name:       emp.name       || '',
       department: emp.department  || '',
       jobTitle:   emp.jobTitle   || '',
-      role:       (emp.role === 'ceo' ? 'worker' : (emp.role || 'worker')),
-      phone:      emp.phone      || ''
+      role:       (emp.role === 'ceo' ? 'worker' : (emp.role || 'worker'))
+      // رقم الموبايل اتشال من هنا عمدًا — المسار ده عام من غير تسجيل دخول،
+      // والرقم دلوقتي هو اللي بيوصله كود "نسيت كلمة السر".
     }
   });
 });
@@ -3609,8 +4004,10 @@ app.get('/api/employees',
       });
     });
 
+    const workerCreds = readWorkerCreds();
     const enrichedEmployees = employees.map(emp => {
       const code = normalizeEmpCode(emp.code || emp.empCode);
+      emp = { ...emp, hasWorkerPassword: Boolean(workerCreds[code] && workerCreds[code].hash) };
       const empTrainings = trainingsMap.get(code) || [];
       const empHazards = hazardsMap.get(code) || [];
       return {
@@ -3627,15 +4024,9 @@ app.get('/api/employees',
 );
 
 // ── POST /api/employees — إضافة موظف (محمي) أو تسجيل ذاتي (عام)
-app.post('/api/employees', async (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    return authenticateToken(req, res, () =>
-      requireRole('super_admin', 'hse_admin', 'dept_admin', 'issuer')(req, res, next)
-    );
-  }
-  return employeeLimiter(req, res, next);
-}, async (req, res) => {
+// كان فيه "تسجيل ذاتي" من غير تسجيل دخول بيعدّل بيانات أي موظف موجود (اسمه
+// وقسمه ورقمه) — اتقفل: الإضافة والتعديل من الإدارة بس.
+app.post('/api/employees', authenticateToken, requireRole('super_admin', 'hse_admin', 'dept_admin', 'issuer'), async (req, res) => {
   const rawCode = (req.body.empCode || req.body.code || '').trim();
   const { name, phone, department, jobTitle, role } = req.body;
   if (!rawCode || !name) {
@@ -3683,7 +4074,7 @@ app.post('/api/employees', async (req, res, next) => {
 // ── PUT /api/employees/:code — تعديل بيانات موظف (محمي)
 app.put('/api/employees/:code',
   authenticateToken,
-  requireRole('superadmin', 'admin', 'supervisor', 'area_head', 'hse', 'issuer'),
+  requireRole(...ADMIN_TIER_ROLES, 'issuer'),
   async (req, res) => {
     const targetCode = normalizeEmpCode(req.params.code);
     const { name, phone, department, jobTitle, role } = req.body;
@@ -3715,10 +4106,42 @@ app.put('/api/employees/:code',
   }
 );
 
+// ── PATCH /api/employees/:code/phone — تسجيل رقم هاتف العامل (لأول مرة أو تحديث)
+// إضافة 12 سبتمبر 2026 بناءً على طلب بشمهندس أحمد: كل عامل بيدخل على
+// حسابه لأول مرة (أو لسه ملوش رقم مسجّل) يتطلب منه رقمه عشان تشتغل
+// تنبيهات واتساب (تحديثات التصاريح، إلخ). بدون مصادقة JWT لأن العامل أصلاً
+// بيدخل بكوده الوظيفي بس (نفس نموذج الثقة المطبّق على كل مسارات العمال
+// التانية زي POST /api/hazards) — نفس الـ rate limiter المستخدم للتسجيل.
+app.patch('/api/employees/:code/phone', employeeLimiter, authenticateSession, async (req, res) => {
+  const targetCode = normalizeEmpCode(req.params.code);
+  if (req.worker && req.worker.empCode !== targetCode) return res.status(403).json({ error: 'غير مصرح' });
+  const phone = sanitizeStr(req.body.phone || '', 20);
+  if (!/^\+?[0-9]{8,15}$/.test(phone.replace(/\s/g, ''))) {
+    return res.status(400).json({ error: 'رقم الهاتف غير صالح — أدخل رقمًا يحتوي أرقامًا فقط (8-15 رقم)' });
+  }
+  let result;
+  await enqueueWrite(async () => {
+    const employees = readEmployees();
+    const idx = employees.findIndex(e => normalizeEmpCode(e.code || e.empCode) === targetCode);
+    if (idx === -1) {
+      result = { status: 404, body: { error: 'الموظف غير موجود' } };
+      return;
+    }
+    employees[idx].phone = phone;
+    employees[idx].phoneUpdatedAt = new Date().toISOString();
+    if (writeEmployees(employees)) {
+      result = { status: 200, body: { success: true, phone } };
+    } else {
+      result = { status: 500, body: { error: 'فشل حفظ رقم الهاتف' } };
+    }
+  });
+  res.status(result ? result.status : 500).json(result ? result.body : { error: 'حدث خطأ غير متوقع' });
+});
+
 // ── DELETE /api/employees/:code — حذف موظف (محمي)
 app.delete('/api/employees/:code',
   authenticateToken,
-  requireRole('superadmin', 'admin', 'supervisor'),
+  requireRole('super_admin', 'hse_admin', 'dept_admin'),
   async (req, res) => {
     const targetCode = normalizeEmpCode(req.params.code);
     let result;
@@ -3756,8 +4179,8 @@ app.get('/api/trainings', authenticateToken, (req, res) => {
 });
 
 // Worker Dashboard Endpoint (No JWT required)
-app.get('/api/trainings/worker/:empCode', (req, res) => {
-  const code = normalizeEmpCode(req.params.empCode);
+app.get('/api/trainings/worker/:empCode', authenticateSession, (req, res) => {
+  const code = req.worker ? req.worker.empCode : normalizeEmpCode(req.params.empCode);
   const trainings = readTrainings();
   const attCode = (a) => normalizeEmpCode(a.empCode || a.code || a.employeeCode || a.id || '');
   
@@ -4064,9 +4487,12 @@ app.delete('/api/trainings/:id/permanent', authenticateToken, requireRole('super
   res.status(result ? result.status : 500).json(result ? result.body : { error: 'حدث خطأ غير متوقع أثناء المعالجة، حاول مرة أخرى' });
 });
 
-app.post('/api/trainings/:id/attend', attendLimiter, async (req, res) => {
-  let { empCode, pin } = req.body;
-  if (!empCode || !pin) return res.status(400).json({ error: 'الكود ورمز الجلسة مطلوبان' });
+app.post('/api/trainings/:id/attend', attendLimiter, authenticateSession, async (req, res) => {
+  // الحضور بيتسجل للعامل صاحب الجلسة بس (الأدمن عنده "إضافة حضور يدويًا")
+  if (!req.worker) return res.status(403).json({ error: 'تسجيل الحضور من حساب العامل نفسه' });
+  let empCode = req.worker.empCode;
+  let { pin } = req.body || {};
+  if (!pin) return res.status(400).json({ error: 'رمز الجلسة مطلوب' });
   
   // Strict Type Casting to prevent NoSQL injection / Prototype pollution
   empCode = String(empCode).trim();
@@ -4514,8 +4940,8 @@ app.get('/api/drills', authenticateToken, (req, res) => {
 
 
 // Worker Dashboard Endpoint (No JWT required)
-app.get('/api/drills/worker/:empCode', (req, res) => {
-  const code = normalizeEmpCode(req.params.empCode);
+app.get('/api/drills/worker/:empCode', authenticateSession, (req, res) => {
+  const code = req.worker ? req.worker.empCode : normalizeEmpCode(req.params.empCode);
   const drills = readDrills();
   const attCode = (a) => normalizeEmpCode(a.empCode || a.code || a.employeeCode || a.id || '');
   
@@ -4691,9 +5117,11 @@ app.delete('/api/drills/:id/permanent', authenticateToken, requireRole('super_ad
   res.status(result ? result.status : 500).json(result ? result.body : { error: 'حدث خطأ غير متوقع أثناء المعالجة، حاول مرة أخرى' });
 });
 
-app.post('/api/drills/:id/attend', attendLimiter, async (req, res) => {
-  let { empCode, pin } = req.body;
-  if (!empCode || !pin) return res.status(400).json({ error: 'الكود ورمز الجلسة مطلوبان' });
+app.post('/api/drills/:id/attend', attendLimiter, authenticateSession, async (req, res) => {
+  if (!req.worker) return res.status(403).json({ error: 'تسجيل الحضور من حساب العامل نفسه' });
+  let empCode = req.worker.empCode;
+  let { pin } = req.body || {};
+  if (!pin) return res.status(400).json({ error: 'رمز الجلسة مطلوب' });
   
   // Strict Type Casting to prevent NoSQL injection / Prototype pollution
   empCode = String(empCode).trim();
@@ -5227,8 +5655,9 @@ app.get('/api/penalties', authenticateToken, requireRole('super_admin', 'hse_adm
 });
 
 // GET /api/my-penalties/:empCode — a worker's own ACTIVE penalties (public, matches /api/my-hazards convention)
-app.get('/api/my-penalties/:empCode', (req, res) => {
-  const code = normalizeEmpCode(req.params.empCode || '');
+app.get('/api/my-penalties/:empCode', authenticateSession, (req, res) => {
+  // الجزاءات بيانات حساسة: العامل يشوف جزاءاته هو بس
+  const code = req.worker ? req.worker.empCode : normalizeEmpCode(req.params.empCode || '');
   if (!code) return res.status(400).json({ error: 'الكود الوظيفي مطلوب' });
 
   let penalties = readPenalties()
@@ -5487,9 +5916,14 @@ app.get('/api/executive/overview', authenticateToken, requireRole('ceo', 'super_
       .filter(b => knownDepartments.has(b.department))
       .filter(b => (b.hazardsTotal + b.permitsTotal) >= 3)
       .map(b => {
-        const closureRate = b.hazardsTotal ? b.hazardsClosed / b.hazardsTotal : 1;
-        const approvalRate = b.permitsTotal ? b.permitsApproved / b.permitsTotal : 1;
-        const score = Math.round((closureRate * 70 + approvalRate * 30) * 10) / 10;
+        // 70% نسبة البلاغات المغلقة + 30% نسبة التصاريح المعتمدة. قسم ملوش
+        // بلاغات (أو ملوش تصاريح) بيتحسب على الجزء اللي عنده بيانات بس — كان
+        // الجزء الفاضي بيتحسب 100% فالقسم ياخد درجة كاملة من غير أي بلاغ.
+        const parts = [];
+        if (b.hazardsTotal) parts.push({ rate: b.hazardsClosed / b.hazardsTotal, weight: 70 });
+        if (b.permitsTotal) parts.push({ rate: b.permitsApproved / b.permitsTotal, weight: 30 });
+        const totalWeight = parts.reduce((s, p) => s + p.weight, 0);
+        const score = Math.round((parts.reduce((s, p) => s + p.rate * p.weight, 0) / totalWeight) * 1000) / 10;
         return {
           department: b.department,
           employeeCount: b.employeeCount,
@@ -5596,6 +6030,161 @@ app.post('/api/admin/backup/import', authenticateToken, requireRole('super_admin
   });
   res.status(result ? result.status : 500).json(result ? result.body : { error: 'حدث خطأ غير متوقع أثناء المعالجة، حاول مرة أخرى' });
 });
+
+// ============================================================
+// 📧 إرسال النسخة الاحتياطية بالإيميل (يدوي + يومي تلقائي) — super_admin
+// ============================================================
+// أُضيف 12 سبتمبر 2026: نفس محتوى "تنزيل نسخة احتياطية كاملة" بالظبط
+// (dbExportAll) لكن مضغوط gzip كمرفق (~1MB بدل ~10MB)، وينفع يترفع زي ما هو
+// من "استرجاع من نسخة احتياطية". المستلمين والميعاد بيتظبطوا من شاشة سجل
+// التدقيق، وبيانات حساب الإرسال (SMTP) في .env — شوف lib/mailer.js.
+const BACKUP_EMAIL_MAX_RECIPIENTS = 20;
+const BACKUP_EMAIL_RETRY_MS = 30 * 60 * 1000; // لو الإرسال اليومي فشل، يحاول تاني بعد نص ساعة
+const BACKUP_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+const EMAIL_RE = /^[^\s@<>"',;]+@[^\s@<>"',;]+\.[^\s@<>"',;]{2,}$/;
+
+function readBackupEmailSettings() {
+  const s = backupEmailStore.read() || {};
+  return {
+    enabled:      s.enabled === true,
+    recipients:   Array.isArray(s.recipients) ? s.recipients : [],
+    time:         BACKUP_TIME_RE.test(s.time || '') ? s.time : '00:00',
+    lastSentDate: s.lastSentDate || null, // YYYY-MM-DD بتوقيت السيرفر لآخر إرسال يومي ناجح
+    lastResult:   s.lastResult || null,   // { ok, at, trigger, recipients, sizeKB, error? }
+  };
+}
+
+function parseRecipients(input) {
+  const raw = Array.isArray(input) ? input : String(input || '').split(/[\s,;،]+/);
+  const list = [...new Set(raw.map(x => String(x || '').trim().toLowerCase()).filter(Boolean))];
+  return { list, invalid: list.filter(e => !EMAIL_RE.test(e)) };
+}
+
+function recipientsError({ list, invalid }) {
+  if (invalid.length) return `إيميل غير صحيح: ${invalid.join('، ')}`;
+  if (list.length > BACKUP_EMAIL_MAX_RECIPIENTS) return `أقصى عدد ${BACKUP_EMAIL_MAX_RECIPIENTS} إيميل`;
+  return null;
+}
+
+function localDateKey(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+async function sendBackupEmail(recipients, trigger) {
+  const now = new Date();
+  const backup = dbExportAll();
+  const gz = zlib.gzipSync(Buffer.from(JSON.stringify(backup)));
+  const sizeKB = Math.round(gz.length / 1024);
+
+  const c = backup.collections || {};
+  const len = v => (Array.isArray(v) ? v.length : 0);
+  let permitsCount = 0;
+  try {
+    const p = c.storage && c.storage['work-permits'];
+    permitsCount = len(typeof p === 'string' ? JSON.parse(p) : p);
+  } catch { /* الملخص اختياري — المرفق هو الأساس */ }
+
+  const hhmm = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+  const result = await mailer.sendMail({
+    to: recipients.join(', '),
+    subject: `نسخة احتياطية - منصة السلامة HSE - ${localDateKey(now)}`,
+    text: [
+      `نسخة احتياطية كاملة من منصة السلامة (HSE Platform) — ${now.toLocaleString('ar-EG')}`,
+      `نوع الإرسال: ${trigger === 'daily' ? 'يومي تلقائي' : 'يدوي من المنصة'}`,
+      '',
+      `الملف المرفق فيه كل بيانات النظام: ${permitsCount} تصريح عمل، ${len(c.hazards)} بلاغ خطورة، ${len(c.employees)} موظف، ${len(c.trainings)} محاضرة تدريب، ${len(c.drills)} تجربة طوارئ، ${len(c.penalties)} جزاء.`,
+      '',
+      'للاسترجاع: سجل التدقيق ← "استرجاع من نسخة احتياطية" ← اختار الملف المرفق زي ما هو (.json.gz).',
+    ].join('\n'),
+    attachments: [{ filename: `hse-backup-${localDateKey(now)}_${hhmm}.json.gz`, content: gz, contentType: 'application/gzip' }],
+  });
+
+  const s = backupEmailStore.read() || {};
+  s.lastResult = { ok: result.sent, at: now.toISOString(), trigger, recipients, sizeKB };
+  if (!result.sent) s.lastResult.error = result.error || result.reason;
+  if (trigger === 'daily') {
+    s.lastDailyAttemptAt = now.toISOString();
+    if (result.sent) s.lastSentDate = localDateKey(now);
+  }
+  backupEmailStore.write(s);
+  return { ...result, sizeKB };
+}
+
+function backupEmailSettingsResponse() {
+  return { ...readBackupEmailSettings(), smtpConfigured: mailer.isConfigured(), from: mailer.isConfigured() ? mailer.fromAddress() : '' };
+}
+
+app.get('/api/admin/backup/email-settings', authenticateToken, requireRole('super_admin'), (req, res) => {
+  res.json(backupEmailSettingsResponse());
+});
+
+app.put('/api/admin/backup/email-settings', authenticateToken, requireRole('super_admin'), (req, res) => {
+  const { enabled, time } = req.body || {};
+  const parsed = parseRecipients(req.body && req.body.recipients);
+  const err = recipientsError(parsed);
+  if (err) return res.status(400).json({ error: err });
+  if (time !== undefined && !BACKUP_TIME_RE.test(String(time))) {
+    return res.status(400).json({ error: 'الميعاد لازم يكون بصيغة ساعة:دقيقة (مثال 00:00)' });
+  }
+  if (enabled === true && parsed.list.length === 0) {
+    return res.status(400).json({ error: 'ضيف إيميل واحد على الأقل قبل تفعيل الإرسال اليومي' });
+  }
+  const s = backupEmailStore.read() || {};
+  s.enabled = enabled === true;
+  s.recipients = parsed.list;
+  if (time !== undefined) s.time = String(time);
+  if (!backupEmailStore.write(s)) return res.status(500).json({ error: 'فشل حفظ الإعدادات' });
+  logAuditEvent({
+    entityType: 'database', entityId: 'backup-email', action: 'update', actor: req.user,
+    note: s.enabled ? `إرسال النسخة الاحتياطية يوميًا الساعة ${s.time} إلى: ${s.recipients.join(', ')}` : 'إيقاف الإرسال اليومي للنسخة الاحتياطية'
+  });
+  res.json({ success: true, ...backupEmailSettingsResponse() });
+});
+
+app.post('/api/admin/backup/email-now', authenticateToken, requireRole('super_admin'), async (req, res) => {
+  if (!mailer.isConfigured()) {
+    return res.status(503).json({ error: 'إيميل الإرسال مش متظبط — لازم تتحط بيانات SMTP في ملف .env (شوف .env.example)' });
+  }
+  const src = (req.body && req.body.recipients !== undefined) ? req.body.recipients : readBackupEmailSettings().recipients;
+  const parsed = parseRecipients(src);
+  const err = recipientsError(parsed) || (parsed.list.length ? null : 'اكتب إيميل واحد على الأقل');
+  if (err) return res.status(400).json({ error: err });
+  try {
+    const r = await sendBackupEmail(parsed.list, 'manual');
+    if (!r.sent) return res.status(502).json({ error: `فشل الإرسال: ${r.error || r.reason}` });
+    logAuditEvent({ entityType: 'database', entityId: 'full-backup', action: 'email_backup', actor: req.user, note: `إرسال نسخة احتياطية بالإيميل إلى: ${parsed.list.join(', ')}` });
+    res.json({ success: true, recipients: parsed.list, rejected: r.rejected || [], sizeKB: r.sizeKB });
+  } catch (e) {
+    console.error('[backup-email] manual send failed:', e);
+    res.status(500).json({ error: 'فشل تجهيز النسخة الاحتياطية' });
+  }
+});
+
+// الإرسال اليومي: كل دقيقة بنشوف لو عدّى الميعاد النهارده ولسه ماتبعتش. لو
+// السيرفر كان مقفول وقت الميعاد، النسخة بتتبعت أول ما يشتغل في نفس اليوم.
+let _backupEmailRunning = false;
+async function runDailyBackupEmail() {
+  if (_backupEmailRunning || !mailer.isConfigured()) return;
+  const s = readBackupEmailSettings();
+  if (!s.enabled || !s.recipients.length) return;
+  const now = new Date();
+  const [hh, mm] = s.time.split(':').map(Number);
+  if (now.getHours() * 60 + now.getMinutes() < hh * 60 + mm) return;
+  if (s.lastSentDate === localDateKey(now)) return;
+  const lastAttempt = (backupEmailStore.read() || {}).lastDailyAttemptAt;
+  if (lastAttempt && Date.now() - new Date(lastAttempt).getTime() < BACKUP_EMAIL_RETRY_MS) return;
+  _backupEmailRunning = true;
+  try {
+    const r = await sendBackupEmail(s.recipients, 'daily');
+    if (r.sent) console.log(`[backup-email] اتبعتت النسخة اليومية إلى ${s.recipients.join(', ')} (${r.sizeKB} KB)`);
+    else console.error(`[backup-email] فشل الإرسال اليومي: ${r.error || r.reason} — هيحاول تاني بعد 30 دقيقة`);
+  } catch (err) {
+    console.error('[backup-email] daily send error:', err);
+  } finally {
+    _backupEmailRunning = false;
+  }
+}
+setInterval(runDailyBackupEmail, 60 * 1000).unref();
 
 // POST /api/penalties/upload-excel — bulk import from the old penalties sheet (super_admin & hse_admin only)
 app.post('/api/penalties/upload-excel', authenticateToken, requireRole('super_admin', 'hse_admin'), async (req, res) => {
@@ -5705,8 +6294,12 @@ app.post('/api/penalties/upload-excel', authenticateToken, requireRole('super_ad
 // 🔔 API ROUTES — NOTIFICATION CENTER
 // ============================================================
 
-app.get('/api/notifications', (req, res) => {
-  const { role, empCode, department } = req.query;
+// الهوية من الجلسة نفسها — قبل كده كانت من الرابط (?role=super_admin) فأي حد
+// كان يقدر يقرأ كل الإشعارات.
+app.get('/api/notifications', authenticateSession, (req, res) => {
+  const role = req.worker ? 'worker' : req.user.role;
+  const empCode = req.worker ? req.worker.empCode : '';
+  const department = req.worker ? '' : (req.user.department || '');
   const notifications = readNotifications();
   
   // Filter notifications based on role or empCode
@@ -5719,6 +6312,7 @@ app.get('/api/notifications', (req, res) => {
     // department notifications a regular department head would.
     const roleMatches = n.targetRole && role && (
       n.targetRole === role ||
+      (n.targetRole === 'admin' && ADMIN_TIER_ROLES.includes(role)) ||
       (n.targetRole === 'dept_admin' && role === 'maint_admin') ||
       (n.targetRole === 'maint_admin' && role === 'dept_admin')
     );
@@ -5735,41 +6329,54 @@ app.get('/api/notifications', (req, res) => {
   res.json({ notifications: userNotifs });
 });
 
-app.post('/api/notifications/mark-read', (req, res) => {
-  const { id, empCode, role } = req.body;
-  const identifier = empCode || role || 'unknown';
-  
+/** يعلّم إشعار (أو "all") كمقروء لصاحب الجلسة — العامل بكوده، والإدارة بدورها. */
+function markNotificationsRead(req, id) {
+  const identifier = req.worker ? req.worker.empCode : req.user.role;
+  const role = req.worker ? 'worker' : req.user.role;
+  const empCode = req.worker ? req.worker.empCode : '';
+  const department = req.worker ? '' : (req.user.department || '');
   enqueueWrite(async () => {
     const notifications = readNotifications();
     let changed = false;
-    
     notifications.forEach(n => {
-      if ((id === 'all' || n.id === id) && !n.readBy.includes(identifier)) {
-        // Simple permission check logic matches the get route
-        let canRead = false;
-        if (n.targetRole === 'all') canRead = true;
-        if (n.targetEmpCode && empCode && normalizeEmpCode(n.targetEmpCode) === normalizeEmpCode(empCode)) canRead = true;
-        if (n.targetRole && role) {
-          if (n.targetRole === 'admin' && ['superadmin', 'admin', 'supervisor', 'area_head'].includes(role)) canRead = true;
-          if (n.targetRole === role) canRead = true;
-          if (n.targetRole === 'dept_admin' && role === 'maint_admin') canRead = true;
-          if (n.targetRole === 'maint_admin' && role === 'dept_admin') canRead = true;
-        }
-        
-        if (canRead) {
-          n.readBy.push(identifier);
-          changed = true;
-        }
+      if (!(id === 'all' || n.id === id) || (n.readBy || []).includes(identifier)) return;
+      let canRead = n.targetRole === 'all';
+      if (n.targetEmpCode && empCode && normalizeEmpCode(n.targetEmpCode) === empCode) canRead = true;
+      if (n.targetRole && role !== 'worker') {
+        if (role === 'super_admin') canRead = true;
+        if (n.targetRole === 'admin' && ADMIN_TIER_ROLES.includes(role)) canRead = true;
+        const sameRole = n.targetRole === role
+          || (n.targetRole === 'dept_admin' && role === 'maint_admin')
+          || (n.targetRole === 'maint_admin' && role === 'dept_admin');
+        if (sameRole && (!n.targetDept || n.targetDept === department)) canRead = true;
+      }
+      if (n.targetRole === 'worker' && role === 'worker') canRead = true;
+      if (canRead) {
+        n.readBy = n.readBy || [];
+        n.readBy.push(identifier);
+        changed = true;
       }
     });
-    
     if (changed) writeNotifications(notifications);
   });
-  
+}
+
+app.post('/api/notifications/mark-read', authenticateSession, (req, res) => {
+  markNotificationsRead(req, String((req.body || {}).id || ''));
   res.json({ success: true });
 });
 
-app.delete('/api/notifications/:id', authenticateToken, requireRole('superadmin', 'admin'), (req, res) => {
+app.post('/api/notifications/read/:id', authenticateSession, (req, res) => {
+  markNotificationsRead(req, String(req.params.id || ''));
+  res.json({ success: true });
+});
+
+app.post('/api/notifications/read-all', authenticateSession, (req, res) => {
+  markNotificationsRead(req, 'all');
+  res.json({ success: true });
+});
+
+app.delete('/api/notifications/:id', authenticateToken, requireRole('super_admin', 'hse_admin'), (req, res) => {
   enqueueWrite(async () => {
     const notifications = readNotifications();
     const filtered = notifications.filter(n => n.id !== req.params.id);
@@ -5832,9 +6439,14 @@ app.get('/api/vapid-public-key', (req, res) => {
 });
 
 
-app.post('/api/notifications/subscribe', (req, res) => {
-  const { subscription, role, empCode } = req.body;
-  if (!subscription) {
+app.post('/api/notifications/subscribe', authenticateSession, (req, res) => {
+  const { subscription } = req.body || {};
+  const role = req.worker ? 'worker' : req.user.role;
+  const empCode = req.worker ? req.worker.empCode : '';
+  // السيرفر بيبعت POST لعنوان الـ endpoint ده مع كل إشعار — لازم يكون https
+  // حقيقي (مش عنوان داخلي على الشبكة).
+  const endpoint = subscription && subscription.endpoint;
+  if (!subscription || typeof endpoint !== 'string' || !/^https:\/\/[^\s]+$/.test(endpoint) || endpoint.length > 1000) {
     return res.status(400).json({ error: 'Subscription object missing' });
   }
   
@@ -5911,15 +6523,21 @@ app.get('/api/analytics', async (req, res) => {
           }
         }
         if (decoded.username === 'hse_admin') role = 'hse_admin';
+        if (role === 'worker') {
+          const wc = normalizeEmpCode(decoded.empCode);
+          const cred = readWorkerCreds()[wc];
+          if (!cred || !cred.hash || (cred.pwv || '') !== (decoded.pwv || '')) {
+            return res.status(401).json({ error: 'انتهت الجلسة — سجّل الدخول من جديد', expired: true });
+          }
+          tokenEmpCode = wc;
+        }
       } catch (err) {
         return res.status(401).json({ error: 'Token غير صالح', expired: err.name === 'TokenExpiredError' });
       }
     } else {
-      // Worker login fallback (no JWT)
-      tokenEmpCode = req.headers['x-worker-code'];
-      if (!tokenEmpCode) {
-        return res.status(401).json({ error: 'غير مصرح: يجب تسجيل الدخول أولاً' });
-      }
+      // كان فيه "دخول عامل" بالكود بس في هيدر X-Worker-Code — اتشال: العامل
+      // دلوقتي بيبعت توكن جلسته زي الإدارة بالظبط.
+      return res.status(401).json({ error: 'غير مصرح: يجب تسجيل الدخول أولاً' });
     }
 
     let { dateFrom, dateTo, dept, empCode } = req.query;
@@ -7183,7 +7801,194 @@ app.post('/api/dashboard/export-excel-charts', authenticateToken, requireRole('s
   }
 });
 
+// ============================================================
+// 🤖 الشات بوت — /api/chatbot/message
+// ============================================================
+// إضافة 12 سبتمبر 2026. يدعم كل من العمال (بدون JWT — نفس نموذج الثقة
+// المستخدم لباقي مسارات العمال في هذا الملف) والأدمن (عبر JWT العادي).
+function getPermitsArray() {
+  const storage = readStorage();
+  if (!storage['work-permits']) return [];
+  try {
+    const v = storage['work-permits'];
+    return typeof v === 'string' ? JSON.parse(v) : (Array.isArray(v) ? v : []);
+  } catch { return []; }
+}
+
+function resolveChatbotUser(req) {
+  const authHeader = req.headers['authorization'];
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const decoded = jwt.verify(authHeader.slice(7), JWT_SECRET);
+      return { role: decoded.role, username: decoded.username, name: decoded.name, department: decoded.department || '' };
+    } catch (err) {
+      // Token غير صالح/منتهي — نكمل كعامل مجهول بدل ما نفشل الطلب بالكامل
+    }
+  }
+  const body = req.body || {};
+  return {
+    role: 'worker',
+    empCode: normalizeEmpCode(body.empCode || ''),
+    name: sanitizeStr(body.name || '', 100),
+    department: sanitizeStr(body.department || '', 100),
+  };
+}
+
+app.post('/api/chatbot/message', chatbotLimiter, (req, res) => {
+  const text = sanitizeStr(req.body.text || '', 500);
+  if (!text) return res.status(400).json({ error: 'الرسالة فارغة' });
+  const user = resolveChatbotUser(req);
+  try {
+    const result = chatbot.handleMessage({
+      text,
+      user,
+      getCollections: { permits: getPermitsArray, hazards: readHazards, trainings: readTrainings },
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('[chatbot] خطأ غير متوقع:', err);
+    res.status(500).json({ reply: 'حصل خطأ غير متوقع في الشات بوت، حاول تاني أو راجع مشرف السلامة.' });
+  }
+});
+
+// ============================================================
+// 📱 واتساب — التحقق من الـ Webhook + استقبال الرسائل/ضغطات الأزرار
+// ============================================================
+app.get('/api/whatsapp/webhook', (req, res) => {
+  const result = whatsapp.verifyWebhook(req.query);
+  if (result.ok) return res.status(200).send(result.challenge);
+  return res.sendStatus(403);
+});
+
+/** يتحقق إن رقم الهاتف اللي بعت فعلاً بيخص حساب أدمن حقيقي قبل تنفيذ أي إجراء. */
+function findAdminByWhatsAppPhone(fromPhone) {
+  const users = getAppUsersSync();
+  const normalizedFrom = whatsapp.normalizePhone(fromPhone);
+  return users.find(u => u.phone && whatsapp.normalizePhone(u.phone) === normalizedFrom && chatbot.isAdminRole(u.role)) || null;
+}
+
+async function handleWhatsAppButtonAction(incoming) {
+  const admin = findAdminByWhatsAppPhone(incoming.from);
+  if (!admin) {
+    // رقم مش متسجّل كأدمن في النظام — نتجاهل بصمت (ممكن يكون رسالة عشوائية)
+    console.warn('[whatsapp] ضغطة زر من رقم غير معروف كأدمن:', incoming.from);
+    return;
+  }
+  const m = incoming.buttonId.match(/^hzact_(accept|reject)_(.+)$/);
+  if (!m) return;
+  const [, actionName, hazardId] = m;
+  await enqueueWrite(async () => {
+    const hazards = readHazards();
+    const idx = hazards.findIndex(h => h.id === hazardId);
+    if (idx === -1) {
+      await whatsapp.sendText(admin.phone, `⚠️ لم يتم العثور على البلاغ ${hazardId} (ربما تم التعامل معه بالفعل).`);
+      return;
+    }
+    hazards[idx].status = actionName === 'accept' ? 'in_progress' : 'rejected';
+    hazards[idx].updatedBy = admin.name || admin.username;
+    hazards[idx].updatedAt = new Date().toISOString();
+    if (writeHazards(hazards)) {
+      const label = actionName === 'accept' ? 'تم قبوله ومتابعته ✅' : 'تم رفضه ❌';
+      await whatsapp.sendText(admin.phone, `تم تحديث البلاغ ${hazardId}: ${label}\n(بواسطة: ${admin.name || admin.username} عبر واتساب)`);
+    } else {
+      await whatsapp.sendText(admin.phone, `⚠️ فشل حفظ التحديث للبلاغ ${hazardId}، من فضلك افتح المنصة وحدّثه يدويًا.`);
+    }
+  });
+}
+
+async function handleWhatsAppTextMessage(incoming) {
+  const admin = findAdminByWhatsAppPhone(incoming.from);
+  const user = admin
+    ? { role: admin.role, username: admin.username, name: admin.name, department: admin.department || '' }
+    : { role: 'worker', empCode: '', name: '', department: '' }; // رسائل نصية من عمال: بيانات محدودة (بدون تسجيل دخول حقيقي عبر واتساب حاليًا)
+  try {
+    const result = chatbot.handleMessage({
+      text: incoming.text,
+      user,
+      getCollections: { permits: getPermitsArray, hazards: readHazards, trainings: readTrainings },
+    });
+    await whatsapp.sendText(incoming.from, result.reply);
+  } catch (err) {
+    console.error('[whatsapp] خطأ في معالجة رسالة نصية واردة:', err.message);
+  }
+}
+
+app.post('/api/whatsapp/webhook', (req, res) => {
+  // من غير التحقق ده أي حد كان يقدر يبعت "ضغطة زر" مزيفة برقم أدمن ويقبل أو
+  // يرفض بلاغات خطورة. التوقيع بيتحسب بـ WHATSAPP_APP_SECRET (من إعدادات تطبيق ميتا).
+  if (!whatsapp.verifySignature(req.rawBody, req.headers['x-hub-signature-256'])) {
+    console.warn('[whatsapp] webhook مرفوض: التوقيع غير صحيح أو WHATSAPP_APP_SECRET مش متظبط في .env');
+    return res.sendStatus(401);
+  }
+  res.sendStatus(200); // لازم نرد فورًا لواتساب قبل أي معالجة (متطلب رسمي من ميتا)
+  const incoming = whatsapp.parseIncoming(req.body);
+  if (!incoming) return;
+  if (incoming.kind === 'button') {
+    handleWhatsAppButtonAction(incoming).catch(err => console.error('[whatsapp] button handler error:', err));
+  } else if (incoming.kind === 'text') {
+    handleWhatsAppTextMessage(incoming).catch(err => console.error('[whatsapp] text handler error:', err));
+  }
+});
+
+// ============================================================
+// ⏰ الطبقة الرابعة: تذكيرات استباقية (Proactive layer)
+// ============================================================
+// إضافة 12 سبتمبر 2026. بيشتغل كل ساعة (interval بسيط، بدون أي مكتبة
+// جدولة خارجية زي node-cron — مش موجودة أصلاً كتبعية والتنزيل معطّل حاليًا).
+// كل تنبيه بيتبعت مرة واحدة بس لكل عنصر (بنعلّم العنصر بعد التنبيه) عشان
+// منزعجش حد بنفس التنبيه كل ساعة.
+function runProactiveChecks() {
+  try {
+    // 1) بلاغات خطورة مفتوحة أكتر من 48 ساعة بدون رد
+    const hazards = readHazards();
+    const now = Date.now();
+    const HOURS_48 = 48 * 60 * 60 * 1000;
+    let hazardsChanged = false;
+    hazards.forEach(h => {
+      if (h.deletedAt || h.whatsappStaleAlertSent) return;
+      const isOpen = !h.status || h.status === 'مفتوح' || h.status === 'open';
+      if (!isOpen) return;
+      const submitted = new Date(h.submittedAt || h.createdAt || 0).getTime();
+      if (submitted && (now - submitted) > HOURS_48) {
+        h.whatsappStaleAlertSent = true;
+        hazardsChanged = true;
+        if (whatsapp.isConfigured()) {
+          const users = getAppUsersSync().filter(u => u.phone && ['super_admin', 'hse_admin'].includes(u.role));
+          users.forEach(u => whatsapp.sendText(u.phone, `⏰ تذكير: البلاغ ${h.id} (${h.department || '—'}) لسه مفتوح من غير رد من أكتر من 48 ساعة.`).catch(() => {}));
+        }
+      }
+    });
+    if (hazardsChanged) writeHazards(hazards);
+
+    // 2) تذكير انتهاء صلاحية تدريب/شهادة قريبًا (خلال 7 أيام)
+    const trainings = readTrainings();
+    const employees = readEmployees();
+    const inSevenDays = now + 7 * 24 * 60 * 60 * 1000;
+    trainings.forEach(t => {
+      if (t.deletedAt || t.whatsappExpiryAlertSent || !t.expiresAt) return;
+      const exp = new Date(t.expiresAt).getTime();
+      if (exp && exp > now && exp <= inSevenDays) {
+        t.whatsappExpiryAlertSent = true;
+        (t.attendees || []).forEach(a => {
+          const emp = employees.find(e => normalizeEmpCode(e.code || e.empCode) === normalizeEmpCode(a.empCode || a.code));
+          if (emp && emp.phone && whatsapp.isConfigured()) {
+            whatsapp.sendText(emp.phone, `⏰ تذكير: شهادة "${t.title || t.topic || 'تدريب'}" هتنتهي خلال أيام قليلة.`).catch(() => {});
+          }
+        });
+      }
+    });
+    writeTrainings(trainings);
+  } catch (err) {
+    console.error('[proactive] خطأ أثناء الفحص الدوري:', err.message);
+  }
+}
+// أول فحص بعد دقيقتين من تشغيل السيرفر (يدي وقت للتحميل الكامل)، وبعدين كل ساعة.
+setTimeout(() => setInterval(runProactiveChecks, 60 * 60 * 1000).unref(), 2 * 60 * 1000).unref();
+
 // ── 404 fallback ──────────────────────────────────────────────
+// لازم يفضل آخر middleware قبل app.listen: كان متعرّف قبل مسارات الشات بوت
+// وواتساب، فكان بيرد 404 عليهم ("API route not found") — ده سبب إن الشات
+// بوت كان بيقول إن فيه غلط في الـ API.
 app.use((req, res) => {
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ error: 'API route not found' });

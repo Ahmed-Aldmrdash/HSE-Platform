@@ -2383,6 +2383,150 @@ select {
   font-weight: 700;
 }
 
+/* بطاقة بيانات العامل في شاشة الدخول (الاسم + القسم + الوظيفة) */
+.wl-identity {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  text-align: center;
+}
+
+.wl-identity-name {
+  font-size: 16px;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 6px;
+}
+
+.wl-identity-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 14px;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.wl-identity-meta b {
+  color: #fff;
+  font-weight: 700;
+}
+
+.wl-identity-code {
+  margin-top: 6px;
+  font-family: 'Oswald', sans-serif;
+  letter-spacing: 2px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.wl-link-btn {
+  display: block;
+  margin: 10px auto 0;
+  background: none;
+  border: none;
+  color: #74c0fc;
+  font-family: 'Cairo', sans-serif;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.wl-link-btn:hover {
+  color: #a5d8ff;
+}
+
+/* كلمة سر العامل في نافذة تعديل الموظف (الأدمن بيعملها ويديهاله) */
+.em-pw-box {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px dashed var(--paper-line, #d0d7de);
+  border-radius: 10px;
+  background: rgba(213, 30, 39, 0.04);
+}
+
+.em-pw-title {
+  font-weight: 800;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.em-pw-status { font-weight: 700; font-size: 12px; margin-inline-start: 4px; }
+.em-pw-status.ok { color: #16a34a; }
+.em-pw-status.none { color: #d97706; }
+
+.em-pw-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: stretch;
+}
+
+.em-pw-row input {
+  flex: 1 1 160px;
+  min-width: 0;
+  font-family: monospace;
+  font-weight: 700;
+}
+
+.em-pw-row .submit-btn,
+.em-pw-row .logout-btn {
+  width: auto;
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.em-pw-hint {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 6px;
+  line-height: 1.6;
+}
+
+/* شاشة المستخدمين: توليد كلمات سر لحسابات الأقسام الافتراضية */
+.um-bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.um-bulk-hint { font-size: 12px; color: var(--muted); }
+
+.um-gen-box {
+  border: 1px solid rgba(22, 163, 74, 0.35);
+  background: rgba(22, 163, 74, 0.06);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 14px;
+}
+
+.um-gen-title { font-weight: 800; margin-bottom: 8px; }
+.um-gen-pw { font-family: monospace; font-weight: 700; }
+
+.um-default-pw {
+  font-size: 11px;
+  color: #d97706;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+/* تنبيه "إيميل الإرسال مش متظبط" في كارت النسخ الاحتياطي */
+.bk-email-warn {
+  background: rgba(217, 119, 6, 0.1);
+  border: 1px solid rgba(217, 119, 6, 0.35);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  margin-bottom: 10px;
+}
+
 /* ===================================================================
      بادج الموظف في الهيدر (Employee Badge)
   =================================================================== */

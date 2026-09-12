@@ -52,7 +52,7 @@
         rel="stylesheet"
       />
     </noscript>
-    <link rel="stylesheet" href="style.min.css?v=2.38.0" />
+    <link rel="stylesheet" href="style.min.css?v=2.40.0" />
     <!-- PERF: xlsx.js (~900KB) and chart.js are only ever used AFTER login
          (dashboard charts, Excel export/import buttons) — never on this
          initial login screen. Loading them as normal <script> tags (even
@@ -148,6 +148,59 @@
             <span data-i18n="wlSubmit">تسجيل الدخول ←</span>
           </button>
           <div id="wl_checkMsg" class="wl-msg"></div>
+        </div>
+
+        <!-- بيانات العامل بعد كتابة الكود: الاسم + القسم + الوظيفة -->
+        <div id="wl-identity" class="wl-identity" style="display: none">
+          <div class="wl-identity-name" id="wl_idName"></div>
+          <div class="wl-identity-meta">
+            <span><span data-i18n="wlDept">القسم</span>: <b id="wl_idDept"></b></span>
+            <span><span data-i18n="wlPosition">الوظيفة</span>: <b id="wl_idJob"></b></span>
+          </div>
+          <div class="wl-identity-code" id="wl_idCode"></div>
+        </div>
+
+        <!-- دخول بكلمة السر -->
+        <div id="wl-step-password" style="display: none">
+          <div class="field" style="text-align: right">
+            <label><span data-i18n="wlPassword">كلمة السر</span> <span class="req-star">*</span></label>
+            <input id="wl_password" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter') workerPasswordLogin()" />
+          </div>
+          <button class="submit-btn" id="wl_loginBtn" onclick="workerPasswordLogin()">
+            <span data-i18n="wlLoginBtn">دخول ←</span>
+          </button>
+          <button type="button" class="wl-link-btn" onclick="wlShowForgot()" data-i18n="wlForgot">نسيت كلمة السر؟</button>
+          <div id="wl_pwMsg" class="wl-msg"></div>
+          <button type="button" class="wl-back-btn" onclick="resetWorkerLogin()" data-i18n="wlBack">رجوع / كود تاني</button>
+        </div>
+
+        <!-- أول دخول: عمل كلمة سر + تسجيل رقم الموبايل -->
+        <div id="wl-step-setup" style="display: none">
+          <div class="wl-new-badge" data-i18n="wlSetupNote">أول مرة تدخل؟ اعمل كلمة سر خاصة بيك وسجّل رقم موبايلك. هتدخل بكلمة السر دي كل مرة بعد كده، ولو نسيتها هيوصلك كود على واتساب على الرقم ده.</div>
+          <div class="field" style="text-align: right">
+            <label><span data-i18n="wlNewPassword">كلمة السر الجديدة (6 حروف/أرقام على الأقل)</span> <span class="req-star">*</span></label>
+            <input id="wl_newPw" type="password" autocomplete="new-password" />
+          </div>
+          <div class="field" style="text-align: right">
+            <label><span data-i18n="wlConfirmPassword">تأكيد كلمة السر</span> <span class="req-star">*</span></label>
+            <input id="wl_newPw2" type="password" autocomplete="new-password" />
+          </div>
+          <div class="field" style="text-align: right">
+            <label><span data-i18n="wlPhone">رقم الموبايل (واتساب)</span> <span class="req-star">*</span></label>
+            <input id="wl_phone" type="tel" inputmode="tel" placeholder="01xxxxxxxxx" dir="ltr" autocomplete="tel" onkeydown="if(event.key==='Enter') workerSetupPassword()" />
+          </div>
+          <button class="submit-btn" id="wl_setupBtn" onclick="workerSetupPassword()">
+            <span data-i18n="wlSetupBtn">حفظ ودخول ✓</span>
+          </button>
+          <div id="wl_setupMsg" class="wl-msg"></div>
+          <button type="button" class="wl-back-btn" onclick="resetWorkerLogin()" data-i18n="wlBack">رجوع / كود تاني</button>
+        </div>
+
+        <!-- نسيت كلمة السر: الأدمن بيعمل كلمة سر جديدة ويديهالك -->
+        <div id="wl-step-forgot" style="display: none">
+          <div class="wl-new-badge" id="wl_forgotNote"></div>
+          <div id="wl_forgotMsg" class="wl-msg"></div>
+          <button type="button" class="wl-back-btn" onclick="wlShowStep('wl-step-password')" data-i18n="wlBackToPassword">رجوع لكلمة السر</button>
         </div>
 
         <!-- Welcome card (shown briefly on success) -->
@@ -1360,6 +1413,17 @@
                 إلغاء
               </button>
             </div>
+            <div id="em_pwBox" class="em-pw-box" style="display: none">
+              <div class="em-pw-title">
+                🔑 كلمة سر دخول العامل <span id="em_pwStatus" class="em-pw-status"></span>
+              </div>
+              <div class="em-pw-row">
+                <input id="em_newWorkerPw" type="text" dir="ltr" autocomplete="off" placeholder="كلمة سر جديدة (6 حروف/أرقام على الأقل)" />
+                <button type="button" class="logout-btn" onclick="generateWorkerPassword()">🎲 توليد</button>
+                <button type="button" class="submit-btn" onclick="setEmployeePassword()">💾 حفظ كلمة السر</button>
+              </div>
+              <div class="em-pw-hint">بعد الحفظ ادّي كلمة السر دي للعامل يدخل بيها بكوده. أي جلسة مفتوحة بكلمة السر القديمة هتتقفل.</div>
+            </div>
             <div id="em_msg" class="um-msg" style="margin-top: 8px"></div>
           </div>
         </div>
@@ -2370,6 +2434,40 @@
       </div>
     </div>
 
-    <script src="app.min.js?v=99.9.37" defer></script>
+    <!-- ============================================================
+         🤖 مساعد السلامة الذكي (Chatbot) — أُضيف 12 سبتمبر 2026
+         ============================================================ -->
+    <div id="cbFab" onclick="toggleChatbot()" title="مساعد السلامة">🤖</div>
+    <div id="cbPanel" style="display:none">
+      <div id="cbHeader">
+        <span>🤖 مساعد السلامة</span>
+        <span id="cbClose" onclick="toggleChatbot()">✕</span>
+      </div>
+      <div id="cbMessages"></div>
+      <div id="cbInputRow">
+        <input type="text" id="cbInput" placeholder="اسأل عن تعليمات السلامة أو فرق الطوارئ..." onkeydown="if(event.key==='Enter') sendChatbotMessage()" />
+        <button onclick="sendChatbotMessage()">إرسال</button>
+      </div>
+    </div>
+    <style>
+      #cbFab{position:fixed;bottom:20px;left:20px;width:56px;height:56px;border-radius:50%;
+        background:var(--amber,#E2001A);color:#fff;display:flex;align-items:center;justify-content:center;
+        font-size:26px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:9999;}
+      #cbPanel{position:fixed;bottom:86px;left:20px;width:min(360px,92vw);max-height:70vh;
+        background:var(--paper,#fff);border:1px solid var(--paper-line,#ddd);border-radius:14px;
+        box-shadow:0 8px 30px rgba(0,0,0,.3);z-index:9999;display:flex;flex-direction:column;overflow:hidden;}
+      #cbHeader{background:var(--amber,#E2001A);color:#fff;padding:10px 14px;display:flex;
+        justify-content:space-between;align-items:center;font-weight:bold;}
+      #cbClose{cursor:pointer;font-size:18px;}
+      #cbMessages{flex:1;overflow-y:auto;padding:10px;font-size:14px;min-height:180px;max-height:45vh;}
+      .cbMsg{margin-bottom:10px;padding:8px 10px;border-radius:10px;white-space:pre-wrap;line-height:1.5;}
+      .cbMsg.user{background:var(--amber,#E2001A);color:#fff;margin-left:30px;}
+      .cbMsg.bot{background:var(--paper-line,#f0f0f0);margin-right:30px;}
+      .cbMsg.source{font-size:11px;opacity:.65;margin-top:4px;}
+      #cbInputRow{display:flex;border-top:1px solid var(--paper-line,#ddd);}
+      #cbInputRow input{flex:1;border:none;padding:10px;font-size:14px;outline:none;}
+      #cbInputRow button{border:none;background:var(--amber,#E2001A);color:#fff;padding:0 16px;cursor:pointer;}
+    </style>
+    <script src="app.min.js?v=99.9.39" defer></script>
   </body>
 </html>
