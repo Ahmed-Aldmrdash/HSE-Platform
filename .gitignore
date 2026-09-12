@@ -3,6 +3,10 @@ node_modules/
 *.log
 server-error.log
 
+# مخرجات جلسات Claude — بتحتوي على نسخة من .env (فيها JWT_SECRET الحقيقي)
+# فمينفعش تتحط في git أبدًا.
+Claude outputs/
+
 # SQLite WAL/SHM sidecar files — transient journal state, not part of the
 # durable database. data/app.db itself IS tracked (same backup-via-git
 # pattern the old data/*.json files used).

@@ -52,7 +52,7 @@
         rel="stylesheet"
       />
     </noscript>
-    <link rel="stylesheet" href="style.min.css?v=2.42.0" />
+    <link rel="stylesheet" href="style.min.css?v=2.43.0" />
     <!-- PERF: xlsx.js (~900KB) and chart.js are only ever used AFTER login
          (dashboard charts, Excel export/import buttons) — never on this
          initial login screen. Loading them as normal <script> tags (even
@@ -187,7 +187,11 @@
           </div>
           <div class="field" style="text-align: right">
             <label><span data-i18n="wlPhone">رقم الموبايل (واتساب)</span> <span class="req-star">*</span></label>
-            <input id="wl_phone" type="tel" inputmode="tel" placeholder="01xxxxxxxxx" dir="ltr" autocomplete="tel" onkeydown="if(event.key==='Enter') workerSetupPassword()" />
+            <input id="wl_phone" type="tel" inputmode="tel" placeholder="01xxxxxxxxx" dir="ltr" autocomplete="tel" />
+          </div>
+          <div class="field" style="text-align: right">
+            <label><span data-i18n="wlEmail">الإيميل (اختياري)</span></label>
+            <input id="wl_email" type="email" inputmode="email" placeholder="name@example.com" dir="ltr" autocomplete="email" onkeydown="if(event.key==='Enter') workerSetupPassword()" />
           </div>
           <button class="submit-btn" id="wl_setupBtn" onclick="workerSetupPassword()">
             <span data-i18n="wlSetupBtn">حفظ ودخول ✓</span>
@@ -246,10 +250,28 @@
       <div class="welcome-anim-orb orb-1"></div>
       <div class="welcome-anim-orb orb-2"></div>
       <div class="welcome-anim-orb orb-3"></div>
+      <!-- شريط تحذير + مهمات وقاية بتتحرك على الجنبين (أنيميشن ترحيب) -->
+      <div class="welcome-tape top" aria-hidden="true"></div>
+      <div class="welcome-tape bottom" aria-hidden="true"></div>
+      <div class="welcome-ppe start" aria-hidden="true">
+        <span class="ppe-item" style="--d: 0.05s">⛑️</span>
+        <span class="ppe-item" style="--d: 0.55s">🥽</span>
+        <span class="ppe-item" style="--d: 1.05s">🧤</span>
+        <span class="ppe-item" style="--d: 1.55s">🥾</span>
+        <span class="ppe-item" style="--d: 2.05s">🦺</span>
+      </div>
+      <div class="welcome-ppe end" aria-hidden="true">
+        <span class="ppe-item" style="--d: 0.3s">🧯</span>
+        <span class="ppe-item" style="--d: 0.8s">😷</span>
+        <span class="ppe-item" style="--d: 1.3s">🚧</span>
+        <span class="ppe-item" style="--d: 1.8s">⚠️</span>
+        <span class="ppe-item" style="--d: 2.3s">🚨</span>
+      </div>
       <div class="welcome-anim-card">
-        <div class="welcome-anim-icon" id="welcomeAnimIcon">✦</div>
+        <div class="welcome-anim-icon" id="welcomeAnimIcon">🦺</div>
         <div class="welcome-anim-text" id="welcomeAnimText"><span id="welcomeAnimCursor" class="welcome-anim-cursor">|</span></div>
         <div class="welcome-anim-sub" id="welcomeAnimSub"></div>
+        <div class="welcome-anim-slogan">السلامة أولاً · Safety First</div>
       </div>
     </div>
 
@@ -2460,6 +2482,6 @@
         </button>
       </form>
     </section>
-    <script src="app.min.js?v=99.9.40" defer></script>
+    <script src="app.min.js?v=99.9.41" defer></script>
   </body>
 </html>

@@ -25,6 +25,7 @@ const PDFDocument = require('pdfkit');
 const QRCode = require('qrcode');
 const { prepareBidiText } = require('./lib/pdf-arabic');
 const chatbot = require('./lib/chatbot');
+const chatbotAnalytics = require('./lib/chatbot-analytics');
 const whatsapp = require('./lib/whatsapp');
 const mailer = require('./lib/mailer');
 
@@ -234,6 +235,48 @@ const inspectionRecordsStore  = makeStore('inspection-records', []);
 const workerCredsStore        = makeStore('worker-credentials', {});
 // المستلمين + ميعاد الإرسال اليومي + نتيجة آخر إرسال للنسخة الاحتياطية بالإيميل
 const backupEmailStore        = makeStore('backup-email-settings', {});
+// بيانات حساب الإيميل (SMTP) اللي المنصة بتبعت منه — الباسورد متشفّر
+const smtpStore               = makeStore('smtp-settings', {});
+
+// ── تشفير أسرار مخزّنة في قاعدة البيانات (باسورد SMTP حاليًا) ────────
+// AES-256-GCM بمفتاح مشتق من JWT_SECRET: مين ما قرأ ملف قاعدة البيانات
+// مش هيقدر يقرا الباسورد، ولو JWT_SECRET اتغير الباسورد بيتقفل (بيتكتب
+// من تاني من الشاشة) — وده مقبول لأنه إعداد واحد بيتظبط مرة.
+const SECRET_KEY = crypto.createHash('sha256').update(`${JWT_SECRET || 'unset'}::secrets::v1`).digest();
+function encryptSecret(text) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', SECRET_KEY, iv);
+  const enc = Buffer.concat([cipher.update(String(text), 'utf8'), cipher.final()]);
+  return `v1:${iv.toString('base64')}:${cipher.getAuthTag().toString('base64')}:${enc.toString('base64')}`;
+}
+function decryptSecret(blob) {
+  try {
+    const [v, iv, tag, data] = String(blob || '').split(':');
+    if (v !== 'v1' || !iv || !tag || !data) return '';
+    const d = crypto.createDecipheriv('aes-256-gcm', SECRET_KEY, Buffer.from(iv, 'base64'));
+    d.setAuthTag(Buffer.from(tag, 'base64'));
+    return Buffer.concat([d.update(Buffer.from(data, 'base64')), d.final()]).toString('utf8');
+  } catch { return ''; }
+}
+
+/** يحمّل بيانات SMTP المحفوظة في المنصة ويسلّمها للـ mailer */
+function loadSmtpSettings() {
+  const s = smtpStore.read() || {};
+  if (s && s.host && s.user && s.passEnc) {
+    const pass = decryptSecret(s.passEnc);
+    if (pass) {
+      mailer.configure({
+        host: s.host, port: Number(s.port) || 587, secure: !!s.secure,
+        user: s.user, pass, from: s.from || s.user, fromName: s.fromName || 'منصة السلامة — السويدي بوليمرز',
+      });
+      return true;
+    }
+    console.warn('[smtp] مش قادر أفك تشفير باسورد الإيميل (JWT_SECRET اتغير؟) — اظبطه تاني من شاشة النسخ الاحتياطي');
+  }
+  mailer.configure(null);
+  return false;
+}
+loadSmtpSettings();
 
 // ── First-boot-only defaults (نفس منطق "أنشئ الملف لو مش موجود" القديم) ──
 if (!trainingTopicsStore.exists()) trainingTopicsStore.write(INITIAL_TOPICS);
@@ -311,12 +354,21 @@ const attendLimiter = rateLimit({
 });
 
 /** Chatbot: max 60 messages per 15 min per IP — يمنع إساءة استخدام/إغراق البحث */
+// الحد بيتحسب لكل مستخدم (من التوكن) مش لكل IP — في المصنع ممكن ناس كتير
+// تكون ورا نفس الشبكة، وكان ده بيقفل الشات على الكل مع بعض. 12 سبتمبر 2026.
 const chatbotLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 60,
+  max: 120,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'تجاوزت عدد الرسائل المسموح بها للشات بوت. حاول مجدداً بعد قليل.' }
+  keyGenerator: (req) => {
+    const h = req.headers['authorization'];
+    if (h && h.startsWith('Bearer ')) {
+      return 'cb:' + crypto.createHash('sha256').update(h.slice(7)).digest('hex').slice(0, 20);
+    }
+    return `cb-ip:${req.ip}`;
+  },
+  message: { error: 'تجاوزت عدد الرسائل المسموح بها للشات بوت. حاول مجدداً بعد شوية.' }
 });
 
 // ── HTML Cache-Busting ─────────────────────────────────────────
@@ -353,6 +405,41 @@ app.use((req, res, next) => {
   if (req.method === 'GET' && POLLED_GET_PREFIXES.some(p => req.path.startsWith(p))) {
     res.setHeader('Cache-Control', 'no-cache, must-revalidate');
   }
+  next();
+});
+
+// ============================================================
+// 👁️ حساب المتابعة (عرض فقط) — hse_director
+// ============================================================
+// حساب مدير السلامة والصحة المهنية: بيشوف كل حاجة زي السوبر أدمن بالظبط،
+// لكن ممنوع عليه أي تعديل أو رفع أو حذف أو اعتماد — لا من الواجهة ولا حتى
+// لو بعت الطلب بنفسه. المنع هنا على مستوى السيرفر (أي طلب مش GET بيترفض)،
+// وde الضمان الحقيقي. أضيف 12 سبتمبر 2026 بطلب بشمهندس أحمد.
+const VIEWER_ROLE = 'hse_director';
+const VIEWER_ALLOWED_WRITES = [
+  /^\/api\/auth\/(change-password|profile|refresh)$/,
+  /^\/api\/chatbot\/message$/,
+  /^\/api\/dashboard\/export-(excel-charts|powerbi)$/,
+  /^\/api\/notifications\/(mark-read|read-all|subscribe)$/,
+  /^\/api\/notifications\/read\/[^/]+$/,
+];
+function viewerWriteAllowed(path) {
+  return VIEWER_ALLOWED_WRITES.some(re => re.test(path));
+}
+app.use((req, res, next) => {
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next();
+  const h = req.headers['authorization'];
+  const token = (h && h.startsWith('Bearer ')) ? h.slice(7) : (req.query && req.query.dt) || null;
+  if (!token) return next();
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role === VIEWER_ROLE && !viewerWriteAllowed(req.path)) {
+      return res.status(403).json({
+        error: 'الحساب ده للمتابعة والعرض فقط — مش مسموح بأي إضافة أو تعديل أو حذف.',
+        readOnly: true,
+      });
+    }
+  } catch (err) { /* التوكن الغلط بيتعامل معاه الراوت نفسه */ }
   next();
 });
 
@@ -1294,11 +1381,43 @@ async function autoSeedDeptAdmins() {
   }
 }
 
+// ── حساب المتابعة لمدير السلامة (عرض فقط) ────────────────────────────
+// بيتعمل مرة واحدة بكلمة سر عشوائية (مش افتراضية معروفة) + mustChangePassword،
+// والسوبر أدمن بيديله كلمة سر من شاشة "المستخدمين". الدخول مربوط بكود موظف
+// مسجّل تحت قسم HSE. أضيف 12 سبتمبر 2026 بطلب بشمهندس أحمد (م/ مدحت يونس).
+async function ensureHseDirectorAccount() {
+  const storage = readStorage();
+  let users = [];
+  if (storage['app-users']) { try { users = JSON.parse(storage['app-users']); } catch { users = []; } }
+  if (users.some(u => u.role === 'hse_director')) return;
+
+  const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  const pw = Array.from(crypto.randomBytes(12)).map(b => ALPHABET[b % ALPHABET.length]).join('');
+  const director = readEmployees().find(e => /hse\s*director/i.test(String(e.jobTitle || '')) && String(e.department || '').trim().toUpperCase() === 'HSE');
+  users.push({
+    id: 'auto-viewer-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5),
+    username: 'hse_director',
+    password: await bcrypt.hash(pw, BCRYPT_ROUNDS),
+    role: 'hse_director',
+    name: director ? `متابعة — ${director.name}` : 'مدير السلامة والصحة المهنية (متابعة)',
+    department: '',
+    empCode: director ? director.empCode : '',
+    createdAt: new Date().toISOString(),
+    mustChangePassword: true,
+  });
+  storage['app-users'] = JSON.stringify(users);
+  if (writeStorage(storage)) {
+    console.log('👁️  اتعمل حساب المتابعة (عرض فقط) — اسم المستخدم: hse_director');
+    console.log(`👁️  كلمة السر المؤقتة: ${pw}  (غيّرها أو اعمل واحدة جديدة من شاشة "المستخدمين")`);
+  }
+}
+
 // ── Startup Sequence ──────────────────────────────────────────
 (async () => {
   await migrateRolesIfNeeded();
   await ensureDefaultSuperAdmin();
   await autoSeedDeptAdmins();
+  await ensureHseDirectorAccount();
   await migratePasswordsIfNeeded();
   await flagKnownDefaultPasswordsIfNeeded();
   runHazardBackfillOnStartup();
@@ -1402,6 +1521,11 @@ function requireRole(...roles) {
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({ error: 'غير مصرح: لم يتم التحقق من الهوية' });
+    }
+    // حساب المتابعة (hse_director): قراءة كاملة زي السوبر أدمن — والكتابة
+    // مقفولة أصلاً في الميدلوير اللي فوق، فمفيش أي طريق للتعديل من هنا.
+    if (req.user.role === 'hse_director' && (req.method === 'GET' || req.method === 'HEAD')) {
+      return next();
     }
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({
@@ -3246,6 +3370,11 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
   }
   _adminLoginFails.delete(usernameStr);
 
+  // كلمة السر المؤقتة اللي بتتبعت على الإيميل ليها 30 دقيقة بس
+  if (user.mustChangePassword === true && user.otpExpiresAt && Date.now() > new Date(user.otpExpiresAt).getTime()) {
+    return res.status(403).json({ error: 'كلمة السر المؤقتة انتهت صلاحيتها — اطلب واحدة جديدة من "نسيت كلمة السر؟"', otpExpired: true });
+  }
+
   // حسابات الأقسام/الصيانة اللي اتعملت تلقائيًا كلمة سرها الافتراضية معروفة
   // (123456)، وأي حد يعرف كود موظف في القسم كان يقدر يدخل بيها ويغيّرها
   // لنفسه. لازم السوبر أدمن يعملها كلمة سر جديدة الأول (شاشة المستخدمين).
@@ -3275,12 +3404,12 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
   // dept_admin و maint_admin (كهرباء/ميكانيكا/وقائية) لازم الكود الوظيفي يبقى
   // مسجل فعليًا تحت نفس قسم الأدمن. hse_admin لازم الكود يبقى مسجل تحت قسم HSE.
   // super_admin فقط هو المسموح له بأي كود موظف مسجل (بدون تقييد بقسم).
-  const DEPT_SCOPED_ROLES = ['dept_admin', 'maint_admin', 'hse_admin'];
+  const DEPT_SCOPED_ROLES = ['dept_admin', 'maint_admin', 'hse_admin', 'hse_director'];
   if (DEPT_SCOPED_ROLES.includes(user.role)) {
     const empDept = String(employee.department || '').trim().toLowerCase();
-    // hse_admin ليس له قسم مخزن في جدول المستخدمين (department: '')، لكن
-    // المطلوب أن يكون الكود الوظيفي مسجل تحت قسم "HSE" بالتحديد.
-    const requiredDept = (user.role === 'hse_admin') ? 'HSE' : (user.department || '');
+    // hse_admin و hse_director مالهمش قسم مخزن في جدول المستخدمين
+    // (department: '')، لكن المطلوب إن الكود الوظيفي يكون تحت قسم "HSE".
+    const requiredDept = (user.role === 'hse_admin' || user.role === 'hse_director') ? 'HSE' : (user.department || '');
     const adminDept = String(requiredDept).trim().toLowerCase();
     if (!adminDept || empDept !== adminDept) {
       console.log(`[LOGIN ERROR] Dept mismatch for role ${user.role}. Emp Dept: ${empDept}, Required Dept: ${adminDept}`);
@@ -3312,12 +3441,145 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
 
   const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: JWT_EXPIRES });
 
+  // بيانات صاحب الحساب: مربوطة بالكود الوظيفي اللي دخل بيه، مش بالحساب نفسه —
+  // فلو الحساب مشترك (أدمن قسم مثلاً) وجه حد تاني بكوده، هيتطلب منه يسجّل
+  // بياناته هو الأول. أضيف 12 سبتمبر 2026.
+  const profileKey = normalizeEmpCode(tokenPayload.empCode);
+  const profile = (user.profiles && user.profiles[profileKey]) || null;
+  const lastHolder = user.lastHolder && user.lastHolder.empCode !== profileKey ? user.lastHolder : null;
+
   res.json({
     success: true,
     token,
     mustChangePassword: user.mustChangePassword === true,
-    user: { id: user.id, username: user.username, role: tokenPayload.role, name: employee.name, department: tokenPayload.department, jobTitle: employee.jobTitle || '' }
+    needsProfile: !(profile && profile.phone && profile.email),
+    profile: profile ? { phone: profile.phone || '', email: profile.email || '' } : null,
+    previousHolder: lastHolder ? { name: lastHolder.name || '', empCode: lastHolder.empCode || '' } : null,
+    user: { id: user.id, username: user.username, role: tokenPayload.role, name: employee.name, department: tokenPayload.department, jobTitle: employee.jobTitle || '', empCode: tokenPayload.empCode }
   });
+});
+
+// ── POST /api/auth/profile — بيانات صاحب الحساب (موبايل + إيميل) ──────
+// بتتخزن تحت الكود الوظيفي اللي دخل بيه، فالحساب المشترك بيفضل يعرف مين
+// آخر واحد استخدمه، وكل واحد بيسجّل بياناته هو. الإيميل ده اللي بتتبعت عليه
+// كلمة السر المؤقتة لو نسي كلمة السر. أضيف 12 سبتمبر 2026.
+app.post('/api/auth/profile', authenticateToken, async (req, res) => {
+  const phoneRaw = sanitizeStr((req.body && req.body.phone) || '', 20).replace(/\s/g, '');
+  const email = sanitizeStr((req.body && req.body.email) || '', 160).trim();
+  const name = sanitizeStr((req.body && req.body.name) || '', 120).trim();
+  if (!/^\+?[0-9]{8,15}$/.test(phoneRaw)) {
+    return res.status(400).json({ error: 'رقم الموبايل غير صحيح — اكتبه كده: 01xxxxxxxxx' });
+  }
+  if (!EMAIL_RE.test(email)) return res.status(400).json({ error: 'الإيميل غير صحيح' });
+
+  const code = normalizeEmpCode(req.user.empCode || '');
+  if (!code) return res.status(400).json({ error: 'الحساب ده مش مربوط بكود وظيفي' });
+
+  let result;
+  await enqueueWrite(async () => {
+    const storage = readStorage();
+    let users = [];
+    if (storage['app-users']) { try { users = JSON.parse(storage['app-users']); } catch { users = []; } }
+    const idx = users.findIndex(u => u.id === req.user.id || String(u.username || '').toLowerCase() === String(req.user.username || '').toLowerCase());
+    if (idx === -1) { result = { status: 404, body: { error: 'المستخدم غير موجود' } }; return; }
+
+    const who = name || req.user.fullName || req.user.name || '';
+    users[idx].profiles = users[idx].profiles || {};
+    users[idx].profiles[code] = { name: who, phone: phoneRaw, email, empCode: code, savedAt: new Date().toISOString() };
+    users[idx].lastHolder = { name: who, empCode: code, at: new Date().toISOString() };
+    // نفس الرقم في سجل المستخدم (تنبيهات واتساب بتعتمد عليه)
+    users[idx].phone = phoneRaw;
+    users[idx].email = email;
+    storage['app-users'] = JSON.stringify(users);
+    writeStorage(storage);
+
+    // ونفس البيانات في سجل الموظف عشان تظهر في تصدير بيانات التواصل
+    const employees = readEmployees();
+    const eIdx = employees.findIndex(e => normalizeEmpCode(e.empCode || e.code) === code);
+    if (eIdx !== -1) {
+      employees[eIdx].phone = phoneRaw;
+      employees[eIdx].email = email;
+      employees[eIdx].phoneUpdatedAt = new Date().toISOString();
+      writeEmployees(employees);
+    }
+    result = { status: 200, body: { success: true, profile: { phone: phoneRaw, email } } };
+  });
+  res.status(result ? result.status : 500).json(result ? result.body : { error: 'حدث خطأ غير متوقع' });
+});
+
+// ── POST /api/auth/forgot-password — كلمة سر مؤقتة على إيميل صاحب الحساب ──
+// بيتطلب اسم المستخدم + الكود الوظيفي، والكلمة المؤقتة بتتبعت على الإيميل
+// المسجّل للكود ده بس (مش أي إيميل تاني)، وصلاحيتها 30 دقيقة، وأول ما
+// يدخل بيها بيتطلب منه كلمة سر جديدة. أضيف 12 سبتمبر 2026.
+const OTP_TTL_MS = 30 * 60 * 1000;
+function generateTempPassword() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  let out = '';
+  const bytes = crypto.randomBytes(12);
+  for (let i = 0; i < 12; i++) out += alphabet[bytes[i] % alphabet.length];
+  return out;
+}
+const maskEmail = e => String(e || '').replace(/^(.).*(.)@/, (m, a, b) => `${a}****${b}@`);
+
+app.post('/api/auth/forgot-password', loginLimiter, async (req, res) => {
+  const username = String((req.body && req.body.username) || '').trim().toLowerCase();
+  const empCode = normalizeEmpCode((req.body && req.body.empCode) || '');
+  if (!username || !empCode) return res.status(400).json({ error: 'اكتب اسم المستخدم والكود الوظيفي' });
+
+  const storage = readStorage();
+  let users = [];
+  if (storage['app-users']) { try { users = JSON.parse(storage['app-users']); } catch { users = []; } }
+  const user = users.find(u => String(u.username || '').trim().toLowerCase() === username);
+  const profile = user && user.profiles && user.profiles[empCode];
+  const email = profile && profile.email;
+
+  if (!user || !email) {
+    return res.status(404).json({
+      error: 'مفيش إيميل مسجّل للحساب ده بالكود الوظيفي ده. كلّم مدير النظام يعملك كلمة سر جديدة من شاشة "المستخدمين".',
+    });
+  }
+  if (!mailer.isConfigured()) {
+    return res.status(503).json({ error: 'خدمة الإيميل مش متظبطة على المنصة — كلّم مدير النظام' });
+  }
+
+  const temp = generateTempPassword();
+  const hash = await bcrypt.hash(temp, BCRYPT_ROUNDS);
+  let ok = false;
+  await enqueueWrite(async () => {
+    const st = readStorage();
+    let list = [];
+    if (st['app-users']) { try { list = JSON.parse(st['app-users']); } catch { list = []; } }
+    const idx = list.findIndex(u => String(u.username || '').trim().toLowerCase() === username);
+    if (idx === -1) return;
+    list[idx].password = hash;
+    list[idx].mustChangePassword = true;
+    list[idx].otpExpiresAt = new Date(Date.now() + OTP_TTL_MS).toISOString();
+    list[idx].otpIssuedFor = empCode;
+    st['app-users'] = JSON.stringify(list);
+    writeStorage(st);
+    ok = true;
+  });
+  if (!ok) return res.status(500).json({ error: 'فشل تجهيز كلمة السر المؤقتة' });
+
+  const sent = await mailer.sendMail({
+    to: email,
+    subject: 'كلمة سر مؤقتة — منصة السلامة (السويدي بوليمرز)',
+    text: `كلمة السر المؤقتة لحسابك (${user.username}): ${temp}\nصالحة 30 دقيقة، وأول ما تدخل بيها هيتطلب منك تعمل كلمة سر جديدة.\nلو مش إنت اللي طلبتها، كلّم مدير النظام فورًا.`,
+    html: `<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;font-size:15px;line-height:2">
+      <b>كلمة سر مؤقتة لحسابك على منصة السلامة</b><br>
+      الحساب: <b>${user.username}</b><br>
+      كلمة السر المؤقتة: <b style="font-size:20px;letter-spacing:2px;font-family:Consolas,monospace">${temp}</b><br>
+      صالحة <b>30 دقيقة</b> بس، وأول ما تدخل بيها هيتطلب منك تعمل كلمة سر جديدة.<br>
+      <span style="color:#b91c1c">لو مش إنت اللي طلبتها، كلّم مدير النظام فورًا.</span>
+    </div>`,
+  });
+  logAuditEvent({
+    entityType: 'user', entityId: user.id || user.username, action: 'forgot_password',
+    actor: { username: user.username, name: (profile && profile.name) || '' },
+    note: sent.sent ? `كلمة سر مؤقتة اتبعتت على ${maskEmail(email)}` : `فشل إرسال كلمة السر المؤقتة: ${sent.error || sent.reason}`,
+  });
+  if (!sent.sent) return res.status(502).json({ error: `فشل إرسال الإيميل: ${sent.error || sent.reason}` });
+  res.json({ success: true, sentTo: maskEmail(email) });
 });
 
 // ── POST /api/auth/change-password — تغيير المستخدم لكلمة مروره الخاصة
@@ -3360,6 +3622,8 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
 
     users[idx].password = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
     users[idx].mustChangePassword = false;
+    delete users[idx].otpExpiresAt;   // كلمة السر المؤقتة اتستبدلت
+    delete users[idx].otpIssuedFor;
     storage['app-users'] = JSON.stringify(users);
     writeStorage(storage);
     result = { status: 200, body: { success: true, message: 'تم تغيير كلمة المرور بنجاح' } };
@@ -3454,7 +3718,7 @@ app.post('/api/users',
     if (!username || !password || !role || !name) {
       return res.status(400).json({ error: 'جميع الحقول مطلوبة' });
     }
-    const VALID_ROLES = ['super_admin', 'hse_admin', 'dept_admin', 'maint_admin', 'ceo'];
+    const VALID_ROLES = ['super_admin', 'hse_admin', 'dept_admin', 'maint_admin', 'ceo', 'hse_director'];
     if (!VALID_ROLES.includes(role)) {
       return res.status(400).json({ error: `الدور غير صالح. الأدوار المتاحة: ${VALID_ROLES.join(', ')}` });
     }
@@ -3624,7 +3888,7 @@ app.put('/api/users/:id',
         return;
       }
 
-      const VALID_ROLES = ['super_admin', 'hse_admin', 'dept_admin', 'maint_admin', 'ceo'];
+      const VALID_ROLES = ['super_admin', 'hse_admin', 'dept_admin', 'maint_admin', 'ceo', 'hse_director'];
       if (!VALID_ROLES.includes(role)) {
         result = { status: 400, body: { error: 'الدور غير صالح' } };
         return;
@@ -3752,6 +4016,9 @@ app.post('/api/worker-auth/setup', workerAuthLimiter, async (req, res) => {
   if (pwErr) return res.status(400).json({ error: pwErr });
   const phone = normalizeWorkerPhone(req.body.phone);
   if (!phone) return res.status(400).json({ error: 'رقم الموبايل غير صحيح — اكتبه كده: 01xxxxxxxxx' });
+  // الإيميل اختياري — بيتسجل عشان الإدارة تقدر تنزّل بيانات التواصل وتبعت عليه
+  const email = sanitizeStr(req.body.email || '', 160).trim();
+  if (email && !EMAIL_RE.test(email)) return res.status(400).json({ error: 'الإيميل غير صحيح — سيبه فاضي لو مش عايز تسجله' });
 
   const key = normalizeEmpCode(emp.empCode);
   const hash = await bcrypt.hash(String(password), BCRYPT_ROUNDS);
@@ -3762,7 +4029,7 @@ app.post('/api/worker-auth/setup', workerAuthLimiter, async (req, res) => {
       result = { status: 409, body: { error: 'الكود ده عليه كلمة سر بالفعل — ادخل بيها أو اضغط "نسيت كلمة السر"' } };
       return;
     }
-    creds[key] = { hash, phone, pwv: crypto.randomBytes(8).toString('hex'), setAt: new Date().toISOString() };
+    creds[key] = { hash, phone, email, pwv: crypto.randomBytes(8).toString('hex'), setAt: new Date().toISOString() };
     if (!workerCredsStore.write(creds)) {
       result = { status: 500, body: { error: 'فشل حفظ كلمة السر' } };
       return;
@@ -3772,6 +4039,7 @@ app.post('/api/worker-auth/setup', workerAuthLimiter, async (req, res) => {
     const idx = employees.findIndex(e => normalizeEmpCode(e.code || e.empCode) === key);
     if (idx !== -1) {
       employees[idx].phone = phone;
+      if (email) employees[idx].email = email;
       employees[idx].phoneUpdatedAt = new Date().toISOString();
       writeEmployees(employees);
     }
@@ -3895,15 +4163,25 @@ app.get('/api/employees/export-excel',
         { header: 'المسمى الوظيفي', key: 'jobTitle',   width: 22 },
         { header: 'الصلاحية',       key: 'role',       width: 15 },
         { header: 'رقم التليفون',   key: 'phone',      width: 18 },
+        { header: 'الإيميل',        key: 'email',      width: 28 },
+        { header: 'مسجّل على المنصة', key: 'registered', width: 16 },
       ];
-      employees.forEach(e => ws.addRow({
-        empCode:    e.empCode    || '',
-        name:       e.name       || '',
-        department: e.department || '',
-        jobTitle:   e.jobTitle   || '',
-        role:       e.role       || 'worker',
-        phone:      e.phone      || ''
-      }));
+      // بيانات التواصل اللي العامل سجّلها بنفسه أول دخول بتتخزن في
+      // worker-credentials — بنضمّها هنا عشان التصدير يبقى كامل
+      const credsForExport = readWorkerCreds();
+      employees.forEach(e => {
+        const cred = credsForExport[normalizeEmpCode(e.empCode || e.code)] || {};
+        ws.addRow({
+          empCode:    e.empCode    || '',
+          name:       e.name       || '',
+          department: e.department || '',
+          jobTitle:   e.jobTitle   || '',
+          role:       e.role       || 'worker',
+          phone:      e.phone      || cred.phone || '',
+          email:      e.email      || cred.email || '',
+          registered: cred.hash ? 'نعم' : 'لا',
+        });
+      });
       ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
       ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD51E27' } };
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -5997,6 +6275,11 @@ app.get('/api/executive/overview', authenticateToken, requireRole('ceo', 'super_
 // إمكانية الاسترجاع من نفس الملف من واجهة الإدارة مباشرة — بدون الحاجة
 // للتواصل مع أي مطور لاسترجاع البيانات بعد أي حادثة. 11 سبتمبر 2026.
 app.get('/api/admin/backup/export', authenticateTokenFlexible, requireRole('super_admin'), (req, res) => {
+  // حساب المتابعة بيقرا كل حاجة من الشاشات، لكن النسخة الاحتياطية فيها
+  // هاشات كلمات السر — دي للسوبر أدمن بس.
+  if (req.user.role === 'hse_director') {
+    return res.status(403).json({ error: 'تنزيل النسخة الاحتياطية للسوبر أدمن بس', readOnly: true });
+  }
   try {
     const backup = dbExportAll();
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -6114,6 +6397,58 @@ function backupEmailSettingsResponse() {
   return { ...readBackupEmailSettings(), smtpConfigured: mailer.isConfigured(), from: mailer.isConfigured() ? mailer.fromAddress() : '' };
 }
 
+// ── إعدادات حساب الإرسال (SMTP) من الواجهة — super_admin بس ──────────
+// الباسورد بيتخزن متشفّر ومبيرجعش للواجهة أبدًا. أضيف 12 سبتمبر 2026 عشان
+// صاحب المنصة يظبط الإيميل بنفسه من غير ما يفتح .env على السيرفر.
+app.get('/api/admin/smtp-settings', authenticateToken, requireRole('super_admin'), (req, res) => {
+  res.json(mailer.publicSettings());
+});
+
+app.put('/api/admin/smtp-settings', authenticateToken, requireRole('super_admin'), (req, res) => {
+  const b = req.body || {};
+  const host = sanitizeStr(b.host || '', 120).trim();
+  const port = parseInt(b.port, 10) || 587;
+  const user = sanitizeStr(b.user || '', 160).trim();
+  const from = (sanitizeStr(b.from || '', 160).trim() || user);
+  const fromName = sanitizeStr(b.fromName || '', 80).trim() || 'منصة السلامة — السويدي بوليمرز';
+  const secure = b.secure === true || b.secure === 'true' || port === 465;
+  const pass = typeof b.pass === 'string' ? b.pass.trim() : '';
+
+  if (!host || !user) return res.status(400).json({ error: 'اكتب سيرفر الإيميل (SMTP) واسم المستخدم' });
+  if (!(port > 0 && port < 65536)) return res.status(400).json({ error: 'رقم البورت غير صالح (مثال: 587 أو 465)' });
+  if (!EMAIL_RE.test(from)) return res.status(400).json({ error: 'إيميل المُرسِل غير صالح' });
+
+  const old = smtpStore.read() || {};
+  const passEnc = pass ? encryptSecret(pass) : old.passEnc;
+  if (!passEnc) return res.status(400).json({ error: 'اكتب باسورد الإيميل (لو Gmail لازم App Password مش باسورد الحساب)' });
+
+  const saved = { host, port, secure, user, from, fromName, passEnc, updatedAt: new Date().toISOString(), updatedBy: req.user.username };
+  if (!smtpStore.write(saved)) return res.status(500).json({ error: 'فشل حفظ الإعدادات' });
+  loadSmtpSettings();
+  logAuditEvent({
+    entityType: 'database', entityId: 'smtp-settings', action: 'update', actor: req.user,
+    note: `تحديث بيانات إيميل الإرسال: ${host}:${port} (${user})`,
+  });
+  res.json({ success: true, ...mailer.publicSettings() });
+});
+
+app.post('/api/admin/smtp-test', authenticateToken, requireRole('super_admin'), async (req, res) => {
+  if (!mailer.isConfigured()) return res.status(503).json({ error: 'اظبط بيانات الإيميل وأحفظها الأول' });
+  const to = sanitizeStr((req.body && req.body.to) || '', 160).trim();
+  if (!EMAIL_RE.test(to)) return res.status(400).json({ error: 'اكتب إيميل صحيح تستقبل عليه الرسالة التجريبية' });
+  const v = await mailer.verify();
+  if (!v.ok) return res.status(502).json({ error: `مش قادر أتصل بسيرفر الإيميل: ${v.error}` });
+  const r = await mailer.sendMail({
+    to,
+    subject: 'اختبار إرسال — منصة السلامة (السويدي بوليمرز)',
+    text: 'الرسالة دي اختبار من منصة السلامة والصحة المهنية. لو وصلتك يبقى إعدادات الإيميل شغالة تمام ✅',
+    html: '<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;font-size:15px;line-height:1.9"><b>اختبار إرسال ✅</b><br>الرسالة دي اختبار من منصة السلامة والصحة المهنية — السويدي بوليمرز.<br>لو وصلتك يبقى إعدادات الإيميل شغالة تمام، والنسخة الاحتياطية هتوصل على المواعيد.</div>',
+  });
+  if (!r.sent) return res.status(502).json({ error: `فشل الإرسال: ${r.error || r.reason}` });
+  logAuditEvent({ entityType: 'database', entityId: 'smtp-settings', action: 'test_email', actor: req.user, note: `إرسال إيميل تجريبي إلى ${to}` });
+  res.json({ success: true, to, from: mailer.fromAddress() });
+});
+
 app.get('/api/admin/backup/email-settings', authenticateToken, requireRole('super_admin'), (req, res) => {
   res.json(backupEmailSettingsResponse());
 });
@@ -6143,7 +6478,7 @@ app.put('/api/admin/backup/email-settings', authenticateToken, requireRole('supe
 
 app.post('/api/admin/backup/email-now', authenticateToken, requireRole('super_admin'), async (req, res) => {
   if (!mailer.isConfigured()) {
-    return res.status(503).json({ error: 'إيميل الإرسال مش متظبط — لازم تتحط بيانات SMTP في ملف .env (شوف .env.example)' });
+    return res.status(503).json({ error: 'إيميل الإرسال مش متظبط — اظبط بيانات الإيميل من نفس الشاشة (قسم "بيانات إيميل الإرسال") وجرب تاني' });
   }
   const src = (req.body && req.body.recipients !== undefined) ? req.body.recipients : readBackupEmailSettings().recipients;
   const parsed = parseRecipients(src);
@@ -7802,6 +8137,212 @@ app.post('/api/dashboard/export-excel-charts', authenticateToken, requireRole('s
 });
 
 // ============================================================
+// 📊 تصدير بيانات لوحة التحكم لـ Power BI — /api/dashboard/export-powerbi
+// ============================================================
+// ملف Excel نظيف: كل ورقة جدول مسطّح (صف لكل سجل، عمود لكل حقل، بدون دمج
+// خلايا ولا صور ولا عناوين فرعية) عشان Power BI / Excel يقراه على طول
+// كمصدر بيانات ويبني عليه أي رسومات. ده غير ورقة "الرسوم البيانية"
+// (export-excel-charts) اللي بتحط صور جاهزة للطباعة.
+// أضيف 12 سبتمبر 2026 بطلب بشمهندس أحمد.
+const PBI_ROLES = ['super_admin', 'hse_admin', 'dept_admin', 'maint_admin', 'ceo', 'hse_director'];
+
+function pbiDate(v) {
+  if (!v) return '';
+  const d = new Date(v);
+  return isNaN(d) ? '' : d.toISOString().slice(0, 10);
+}
+const pbiMonth = v => (pbiDate(v) || '').slice(0, 7);
+const pbiYear = v => (pbiDate(v) || '').slice(0, 4);
+const pbiYesNo = b => (b ? 'نعم' : 'لا');
+
+function pbiAddSheet(wb, name, headers, rows, widths) {
+  const ws = wb.addWorksheet(name, { views: [{ state: 'frozen', ySplit: 1 }] });
+  ws.columns = headers.map((h, i) => ({ header: h, key: 'c' + i, width: (widths && widths[i]) || 18 }));
+  const head = ws.getRow(1);
+  head.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  head.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF7C1D1D' } };
+  rows.forEach(r => ws.addRow(r));
+  if (rows.length) ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: headers.length } };
+  return ws;
+}
+
+app.get('/api/dashboard/export-powerbi', authenticateTokenFlexible, requireRole(...PBI_ROLES), async (req, res) => {
+  try {
+    const role = req.user.role;
+    const scopeDept = (role === 'dept_admin' || role === 'maint_admin') ? String(req.user.department || '') : String(req.query.dept || '');
+    const sameD = v => !scopeDept || String(v || '').trim().toLowerCase() === scopeDept.trim().toLowerCase();
+    const notDeleted = r => !(r.deleted || r.isDeleted || r.deletedAt ||
+      (r.deletedBy && typeof r.deletedBy === 'object' && Object.values(r.deletedBy).some(Boolean)));
+
+    const employees = readEmployees().filter(e => sameD(e.department));
+    const empByCode = new Map(employees.map(e => [normalizeEmpCode(e.empCode || e.code), e]));
+    const hazards = readHazards().filter(h => notDeleted(h) && sameD(h.department || h.dept));
+    const permits = getPermitsArray().filter(p => notDeleted(p) && sameD(p.department));
+    const penalties = readPenalties().filter(p => p.status !== 'deleted' && sameD(p.department));
+    const drills = readDrills().filter(d => notDeleted(d));
+    const trainings = readTrainings().filter(t => notDeleted(t));
+    const deptCodes = new Set(employees.map(e => normalizeEmpCode(e.empCode || e.code)));
+    const attInScope = a => !scopeDept || deptCodes.has(normalizeEmpCode(a.empCode || a.code || a.employeeCode || a.id || ''));
+
+    const RISK = { H: 'عالية', M: 'متوسطة', L: 'منخفضة', C: 'حرجة' };
+    const HAZ_ST = { open: 'مفتوح', in_progress: 'جاري التعامل', pending_maintenance: 'محوّل للصيانة', closed: 'مقفول', resolved: 'اتحل', rejected: 'مرفوض', rejected_by_maintenance: 'مرفوض من الصيانة' };
+    const PER_ST = { approved: 'معتمد', pending: 'مستني أدمن القسم', pending_dept: 'مستني أدمن القسم', pending_area_head: 'مستني أدمن القسم', pending_hse: 'مستني اعتماد السلامة', rejected: 'مرفوض', closed_safe: 'اتقفل بأمان', closed_incomplete: 'اتقفل (لم يكتمل)', closed_forced: 'إغلاق جبري' };
+    const PER_TYPE = { lockout: 'فصل وعزل (LOTO)', general: 'عام', hot: 'عمل ساخن', height: 'عمل على ارتفاعات', lifting: 'رفع', excavation: 'حفر', confined: 'أماكن مغلقة' };
+    const trDur = t => {
+      for (const k of ['durationHours', 'hours', 'duration']) {
+        const v = t[k];
+        if (v !== undefined && v !== null && v !== '' && !isNaN(Number(v))) return Number(v);
+      }
+      return t.durationMinutes ? Number(t.durationMinutes) / 60 : 0.5;
+    };
+    const isOpenHaz = h => !/^(closed|resolved|rejected)/.test(String(h.status || 'open'));
+    const days = (a, b) => {
+      const x = new Date(a), y = new Date(b);
+      return (isNaN(x) || isNaN(y)) ? '' : Math.max(0, Math.round((y - x) / 86400000));
+    };
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'HSE Platform — Elsewedy Polymers';
+    wb.created = new Date();
+
+    // ── بلاغات الخطورة ──
+    pbiAddSheet(wb, 'بلاغات الخطورة',
+      ['رقم البلاغ', 'التاريخ', 'الشهر', 'السنة', 'القسم', 'المنطقة', 'الوصف', 'درجة الخطورة', 'كود الخطورة', 'الحالة', 'كود الحالة', 'مفتوح؟', 'متأخر أكتر من 48 ساعة؟', 'المُبلِّغ', 'كود الموظف', 'تاريخ الإغلاق', 'أيام حتى الإغلاق', 'الإجراء المتخذ'],
+      hazards.map(h => [
+        h.id, pbiDate(h.date || h.submittedAt), pbiMonth(h.date || h.submittedAt), pbiYear(h.date || h.submittedAt),
+        h.department || '', h.area || '', h.description || '',
+        RISK[String(h.riskLevel || '').toUpperCase()] || '', String(h.riskLevel || '').toUpperCase(),
+        HAZ_ST[h.status] || h.status || 'مفتوح', h.status || 'open',
+        pbiYesNo(isOpenHaz(h)),
+        pbiYesNo(isOpenHaz(h) && Date.now() - new Date(h.date || h.submittedAt).getTime() > 48 * 3600 * 1000),
+        h.reporterName || '', h.empCode || '', pbiDate(h.resolvedAt),
+        h.resolvedAt ? days(h.date || h.submittedAt, h.resolvedAt) : '', h.actionTaken || '',
+      ]),
+      [26, 12, 10, 8, 22, 10, 45, 14, 12, 16, 14, 10, 12, 24, 12, 12, 12, 40]);
+
+    // ── تصاريح العمل ──
+    pbiAddSheet(wb, 'تصاريح العمل',
+      ['رقم التصريح', 'التاريخ', 'الشهر', 'السنة', 'القسم', 'نوع التصريح', 'كود النوع', 'الحالة', 'كود الحالة', 'المكان', 'مقدّم الطلب', 'كود الموظف', 'من الساعة', 'إلى الساعة', 'مدير المنطقة', 'مسؤول السلامة', 'تاريخ المراجعة', 'الوصف'],
+      permits.map(p => [
+        p.id, pbiDate(p.date || p.createdAt), pbiMonth(p.date || p.createdAt), pbiYear(p.date || p.createdAt),
+        p.department || '', PER_TYPE[p.typeKey] || p.typeLabel || '', p.typeKey || '',
+        PER_ST[p.status] || p.status || '', p.status || '',
+        p.location || '', p.workerName || '', p.employeeId || '', p.timeFrom || '', p.timeTo || '',
+        p.areaManagerName || '', p.safetyOfficerName || '', pbiDate(p.reviewedAt), p.description || '',
+      ]),
+      [26, 12, 10, 8, 22, 20, 12, 20, 16, 22, 24, 12, 10, 10, 22, 22, 12, 40]);
+
+    // ── المحاضرات + صف لكل حضور (الأنسب لـ Power BI) ──
+    pbiAddSheet(wb, 'المحاضرات',
+      ['رقم المحاضرة', 'العنوان', 'الموضوع', 'التاريخ', 'الشهر', 'السنة', 'المحاضر', 'عدد الساعات', 'عدد الحضور', 'الحالة'],
+      trainings.map(t => {
+        const att = (t.attendees || []).filter(attInScope);
+        return [t.id, t.title || '', t.topic || '', pbiDate(t.date || t.createdAt), pbiMonth(t.date || t.createdAt), pbiYear(t.date || t.createdAt), t.trainer || '', trDur(t), att.length, t.status || ''];
+      }).filter(r => !scopeDept || r[8] > 0),
+      [26, 34, 28, 12, 10, 8, 22, 12, 12, 12]);
+
+    const attendanceRows = [];
+    trainings.forEach(t => {
+      (t.attendees || []).filter(attInScope).forEach(a => {
+        const code = normalizeEmpCode(a.empCode || a.code || a.id || '');
+        const emp = empByCode.get(code);
+        attendanceRows.push([
+          t.id, t.title || t.topic || '', pbiDate(t.date || t.createdAt), pbiMonth(t.date || t.createdAt), pbiYear(t.date || t.createdAt),
+          trDur(t), code, a.name || (emp && emp.name) || '', (emp && emp.department) || a.department || '',
+          pbiYesNo(a.verified !== false), t.trainer || '',
+        ]);
+      });
+    });
+    pbiAddSheet(wb, 'حضور المحاضرات',
+      ['رقم المحاضرة', 'العنوان', 'التاريخ', 'الشهر', 'السنة', 'عدد الساعات', 'كود الموظف', 'اسم الموظف', 'القسم', 'حضور مؤكد؟', 'المحاضر'],
+      attendanceRows, [26, 32, 12, 10, 8, 12, 12, 28, 22, 12, 22]);
+
+    // ── تجارب الطوارئ ──
+    pbiAddSheet(wb, 'تجارب الطوارئ',
+      ['رقم التجربة', 'العنوان', 'التاريخ', 'الشهر', 'السنة', 'المكان', 'المسؤول', 'الحالة', 'عدد الحضور'],
+      drills.map(d => [d.id, d.title || '', pbiDate(d.date || d.createdAt), pbiMonth(d.date || d.createdAt), pbiYear(d.date || d.createdAt), d.location || '', d.trainer || '', d.status || '', (d.attendees || []).filter(attInScope).length]),
+      [24, 34, 12, 10, 8, 26, 22, 12, 12]);
+
+    // ── الجزاءات ──
+    pbiAddSheet(wb, 'الجزاءات',
+      ['رقم الجزاء', 'التاريخ', 'الشهر', 'السنة', 'كود الموظف', 'اسم الموظف', 'القسم', 'الوظيفة', 'السبب', 'صادر من', 'الحالة'],
+      penalties.map(p => [p.id, pbiDate(p.date || p.createdAt), pbiMonth(p.date || p.createdAt), pbiYear(p.date || p.createdAt), p.empCode || '', p.empName || '', p.department || '', p.jobTitle || '', p.reason || '', p.issuedBy || '', p.status || '']),
+      [24, 12, 10, 8, 12, 28, 22, 24, 45, 22, 12]);
+
+    // ── الموظفين (بالبيانات اللي اتسجلت) ──
+    const creds = readWorkerCreds();
+    pbiAddSheet(wb, 'الموظفين',
+      ['كود الموظف', 'الاسم', 'القسم', 'الوظيفة', 'رقم الموبايل', 'الإيميل', 'عنده رقم؟', 'عنده إيميل؟', 'مسجّل على المنصة؟'],
+      employees.map(e => {
+        const code = normalizeEmpCode(e.empCode || e.code);
+        const cred = creds[code] || {};
+        const phone = e.phone || cred.phone || '';
+        const email = e.email || cred.email || '';
+        return [e.empCode || code, e.name || '', e.department || '', e.jobTitle || '', phone, email, pbiYesNo(!!phone), pbiYesNo(!!email), pbiYesNo(!!cred.hash)];
+      }),
+      [12, 30, 22, 26, 16, 28, 10, 10, 14]);
+
+    // ── الالتزام بالأهداف: صف لكل موظف + ملخص لكل قسم ──
+    const comp = chatbotAnalytics.complianceData(
+      { user: { role: 'super_admin' }, data: chatbotData() },
+      { depts: scopeDept ? [scopeDept] : [] }
+    );
+    pbiAddSheet(wb, 'الالتزام بالأهداف',
+      ['كود الموظف', 'الاسم', 'القسم', 'ساعات التدريب من أول السنة', 'تارجت الساعات', 'حقق تارجت التدريب؟', 'بلاغات الخطورة من أول السنة', 'تارجت البلاغات', 'حقق تارجت البلاغات؟', 'الربع'],
+      comp.rows.map(r => [
+        r.emp.empCode || '', r.emp.name || '', r.emp.department || '',
+        Math.round(r.hours * 10) / 10, comp.targetHours, pbiYesNo(r.trainOk),
+        r.hazards, comp.targetHazards, pbiYesNo(r.hazOk), comp.label,
+      ]),
+      [12, 30, 22, 18, 14, 14, 18, 14, 14, 18]);
+
+    const byDept = new Map();
+    comp.rows.forEach(r => {
+      const d = String(r.emp.department || 'غير محدد').trim();
+      if (!byDept.has(d)) byDept.set(d, { d, n: 0, t: 0, h: 0 });
+      const b = byDept.get(d);
+      b.n++; if (r.trainOk) b.t++; if (r.hazOk) b.h++;
+    });
+    pbiAddSheet(wb, 'التزام الأقسام',
+      ['القسم', 'عدد الموظفين', 'حققوا تارجت التدريب', 'نسبة التدريب %', 'حققوا تارجت البلاغات', 'نسبة البلاغات %', 'نسبة الالتزام الكلية %', 'الربع'],
+      [...byDept.values()].sort((a, b) => (b.t / b.n + b.h / b.n) - (a.t / a.n + a.h / a.n)).map(b => [
+        b.d, b.n, b.t, Math.round((b.t / b.n) * 100), b.h, Math.round((b.h / b.n) * 100),
+        Math.round(((b.t / b.n) + (b.h / b.n)) * 50), comp.label,
+      ]),
+      [24, 14, 18, 14, 18, 14, 18, 18]);
+
+    // ── ملخص ──
+    const openHaz = hazards.filter(isOpenHaz);
+    pbiAddSheet(wb, 'ملخص',
+      ['البند', 'القيمة'],
+      [
+        ['نطاق البيانات', scopeDept ? `قسم ${scopeDept}` : 'المصنع كله'],
+        ['تاريخ التصدير', new Date().toISOString().slice(0, 16).replace('T', ' ')],
+        ['عدد الموظفين', employees.length],
+        ['إجمالي بلاغات الخطورة', hazards.length],
+        ['بلاغات مفتوحة', openHaz.length],
+        ['بلاغات متأخرة أكتر من 48 ساعة', openHaz.filter(h => Date.now() - new Date(h.date || h.submittedAt).getTime() > 48 * 3600 * 1000).length],
+        ['إجمالي تصاريح العمل', permits.length],
+        ['تصاريح مستنية اعتماد', permits.filter(p => /^pending/.test(String(p.status || ''))).length],
+        ['عدد المحاضرات', trainings.length],
+        ['إجمالي الحضور', attendanceRows.length],
+        ['إجمالي ساعات التدريب', Math.round(attendanceRows.reduce((s, r) => s + Number(r[5] || 0), 0) * 10) / 10],
+        ['تجارب الطوارئ', drills.length],
+        ['الجزاءات', penalties.length],
+        ['نسبة الالتزام الكلية %', comp.rows.length ? Math.round(((comp.rows.filter(r => r.trainOk).length + comp.rows.filter(r => r.hazOk).length) / (2 * comp.rows.length)) * 100) : 0],
+      ], [34, 30]);
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    setDownloadFilename(res, `بيانات لوحة التحكم - Power BI - ${new Date().toISOString().slice(0, 10)}`, 'xlsx');
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error('[Dashboard] Power BI export failed:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'فشل إنشاء ملف البيانات' });
+  }
+});
+
+// ============================================================
 // 🤖 الشات بوت — /api/chatbot/message
 // ============================================================
 // لازم جلسة (عامل أو إدارة): الشات بوت مبيظهرش ولا بيرد قبل تسجيل الدخول،
@@ -7825,6 +8366,9 @@ function chatbotData() {
     penalties: readPenalties,
     drills: readDrills,
     appUsers: getAppUsersSync,
+    inspectionSections: () => inspectionSectionsStore.read() || [],
+    inspectionItems: () => inspectionItemsStore.read() || [],
+    inspectionRecords: () => inspectionRecordsStore.read() || [],
   };
 }
 

@@ -420,7 +420,17 @@ function navigateWithAuth(url) {
  * يُستخدم لجميع مسارات الـ Admin المحمية.
  * إذا انتهت صلاحية الجلسة (401 + expired)، يُسجّل خروج تلقائي.
  */
+// حساب المتابعة (عرض فقط): أي طلب تعديل بيتقفل من هنا كمان — السيرفر
+// رافضه أصلاً، بس كده المستخدم بياخد رسالة واضحة بدل رسالة رفض جافة.
+const VIEWER_WRITE_OK = /\/api\/(chatbot\/message|auth\/(profile|change-password|refresh)|notifications\/|dashboard\/export-)/;
 async function authFetch(url, options = {}) {
+  const method = String(options.method || 'GET').toUpperCase();
+  if (document.body.dataset.readonly === '1' && method !== 'GET' && !VIEWER_WRITE_OK.test(url)) {
+    showToast(T('الحساب ده للمتابعة والعرض فقط — مش مسموح بأي إضافة أو تعديل أو حذف'), 'error');
+    return new Response(JSON.stringify({ error: 'الحساب ده للمتابعة والعرض فقط', readOnly: true }), {
+      status: 403, headers: { 'Content-Type': 'application/json' },
+    });
+  }
   const adminToken = getToken();
   const token = adminToken || getWorkerToken();
   if (token) {
@@ -801,6 +811,14 @@ function applyRbacUI() {
   const isCeo    = sessionRole === 'ceo';
   const isNone   = sessionRole === 'none';
 
+  // 👁️ حساب المتابعة (hse_director): بيشوف نفس شاشات السوبر أدمن بالظبط،
+  // بس من غير أي زرار إضافة/تعديل/حذف/رفع — والسيرفر رافض أي طلب تعديل منه
+  // أصلاً. أضيف 12 سبتمبر 2026.
+  const isViewer = currentUserRole === 'hse_director';
+  const uiRole   = isViewer ? 'super_admin' : currentUserRole;
+  if (isViewer) document.body.dataset.readonly = '1'; else delete document.body.dataset.readonly;
+  _renderViewerBanner(isViewer && isSup);
+
   // Sync CSS safety-net attribute
   document.body.dataset.session = sessionRole;
   syncChatbotVisibility();
@@ -853,34 +871,34 @@ function applyRbacUI() {
   setDisplay('tabSupHazard',    isSup);
   // Users tab: super_admin only
   const tabUsers = document.getElementById('tabUsers');
-  if (tabUsers) tabUsers.style.display = (isSup && currentUserRole === 'super_admin') ? '' : 'none';
+  if (tabUsers) tabUsers.style.display = (isSup && uiRole === 'super_admin') ? '' : 'none';
   // Employees tab: all supervisor-session roles
   const tabEmployees = document.getElementById('tabEmployees');
   if (tabEmployees) tabEmployees.style.display = isSup ? '' : 'none';
   
   // Training Tabs
   setDisplay('tabTrainingWorker', isWorker);
-  setDisplay('tabTrainingAdmin', isSup && (currentUserRole === 'super_admin' || currentUserRole === 'hse_admin'));
+  setDisplay('tabTrainingAdmin', isSup && (uiRole === 'super_admin' || uiRole === 'hse_admin'));
 
   // Drill Tabs
   setDisplay('tabDrillWorker', isWorker);
-  setDisplay('tabDrillAdmin', isSup && (currentUserRole === 'super_admin' || currentUserRole === 'hse_admin'));
+  setDisplay('tabDrillAdmin', isSup && (uiRole === 'super_admin' || uiRole === 'hse_admin'));
 
   // Penalties Tabs — workers see their own; every supervisor role (incl. dept/maint admin, view-only) sees the admin list
   setDisplay('tabPenaltiesWorker', isWorker);
   setDisplay('tabPenaltiesAdmin', isSup);
 
   // 🦺 Monthly Inspection Tab — hse_admin/super_admin only
-  setDisplay('tabInspections', isSup && (currentUserRole === 'super_admin' || currentUserRole === 'hse_admin'));
+  setDisplay('tabInspections', isSup && (uiRole === 'super_admin' || uiRole === 'hse_admin'));
   // 🛡️ Audit Log Tab — hse_admin/super_admin only
-  setDisplay('tabAuditLog', isSup && (currentUserRole === 'super_admin' || currentUserRole === 'hse_admin'));
+  setDisplay('tabAuditLog', isSup && (uiRole === 'super_admin' || uiRole === 'hse_admin'));
 
   // Dashboard Tab — first tab, visible for ALL authenticated roles
   setDisplay('tabDashboard', isWorker || isSup);
 
   // "Clear all" buttons (permits/hazards): Safety (hse_admin) and Super Admin only —
   // never for dept_admin/maint_admin, who should not be able to wipe module data.
-  const isSafetyOrSuper = isSup && (currentUserRole === 'hse_admin' || currentUserRole === 'super_admin');
+  const isSafetyOrSuper = isSup && !isViewer && (currentUserRole === 'hse_admin' || currentUserRole === 'super_admin');
   setDisplay('clearPermitsBtn', isSafetyOrSuper);
   setDisplay('clearHazardsBtn', isSafetyOrSuper);
   setDisplay('clearEmployeesBtn', isSafetyOrSuper);
@@ -901,6 +919,27 @@ function applyRbacUI() {
   // Notification Bell
   const notifContainer = document.getElementById('notifContainer');
   if (notifContainer) notifContainer.style.display = (isWorker || isSup) ? 'inline-flex' : 'none';
+}
+
+/**
+ * _renderViewerBanner — شريط "وضع المتابعة" لحساب مدير السلامة (عرض فقط).
+ * تصميم مميّز (ذهبي/أسود) عشان يبان إنه حساب مختلف عن حسابات الإدارة.
+ */
+function _renderViewerBanner(show) {
+  let bar = document.getElementById('viewerModeBar');
+  if (!show) { if (bar) bar.remove(); return; }
+  if (bar) return;
+  bar = document.createElement('div');
+  bar.id = 'viewerModeBar';
+  bar.className = 'viewer-bar';
+  bar.innerHTML = `
+    <span class="viewer-bar-eye">👁️</span>
+    <div class="viewer-bar-text">
+      <b>${T('وضع المتابعة — عرض فقط')}</b>
+      <span>${escapeHtml(currentUserName || '')}${currentUserName ? ' · ' : ''}${T('كل بيانات المصنع ظاهرة لحضرتك، والتعديل مقفول تمامًا')}</span>
+    </div>
+    <span class="viewer-bar-badge">HSE Director</span>`;
+  document.body.appendChild(bar);
 }
 
 // ---------- storage helpers ----------
@@ -1165,6 +1204,7 @@ function renderLoginGate(){
           <input id="loginPass" type="password" placeholder="${T("كلمة المرور")}" autocomplete="current-password">
         </div>
         <button class="submit-btn" onclick="attemptLogin()">${T("دخول")}</button>
+        <button type="button" class="wl-link-btn" style="width:100%;margin-top:10px;" onclick="showAdminForgotPassword()">${T("نسيت كلمة السر؟")}</button>
         <div class="login-error" id="loginErr">${T("اسم المستخدم أو كلمة المرور غير صحيحة")}</div>
       </div>
     </div>
@@ -1223,11 +1263,12 @@ async function attemptLogin(){
     }
 
     const ADMIN_ROLE_LABELS = {
-      super_admin: T('مدير النظام'),
-      hse_admin:   T('مشرف السلامة'),
-      dept_admin:  T('أدمن قسم'),
-      maint_admin: T('أدمن صيانة'),
-      ceo:         'Executive View'
+      super_admin:  T('مدير النظام'),
+      hse_admin:    T('مشرف السلامة'),
+      dept_admin:   T('أدمن قسم'),
+      maint_admin:  T('أدمن صيانة'),
+      hse_director: T('مدير السلامة والصحة المهنية — وضع المتابعة'),
+      ceo:          'Executive View'
     };
     const roleLabel = ADMIN_ROLE_LABELS[currentUserRole] || T('مشرف');
     const isCeo = currentUserRole === 'ceo';
@@ -1255,9 +1296,14 @@ async function attemptLogin(){
         }
 
         // ── إجبار تغيير كلمة المرور الافتراضية قبل السماح بأي استخدام فعلي ──
-        // (11 سبتمبر 2026 — يظهر فقط لحسابات ما زالت تستخدم admin123/123456)
+        // (11 سبتمبر 2026 — يظهر فقط لحسابات ما زالت تستخدم admin123/123456،
+        //  أو حساب دخل بكلمة سر مؤقتة من "نسيت كلمة السر")
         if (mustChangePassword) {
+          _pendingProfileModal = data.needsProfile ? (data.previousHolder || {}) : null;
           showForcePasswordChangeModal();
+        } else if (data.needsProfile) {
+          // أول دخول لصاحب الكود ده على الحساب — لازم يسجّل موبايله وإيميله
+          showAdminProfileModal(data.previousHolder || null);
         }
       }
     });
@@ -1321,6 +1367,7 @@ function showForcePasswordChangeModal() {
       if (res.ok) {
         showToast(T('تم تغيير كلمة المرور بنجاح ✓'), 'success');
         overlay.remove();
+        if (_pendingProfileModal) { const p = _pendingProfileModal; _pendingProfileModal = null; showAdminProfileModal(p); }
       } else {
         errEl.textContent = data.error || T('فشل تغيير كلمة المرور'); errEl.style.display = 'block';
         btn.disabled = false; btn.textContent = originalText;
@@ -1332,6 +1379,115 @@ function showForcePasswordChangeModal() {
   });
 }
 
+// ============================================================
+// 👤 بيانات صاحب الحساب + نسيت كلمة السر (للإدارة) — 12 سبتمبر 2026
+// ============================================================
+// الحسابات الإدارية ممكن يستخدمها أكتر من شخص (حساب القسم مثلاً)، فبيانات
+// التواصل بتتسجل تحت الكود الوظيفي اللي دخل بيه: أول ما حد جديد يدخل بكوده
+// بيتطلب منه يسجّل رقمه وإيميله، والإيميل ده هو اللي بتوصل عليه كلمة السر
+// المؤقتة لو نسي كلمة السر.
+let _pendingProfileModal = null;
+
+function showAdminProfileModal(previousHolder) {
+  if (document.getElementById('adminProfileOverlay')) return;
+  const overlay = document.createElement('div');
+  overlay.id = 'adminProfileOverlay';
+  overlay.className = 'force-pw-overlay';
+  overlay.innerHTML = `
+    <div class="force-pw-card">
+      <h3>${T('👤 سجّل بياناتك قبل ما تكمل')}</h3>
+      <p>${T('الحساب ده ممكن يستخدمه أكتر من شخص، فمحتاجين نعرف مين بيستخدمه دلوقتي. البيانات دي بتتحفظ على كودك الوظيفي انت، وعليها هتوصلك كلمة السر المؤقتة لو نسيت كلمة السر.')}</p>
+      ${previousHolder && previousHolder.name ? `<div class="bk-email-warn">${T('آخر واحد استخدم الحساب ده:')} <b>${escapeHtml(previousHolder.name)}</b>${previousHolder.empCode ? ` (${escapeHtml(previousHolder.empCode)})` : ''}</div>` : ''}
+      <input type="text" id="apName" placeholder="${T('اسمك')}" value="${escapeHtml(currentUserName || '')}" />
+      <input type="tel" id="apPhone" dir="ltr" placeholder="${T('رقم الموبايل (واتساب) — 01xxxxxxxxx')}" autocomplete="tel" />
+      <input type="email" id="apEmail" dir="ltr" placeholder="${T('الإيميل بتاعك')}" autocomplete="email" />
+      <div class="force-pw-error" id="apError"></div>
+      <button class="btn btn-primary btn-block" id="apSubmit" type="button">${T('حفظ والدخول ✓')}</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById('apSubmit').addEventListener('click', async () => {
+    const btn = document.getElementById('apSubmit');
+    const errEl = document.getElementById('apError');
+    errEl.style.display = 'none';
+    const body = {
+      name:  document.getElementById('apName').value.trim(),
+      phone: document.getElementById('apPhone').value.trim(),
+      email: document.getElementById('apEmail').value.trim(),
+    };
+    if (!body.phone || !body.email) {
+      errEl.textContent = T('الموبايل والإيميل مطلوبين'); errEl.style.display = 'block'; return;
+    }
+    const original = btn.textContent;
+    btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span>';
+    try {
+      const res = await authFetch('/api/auth/profile', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        showToast(T('اتسجلت بياناتك ✓'), 'success');
+        overlay.remove();
+      } else {
+        errEl.textContent = data.error || T('فشل الحفظ'); errEl.style.display = 'block';
+        btn.disabled = false; btn.textContent = original;
+      }
+    } catch (e) {
+      errEl.textContent = T('خطأ في الاتصال بالسيرفر'); errEl.style.display = 'block';
+      btn.disabled = false; btn.textContent = original;
+    }
+  });
+}
+
+function showAdminForgotPassword() {
+  if (document.getElementById('adminForgotOverlay')) return;
+  const overlay = document.createElement('div');
+  overlay.id = 'adminForgotOverlay';
+  overlay.className = 'force-pw-overlay';
+  overlay.innerHTML = `
+    <div class="force-pw-card">
+      <h3>${T('🔑 نسيت كلمة السر')}</h3>
+      <p>${T('هنبعتلك كلمة سر مؤقتة على الإيميل اللي سجّلته بكودك الوظيفي، صالحة 30 دقيقة، وأول ما تدخل بيها هتعمل كلمة سر جديدة.')}</p>
+      <input type="text" id="fpUser" placeholder="${T('اسم المستخدم')}" value="${escapeHtml((document.getElementById('loginUser') || {}).value || '')}" autocomplete="username" />
+      <input type="text" id="fpCode" placeholder="${T('الكود الوظيفي')}" value="${escapeHtml((document.getElementById('loginEmpCode') || {}).value || '')}" oninput="this.value=this.value.toUpperCase()" />
+      <div class="force-pw-error" id="fpError"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary btn-block" id="fpSubmit" type="button">${T('ابعتلي كلمة سر مؤقتة')}</button>
+        <button class="btn btn-secondary" type="button" onclick="document.getElementById('adminForgotOverlay').remove()">${T('إلغاء')}</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById('fpSubmit').addEventListener('click', async () => {
+    const btn = document.getElementById('fpSubmit');
+    const errEl = document.getElementById('fpError');
+    errEl.style.display = 'none';
+    const username = document.getElementById('fpUser').value.trim();
+    const empCode  = document.getElementById('fpCode').value.trim();
+    if (!username || !empCode) {
+      errEl.textContent = T('اكتب اسم المستخدم والكود الوظيفي'); errEl.style.display = 'block'; return;
+    }
+    const original = btn.textContent;
+    btn.disabled = true; btn.innerHTML = '<span class="btn-spinner"></span>';
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, empCode })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        overlay.remove();
+        showToast(`${T('اتبعتت كلمة سر مؤقتة على')} ${data.sentTo} — ${T('شوف الإيميل')}`, 'success');
+      } else {
+        errEl.textContent = data.error || T('فشل الإرسال'); errEl.style.display = 'block';
+        btn.disabled = false; btn.textContent = original;
+      }
+    } catch (e) {
+      errEl.textContent = T('خطأ في الاتصال بالسيرفر'); errEl.style.display = 'block';
+      btn.disabled = false; btn.textContent = original;
+    }
+  });
+}
+
 function showUserBadge(){
   const supArea    = document.getElementById('supUserProfileChip');
   const umArea     = document.getElementById('umUserProfileChip');
@@ -1339,11 +1495,12 @@ function showUserBadge(){
   const globalBar  = document.getElementById('globalUserBar');
   const globalArea = document.getElementById('globalUserProfileChip');
   
-  const roleLabels = { 
-    super_admin: T('مدير النظام (Super Admin)'), 
-    hse_admin: T('مشرف سلامة (HSE Admin)'), 
+  const roleLabels = {
+    super_admin: T('مدير النظام (Super Admin)'),
+    hse_admin: T('مشرف سلامة (HSE Admin)'),
     dept_admin: T('أدمن قسم / منطقة (Dept Admin)'),
-    maint_admin: T('مشرف صيانة (Maint Admin)')
+    maint_admin: T('مشرف صيانة (Maint Admin)'),
+    hse_director: T('مدير السلامة (متابعة — عرض فقط)')
   };
   
   const initial = currentUserName ? currentUserName.charAt(0).toUpperCase() : 'U';
@@ -1725,8 +1882,11 @@ async function workerSetupPassword(){
   const pwErr = _wlPasswordError(pw, _wlVal('wl_newPw2'));
   if (pwErr) { showWlMsg('wl_setupMsg', pwErr, 'error'); return; }
   if (!_wlValidPhone(phone)) { showWlMsg('wl_setupMsg', T('رقم الموبايل غير صحيح — اكتبه كده: 01xxxxxxxxx'), 'error'); return; }
+  // الإيميل اختياري — بيتسجل عشان يوصلك عليه أي حاجة من الإدارة
+  const email = _wlVal('wl_email').trim();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { showWlMsg('wl_setupMsg', T('الإيميل غير صحيح — سيبه فاضي لو مش عايز تسجله'), 'error'); return; }
   _wlBusy('wl_setupBtn', true);
-  const r = await _wlPost('/api/worker-auth/setup', { code: _wlPending.code, password: pw, phone });
+  const r = await _wlPost('/api/worker-auth/setup', { code: _wlPending.code, password: pw, phone, email });
   _wlBusy('wl_setupBtn', false);
   if (r.ok) return _wlEnter(r.data.employee, r.data.token);
   showWlMsg('wl_setupMsg', r.data.error || T('حصل خطأ في التحقق، حاول تاني'), 'error');
@@ -1817,16 +1977,23 @@ function showAnimatedWelcome({ name, greeting, subtitle, onDone }){
   textEl.innerHTML = '<span id="welcomeAnimCursor" class="welcome-anim-cursor">|</span>';
   if (subEl) { subEl.textContent = subtitle || ''; subEl.classList.remove('show'); }
   overlay.style.display = 'flex';
+  // إعادة تشغيل أنيميشن مهمات الوقاية في كل مرة (الأنيميشن بيشتغل مرة واحدة)
+  overlay.querySelectorAll('.ppe-item, .welcome-anim-slogan').forEach(el => {
+    el.style.animation = 'none';
+    void el.offsetWidth; // reflow
+    el.style.animation = '';
+  });
 
   const chars = Array.from(fullText);
   let i = 0;
   function typeNext(){
     if (i >= chars.length) {
       if (subEl && subtitle) setTimeout(() => subEl.classList.add('show'), 150);
+      // وقفة أطول شوية بعد الكتابة عشان أنيميشن مهمات الوقاية يبان (ثانية ونص)
       setTimeout(() => {
         overlay.style.display = 'none';
         if (typeof onDone === 'function') onDone();
-      }, 900);
+      }, 1500);
       return;
     }
     const ch = chars[i];
@@ -7899,6 +8066,18 @@ window.exportDashboardExcel = function() {
  * مكتبة xlsx.js المجانية اللي بتبني الملف في المتصفح مالهاش أي دعم
  * لتضمين صور، فده مش ممكن يتعمل من غير مرور على السيرفر.
  */
+/**
+ * exportPowerBiData — بيانات لوحة التحكم كاملة في ملف Excel مسطّح (صف لكل
+ * سجل) من السيرفر، جاهز يتربط في Power BI على طول: بلاغات، تصاريح،
+ * محاضرات + صف لكل حضور، تجارب طوارئ، جزاءات، موظفين، والالتزام بالأهداف.
+ * (التصدير القديم كان بيطلع صور رسومات بس، ومش بينفع كمصدر بيانات.)
+ */
+window.exportPowerBiData = function() {
+  const dept = (typeof _dashDeptFilter === 'string' && _dashDeptFilter) ? `?dept=${encodeURIComponent(_dashDeptFilter)}` : '';
+  showToast(T('جارِ تجهيز ملف البيانات… (ممكن ياخد لحظة لو البيانات كبيرة)'), 'info');
+  navigateWithAuth(`/api/dashboard/export-powerbi${dept}`);
+};
+
 window.exportDashboardExcelWithCharts = async function() {
   const data = _dashLastData;
   if (!data) {
@@ -8079,6 +8258,7 @@ function _dashHeroAndFilters(meta, opts) {
           <span class="dash-hero-badge">HSE Platform · Elsewedy Polymers</span>
           ${meta.role !== 'worker' ? `<button class="dash-refresh-btn" onclick="exportDashboardExcel()">${dicon('download', 15)} ${T("تصدير Excel")}</button>` : ''}
           ${meta.role !== 'worker' ? `<button class="dash-refresh-btn" id="dashExportChartsBtn" onclick="exportDashboardExcelWithCharts()">${T("📊 تصدير بالرسوم البيانية")}</button>` : ''}
+          ${meta.role !== 'worker' ? `<button class="dash-refresh-btn" onclick="exportPowerBiData()" title="${T("ملف بيانات مسطّح (صف لكل سجل) جاهز لـ Power BI أو Excel")}">${T("📈 بيانات Power BI")}</button>` : ''}
           <button class="dash-refresh-btn" onclick="dashRefresh()">${dicon('refresh', 15)} ${T("تحديث")}</button>
         </div>
       </div>
@@ -8131,14 +8311,14 @@ function _dashFmtDate(d) {
 
 // ── List card (reused for trainings / hazards / drills / permits) ──
 function _dashListCard(opts) {
-  const { icon, title, items, emptyMsg, renderRow } = opts;
+  const { icon, title, items, emptyMsg, renderRow, wide } = opts;
   return `
-    <div class="dash-chart-card">
+    <div class="dash-chart-card${wide ? ' wide' : ''}">
       <div class="dash-chart-title">${icon} <span>${title}</span></div>
-      <div class="dash-list-card-body">
+      <div class="dash-list-card-body${wide ? ' tall' : ''}">
         ${(!items || items.length === 0)
           ? `<div class="dash-empty">${emptyMsg || T('لا توجد بيانات في هذه الفترة')}</div>`
-          : items.slice(0, 12).map(renderRow).join('')}
+          : items.slice(0, wide ? 25 : 12).map(renderRow).join('')}
       </div>
     </div>`;
 }
@@ -8782,8 +8962,8 @@ function renderDashboardHTML(container, data) {
         </div>
       </div>
 
-      <!-- Company-wide target compliance -->
-      <div class="dash-section-title">${dicon('target', 17)} ${T("نسبة الالتزام بالأهداف —")} ${_dashGetCurrentQuarterInfo().label} ${T("(تدريب")} ${EMP_TARGET_TRAIN_HOURS}${T("س سنويًا /")} ${EMP_TARGET_HAZARDS} ${T("بلاغ خطورة سنويًا لكل موظف)")}</div>
+      <!-- Company-wide target compliance (بيحترم فلتر القسم لو متحدد) -->
+      <div class="dash-section-title">${dicon('target', 17)} ${T("نسبة الالتزام بالأهداف —")} ${_dashDeptFilter ? `${T("قسم")} ${escapeHtml(_dashDeptFilter)} · ` : ''}${_dashGetCurrentQuarterInfo().label} ${T("(تدريب")} ${EMP_TARGET_TRAIN_HOURS}${T("س سنويًا /")} ${EMP_TARGET_HAZARDS} ${T("بلاغ خطورة سنويًا لكل موظف)")}</div>
       <div class="dash-kpi-grid">
         <div class="dash-kpi-card accent-3">
           <span class="dash-kpi-icon">${dicon('cap', 26)}</span>
@@ -8799,9 +8979,9 @@ function renderDashboardHTML(container, data) {
         </div>
       </div>
 
-      <${T("!-- Speed & department leaderboard (من /api/executive/overview) — نظرة\n           على مستوى الشركة كلها، فتظهر فقط لـ super_admin/hse_admin؛ أدمن\n           القسم يبقى مقصورًا على بيانات قسمه فقط في باقي الصفحة. --")}>
-      ${(meta.role === 'super_admin' || meta.role === 'hse_admin') ? `
-      <div class="dash-section-title">${dicon('bars', 17)} ${T("ترتيب الأقسام حسب الالتزام بالسلامة")}</div>
+      <!-- ترتيب الأقسام: بيتحسب من نفس أرقام الكروت اللي فوق، وبيحترم فلتر القسم -->
+      ${(meta.role === 'super_admin' || meta.role === 'hse_admin' || meta.role === 'hse_director') ? `
+      <div class="dash-section-title">${dicon('bars', 17)} ${T("ترتيب الأقسام حسب الالتزام بالأهداف")}${_dashDeptFilter ? ` — ${T("قسم")} ${escapeHtml(_dashDeptFilter)}` : ''}</div>
       <div class="exec-leaderboard" id="dashDeptLeaderboard" style="margin-bottom:24px;">
         <div class="loading">${T("جارِ التحميل…")}</div>
       </div>
@@ -8862,17 +9042,18 @@ function renderDashboardHTML(container, data) {
         </div>
       </div>
 
-      <!-- Penalties -->
+      <!-- Penalties — كارت بعرض الصفحة كلها عشان سبب الجزاء يبان كامل -->
       <div class="dash-section-title">${dicon('scale', 17)} ${T("الجزاءات")}</div>
-      <div class="dash-chart-grid">
+      <div class="dash-chart-grid one-col">
         ${_dashListCard({
-          icon: dicon('scale', 17), title: T('أحدث الجزاءات — الأسماء والأسباب'),
+          icon: dicon('scale', 17), title: `${T('أحدث الجزاءات — الأسماء والأسباب')} (${penalties.total || 0})`,
           items: penalties.list, emptyMsg: T('لا توجد جزاءات مسجلة في هذه الفترة'),
+          wide: true,
           renderRow: p => `
             <div class="dash-list-row">
               <div class="dash-list-main">
-                <div class="dash-list-title" title="${escapeHtml(p.title)}">${p.empName ? `${escapeHtml(p.empName)} — ` : ''}${escapeHtml(p.title)}</div>
-                <div class="dash-list-meta">${_dashFmtDate(p.date)}${p.issuedBy ? ' · ' + escapeHtml(p.issuedBy) : ''}</div>
+                <div class="dash-list-title wrap">${p.empName ? `<b>${escapeHtml(p.empName)}</b> — ` : ''}${escapeHtml(p.title)}</div>
+                <div class="dash-list-meta">${_dashFmtDate(p.date)}${p.issuedBy ? ' · ' + T('صادر من') + ': ' + escapeHtml(p.issuedBy) : ''}</div>
               </div>
             </div>`
         })}
@@ -8888,47 +9069,74 @@ function renderDashboardHTML(container, data) {
   _animateCounter(document.getElementById('kpiDrillTotal'),   drills.total);
   _animateCounter(document.getElementById('kpiPenaltyTotal'), penalties.total);
 
-  _dashLoadTargetCompliance(null, {
+  // فلتر القسم بيتطبّق على كروت الالتزام وترتيب الأقسام كمان (كان بيتجاهلهم)
+  _dashLoadTargetCompliance(meta.scopeDept || _dashDeptFilter || null, {
     pctTrainAchievedId: 'kpiTrainAchievedPct', subTrainAchievedId: 'kpiTrainAchievedSub',
     pctHazAchievedId:   'kpiHazardTargetPct',  subHazAchievedId:   'kpiHazardTargetSub',
     pctOverallId: 'execCompliancePct', subOverallId: 'execComplianceSub'
   });
-  if (meta.role === 'super_admin' || meta.role === 'hse_admin') {
-    _dashLoadDeptLeaderboard();
-  }
 }
 
 /**
- * _dashLoadDeptLeaderboard — ترتيب الأقسام، من نفس تجميع
- * /api/executive/overview المُستخدَم في حساب المدير التنفيذي — بدل تكرار
- * نفس منطق التجميع مرتين. (كروت متوسط زمن الاعتماد/الإغلاق اتشالت بطلب
- * بشمهندس أحمد 12 سبتمبر 2026.)
+ * _dashRenderDeptCompliance — ترتيب الأقسام حسب الالتزام بالأهداف.
+ *
+ * قبل كده كان بياخد "score" من /api/executive/overview، وده كان محسوب على
+ * نسبة إغلاق البلاغات (70%) + نسبة اعتماد التصاريح (30%) — فطلع كل
+ * الأقسام 100 تقريبًا (لأن البلاغات بتتقفل والتصاريح بتتعتمد)، وده مش
+ * الالتزام بالأهداف أصلاً. دلوقتي الترتيب بنفس تعريف كروت "نسبة الالتزام"
+ * فوق بالظبط: نسبة موظفي القسم اللي حققوا تارجت ساعات التدريب + نسبة اللي
+ * حققوا تارجت بلاغات الخطورة للربع الحالي، من نفس الحساب ونفس البيانات.
+ * ولما يكون فيه فلتر قسم، بيتعرض القسم ده بس ومعاه ترتيبه بين كل الأقسام.
+ * (تصحيح بطلب بشمهندس أحمد 12 سبتمبر 2026.)
  */
-async function _dashLoadDeptLeaderboard() {
+function _dashRenderDeptCompliance(scoredAll, q, scopeDept) {
   const boardEl = document.getElementById('dashDeptLeaderboard');
-  if (!boardEl) return; // personal dashboard view — nothing to fill
-  try {
-    const res = await authFetch('/api/executive/overview');
-    if (!res.ok) throw new Error('fetch failed');
-    const d = await res.json();
-    const board = (d.departmentLeaderboard || []).slice(0, 8);
-    const maxScore = board.length ? Math.max(...board.map(b => b.score)) : 100;
-    boardEl.innerHTML = board.length ? board.map((b, idx) => `
-      <div class="exec-leaderboard-row">
-        <div class="exec-leaderboard-rank">${idx + 1}</div>
-        <div>
-          <div class="exec-leaderboard-name">${escapeHtml(b.department)}</div>
-          <div class="exec-leaderboard-bar-bg">
-            <div class="exec-leaderboard-bar-fill" style="width:${Math.max(2, (b.score / (maxScore || 100)) * 100)}%"></div>
-          </div>
-        </div>
-        <div class="exec-leaderboard-score">${b.score}</div>
-      </div>
-    `).join('') : T('<div class="empty" style="padding:20px"><div class="icon">📊</div>لا توجد بيانات كافية بعد</div>');
-  } catch (e) {
-    console.error('_dashLoadDeptLeaderboard error', e);
-    boardEl.innerHTML = T('<div class="empty" style="padding:20px;color:var(--danger);">فشل التحميل</div>');
+  if (!boardEl) return; // personal/department view — no leaderboard on screen
+  const byDept = new Map();
+  (scoredAll || []).forEach(e => {
+    const d = String(e.department || '').trim() || T('غير محدد');
+    if (!byDept.has(d)) byDept.set(d, { dept: d, n: 0, t: 0, h: 0 });
+    const b = byDept.get(d);
+    b.n++;
+    if (e._stats && e._stats.trainingHours >= q.targetHours) b.t++;
+    if (e._stats && e._stats.hazardsCount  >= q.targetHazards) b.h++;
+  });
+  // قسم فيه أقل من 3 موظفين نسبته مضللة (موظف واحد = 0% أو 100%)
+  const MIN_DEPT_EMPLOYEES = 3;
+  const rows = [...byDept.values()]
+    .filter(b => b.n >= MIN_DEPT_EMPLOYEES)
+    .map(b => ({
+      dept: b.dept, n: b.n,
+      trainPct: Math.round((b.t / b.n) * 100),
+      hazPct:   Math.round((b.h / b.n) * 100),
+      score:    Math.round(((b.t / b.n) + (b.h / b.n)) * 50),
+    }))
+    .sort((a, b) => b.score - a.score || b.n - a.n);
+
+  if (!rows.length) {
+    boardEl.innerHTML = `<div class="empty" style="padding:20px"><div class="icon">📊</div>${T('لا توجد بيانات كافية بعد')}</div>`;
+    return;
   }
+  const shown = scopeDept
+    ? rows.filter(r => r.dept.toLowerCase().includes(String(scopeDept).toLowerCase()))
+    : rows.slice(0, 12);
+  const note = `<div class="dash-board-note">${T('المعيار: نسبة موظفي القسم اللي حققوا تارجت')} ${q.targetHours}${T('س تدريب و')}${q.targetHazards} ${T('بلاغ خطورة لحد')} ${q.label}${scopeDept ? ` · ${T('مفلتر على قسم')} ${escapeHtml(scopeDept)}` : ''}</div>`;
+  boardEl.innerHTML = note + (shown.length ? shown.map(r => {
+    const rank = rows.findIndex(x => x.dept === r.dept) + 1;
+    const cls = r.score >= 80 ? 'good' : r.score >= 50 ? 'mid' : 'bad';
+    return `
+      <div class="exec-leaderboard-row">
+        <div class="exec-leaderboard-rank">${rank}</div>
+        <div>
+          <div class="exec-leaderboard-name">${escapeHtml(r.dept)} <span class="dash-board-count">(${r.n} ${T('موظف')})</span></div>
+          <div class="exec-leaderboard-bar-bg">
+            <div class="exec-leaderboard-bar-fill ${cls}" style="width:${Math.max(2, r.score)}%"></div>
+          </div>
+          <div class="dash-board-sub">${T('تدريب')} ${r.trainPct}% · ${T('بلاغات')} ${r.hazPct}%${scopeDept ? ` · ${T('الترتيب')} ${rank} ${T('من')} ${rows.length}` : ''}</div>
+        </div>
+        <div class="exec-leaderboard-score">${r.score}</div>
+      </div>`;
+  }).join('') : `<div class="empty" style="padding:16px">${T('القسم ده مالوش بيانات كافية للترتيب')}</div>`);
 }
 
 // ── Quarterly target info ────────────────────────────────────────────────────
@@ -8977,20 +9185,22 @@ async function _dashLoadTargetCompliance(scopeDept, ids) {
       authFetch('/api/hazards'),
       authFetch('/api/trainings')
     ]);
-    let employees = empRes.ok ? toArray(await empRes.json()) : [];
+    const allEmployees = empRes.ok ? toArray(await empRes.json()) : [];
     window._allHazardsCache = hazRes.ok ? toArray(await hazRes.json()) : [];
     window._trainingsCache  = trainRes.ok ? toArray(await trainRes.json()) : [];
-
-    if (scopeDept) {
-      const scopeLower = scopeDept.toLowerCase();
-      employees = employees.filter(e => (e.department || '').toLowerCase().includes(scopeLower));
-    }
 
     const q = _dashGetCurrentQuarterInfo();
     // Both training hours and hazard reports are counted cumulatively since
     // the start of THIS YEAR (not reset per quarter, not a rolling window).
-    const scored = computeAllStats(employees, q.yearStart, q.quartersElapsed * 3);
-    const total = employees.length;
+    // Computed once for every employee, then the same numbers feed both the
+    // KPI cards (scoped to the selected department) and the department
+    // ranking below — so the two can never disagree.
+    const scoredAll = computeAllStats(allEmployees, q.yearStart, q.quartersElapsed * 3);
+    const scoped = scopeDept
+      ? scoredAll.filter(e => (e.department || '').toLowerCase().includes(String(scopeDept).toLowerCase()))
+      : scoredAll;
+    const scored = scoped;
+    const total = scoped.length;
 
     const trainAchieved = scored.filter(e => e._stats.trainingHours >= q.targetHours).length;
     const hazAchieved   = scored.filter(e => e._stats.hazardsCount   >= q.targetHazards).length;
@@ -9011,6 +9221,9 @@ async function _dashLoadTargetCompliance(scopeDept, ids) {
       pctOverallEl.textContent = `${overallPct}%`;
       if (subOverallEl) subOverallEl.innerHTML = `${T("تدريب")} ${trainAchPct}${T("% · بلاغات خطورة")} ${hazPct}%`;
     }
+
+    // ترتيب الأقسام من نفس الحساب (لو الجدول ظاهر على الشاشة)
+    _dashRenderDeptCompliance(scoredAll, q, scopeDept);
   } catch (err) {
     console.error('Target compliance load error', err);
     pctTrainAchEl.textContent = '—';
@@ -10126,15 +10339,125 @@ async function restoreFullBackup(event) {
 // ── إرسال النسخة الاحتياطية بالإيميل (super_admin) — أُضيف 12 سبتمبر 2026 ──
 // المستلمين + الإرسال اليومي بيتحفظوا على السيرفر، و"ابعت دلوقتي" بيبعت
 // للإيميلات المكتوبة في الخانة حاليًا (حتى لو لسه ماتحفظتش).
+let _smtpSettingsCache = null;
+
 async function loadBackupEmailSettings() {
   const box = document.getElementById('backupEmailBox');
   if (!box) return;
   try {
-    const res = await authFetch('/api/admin/backup/email-settings');
+    const [res, smtpRes] = await Promise.all([
+      authFetch('/api/admin/backup/email-settings'),
+      authFetch('/api/admin/smtp-settings'),
+    ]);
     if (!res.ok) throw new Error('fetch failed');
+    _smtpSettingsCache = smtpRes.ok ? await smtpRes.json() : null;
     _renderBackupEmailBox(await res.json());
   } catch (e) {
     box.innerHTML = `<div style="color:var(--danger);font-size:13px;">${T('فشل تحميل إعدادات الإيميل')}</div>`;
+  }
+}
+
+/**
+ * كارت "بيانات إيميل الإرسال" — بيتظبط من المنصة نفسها (بدل ما كان لازم
+ * حد يفتح ملف .env على السيرفر). الباسورد بيتبعت مرة واحدة، بيتخزن متشفّر،
+ * وعمره ما بيرجع للواجهة تاني. أضيف 12 سبتمبر 2026 بطلب بشمهندس أحمد.
+ */
+function _renderSmtpBox(s) {
+  const cfg = s || {};
+  const ok = cfg.configured;
+  return `
+    <details class="smtp-box" ${ok ? '' : 'open'}>
+      <summary>
+        <span>${T('⚙️ بيانات إيميل الإرسال (SMTP)')}</span>
+        <span class="smtp-badge ${ok ? 'ok' : 'warn'}">${ok ? T('متظبط ✓') : T('لسه مش متظبط')}</span>
+      </summary>
+      <div class="smtp-grid">
+        <div class="field"><label>${T('سيرفر الإيميل (SMTP Host)')}</label>
+          <input id="smtpHost" dir="ltr" placeholder="smtp.gmail.com" value="${escapeHtml(cfg.host || '')}" /></div>
+        <div class="field"><label>${T('البورت')}</label>
+          <input id="smtpPort" dir="ltr" type="number" placeholder="587" value="${escapeHtml(String(cfg.port || 587))}" /></div>
+        <div class="field"><label>${T('اسم المستخدم (الإيميل)')}</label>
+          <input id="smtpUser" dir="ltr" placeholder="hse@company.com" value="${escapeHtml(cfg.user || '')}" /></div>
+        <div class="field"><label>${T('الباسورد')} ${cfg.hasPass ? `<span style="font-weight:400;color:var(--muted);font-size:11px;">(${T('محفوظ — سيبه فاضي لو مش هتغيره')})</span>` : ''}</label>
+          <input id="smtpPass" dir="ltr" type="password" autocomplete="new-password" placeholder="${cfg.hasPass ? '••••••••' : T('App Password لو Gmail')}" /></div>
+        <div class="field"><label>${T('الإيميل اللي هيظهر للمستلم')}</label>
+          <input id="smtpFrom" dir="ltr" placeholder="hse@company.com" value="${escapeHtml(cfg.from || '')}" /></div>
+        <div class="field"><label>${T('اسم المُرسِل')}</label>
+          <input id="smtpFromName" placeholder="${T('منصة السلامة — السويدي بوليمرز')}" value="${escapeHtml(cfg.fromName || '')}" /></div>
+      </div>
+      <label style="display:flex;align-items:center;gap:6px;font-weight:700;cursor:pointer;margin:6px 0 10px;">
+        <input type="checkbox" id="smtpSecure" ${cfg.secure ? 'checked' : ''} /> ${T('اتصال مشفّر SSL (بورت 465)')}
+      </label>
+      <div class="smtp-presets">
+        ${T('إعداد سريع:')}
+        <button type="button" class="um-btn" onclick="smtpPreset('gmail')">Gmail</button>
+        <button type="button" class="um-btn" onclick="smtpPreset('office365')">Office 365</button>
+        <button type="button" class="um-btn" onclick="smtpPreset('outlook')">Outlook</button>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">
+        <button class="btn btn-primary" type="button" onclick="saveSmtpSettings()">${T('💾 حفظ بيانات الإيميل')}</button>
+        <button class="btn btn-secondary" type="button" onclick="sendSmtpTest()">${T('✉️ ابعت إيميل تجريبي')}</button>
+      </div>
+      <div class="smtp-hint">${T('Gmail: لازم تفعّل التحقق بخطوتين وتعمل "App Password" من إعدادات جوجل وتحطه هنا بدل باسورد الحساب.')}</div>
+    </details>`;
+}
+
+function smtpPreset(kind) {
+  const presets = {
+    gmail:     { host: 'smtp.gmail.com',        port: 587, secure: false },
+    office365: { host: 'smtp.office365.com',    port: 587, secure: false },
+    outlook:   { host: 'smtp-mail.outlook.com', port: 587, secure: false },
+  };
+  const p = presets[kind];
+  if (!p) return;
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  set('smtpHost', p.host);
+  set('smtpPort', p.port);
+  const sec = document.getElementById('smtpSecure');
+  if (sec) sec.checked = p.secure;
+  showToast(T('اكتب الإيميل والباسورد وبعدين احفظ'), 'info');
+}
+
+async function saveSmtpSettings() {
+  const val = id => (document.getElementById(id) || {}).value || '';
+  const body = {
+    host: val('smtpHost').trim(),
+    port: parseInt(val('smtpPort'), 10) || 587,
+    user: val('smtpUser').trim(),
+    pass: val('smtpPass'),
+    from: val('smtpFrom').trim() || val('smtpUser').trim(),
+    fromName: val('smtpFromName').trim(),
+    secure: !!(document.getElementById('smtpSecure') || {}).checked,
+  };
+  if (!body.host || !body.user) { showToast(T('اكتب سيرفر الإيميل واسم المستخدم'), 'error'); return; }
+  try {
+    const res = await authFetch('/api/admin/smtp-settings', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { showToast(data.error || T('فشل الحفظ'), 'error'); return; }
+    _smtpSettingsCache = data;
+    showToast(T('اتحفظت بيانات الإيميل ✓ — جرّب "ابعت إيميل تجريبي"'), 'success');
+    loadBackupEmailSettings();
+  } catch (e) {
+    showToast(T('خطأ في الاتصال'), 'error');
+  }
+}
+
+async function sendSmtpTest() {
+  const suggested = ((_smtpSettingsCache && _smtpSettingsCache.from) || '');
+  const to = prompt(T('الإيميل اللي هيستقبل الرسالة التجريبية:'), suggested);
+  if (!to) return;
+  showToast(T('جارِ الإرسال…'), 'info');
+  try {
+    const res = await authFetch('/api/admin/smtp-test', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: to.trim() })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) showToast(`${T('اتبعت إيميل تجريبي إلى')} ${data.to} ✓`, 'success');
+    else showToast(data.error || T('فشل الإرسال'), 'error');
+  } catch (e) {
+    showToast(T('خطأ في الاتصال'), 'error');
   }
 }
 
@@ -10155,7 +10478,8 @@ function _renderBackupEmailBox(s) {
     <div style="font-weight:800;margin-bottom:8px;">${T('📧 إرسال النسخة الاحتياطية بالإيميل')}</div>
     ${s.smtpConfigured
       ? `<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">${T('بيتبعت من:')} <b dir="ltr">${escapeHtml(s.from || '')}</b></div>`
-      : `<div class="bk-email-warn">${T('⚠️ إيميل الإرسال مش متظبط لسه على السيرفر — لازم تتحط بيانات SMTP في ملف .env (الخطوات في .env.example). تقدر تحفظ المستلمين والميعاد من دلوقتي.')}</div>`}
+      : `<div class="bk-email-warn">${T('⚠️ إيميل الإرسال لسه مش متظبط — اظبطه من "بيانات إيميل الإرسال" تحت، وبعدها زرار "ابعت النسخة دلوقتي" هيشتغل.')}</div>`}
+    ${_renderSmtpBox(_smtpSettingsCache)}
     <div class="field" style="margin-bottom:10px;">
       <label>${T('الإيميلات اللي هتستلم النسخة (إيميل في كل سطر أو افصل بينهم بفاصلة)')}</label>
       <textarea id="bkEmailRecipients" rows="3" dir="ltr" placeholder="name@company.com">${escapeHtml((s.recipients || []).join('\n'))}</textarea>
