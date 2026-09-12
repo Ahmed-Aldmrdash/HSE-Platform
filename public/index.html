@@ -525,6 +525,13 @@
           onclick="switchTab('auditlog')"
           style="display: none"
         ><span data-i18n="tabAuditLog">🛡️ سجل التدقيق</span></div>
+        <!-- 👔 EXECUTIVE TAB — حسابات المتابعة (المدير التنفيذي ومدير السلامة) -->
+        <div
+          class="tab"
+          id="tabExecutive"
+          onclick="switchTab('executive')"
+          style="display: none"
+        ><span data-i18n="tabExecutive">👔 المؤشرات التنفيذية</span></div>
       </div>
 
       <!-- 📊 DASHBOARD VIEW -->
@@ -1114,7 +1121,9 @@
                 <option value="super_admin">Super Admin — مدير النظام</option>
                 <option value="hse_admin">HSE Admin — مشرف سلامة</option>
                 <option value="dept_admin">Dept Admin — أدمن قسم</option>
-                <option value="ceo">Executive View — عرض تنفيذي (قراءة فقط)</option>
+                <option value="maint_admin">Maint Admin — أدمن صيانة</option>
+                <option value="ceo">CEO — المدير التنفيذي (عرض فقط)</option>
+                <option value="hse_director">HSE Director — مدير السلامة (عرض فقط)</option>
               </select>
             </div>
           </div>
@@ -1195,7 +1204,9 @@
                 <option value="super_admin">Super Admin — مدير النظام</option>
                 <option value="hse_admin">HSE Admin — مشرف سلامة</option>
                 <option value="dept_admin">Dept Admin — أدمن قسم</option>
-                <option value="ceo">Executive View — عرض تنفيذي (قراءة فقط)</option>
+                <option value="maint_admin">Maint Admin — أدمن صيانة</option>
+                <option value="ceo">CEO — المدير التنفيذي (عرض فقط)</option>
+                <option value="hse_director">HSE Director — مدير السلامة (عرض فقط)</option>
               </select>
             </div>
             <div class="field" id="um_editDeptRow" style="display: none">
@@ -1234,6 +1245,20 @@
                 placeholder="اتركها فارغة للحفاظ على الحالية"
               />
             </div>
+            <!-- قفل الحساب على كود وظيفي واحد (المدير التنفيذي / مدير السلامة) -->
+            <div class="field">
+              <label
+                >الكود الوظيفي المسموح له بالدخول
+                <span style="font-size: 11px; color: #64748b">(اختياري — لو اتحدد، محدش غيره يقدر يدخل على الحساب)</span>
+              </label>
+              <input
+                id="um_editEmpCode"
+                type="text"
+                placeholder="مثال: 6077"
+                oninput="this.value=this.value.toUpperCase()"
+              />
+            </div>
+            <div id="um_editInfoBox" class="um-edit-info"></div>
 
             <div style="display: flex; gap: 8px; margin-top: 12px">
               <button
@@ -2482,6 +2507,6 @@
         </button>
       </form>
     </section>
-    <script src="app.min.js?v=99.9.41" defer></script>
+    <script src="app.min.js?v=99.9.42" defer></script>
   </body>
 </html>

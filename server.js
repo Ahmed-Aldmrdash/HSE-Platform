@@ -12,7 +12,7 @@ const path       = require('path');
 const crypto     = require('crypto');
 const zlib       = require('zlib');
 const ExcelJS    = require('exceljs');
-const { Document: DocxDocument, Packer: DocxPacker, Paragraph: DocxParagraph, TextRun: DocxTextRun, AlignmentType: DocxAlign } = require('docx');
+const { Document: DocxDocument, Packer: DocxPacker, Paragraph: DocxParagraph, TextRun: DocxTextRun, AlignmentType: DocxAlign, ImageRun: DocxImageRun } = require('docx');
 const bcrypt     = require('bcryptjs');
 const jwt        = require('jsonwebtoken');
 const rateLimit  = require('express-rate-limit');
@@ -26,6 +26,7 @@ const QRCode = require('qrcode');
 const { prepareBidiText } = require('./lib/pdf-arabic');
 const chatbot = require('./lib/chatbot');
 const chatbotAnalytics = require('./lib/chatbot-analytics');
+const { normalizeArabic: normalizeArabicText } = require('./lib/chatbot-kb');
 const whatsapp = require('./lib/whatsapp');
 const mailer = require('./lib/mailer');
 
@@ -415,7 +416,8 @@ app.use((req, res, next) => {
 // لكن ممنوع عليه أي تعديل أو رفع أو حذف أو اعتماد — لا من الواجهة ولا حتى
 // لو بعت الطلب بنفسه. المنع هنا على مستوى السيرفر (أي طلب مش GET بيترفض)،
 // وde الضمان الحقيقي. أضيف 12 سبتمبر 2026 بطلب بشمهندس أحمد.
-const VIEWER_ROLE = 'hse_director';
+const VIEWER_ROLES = ['hse_director', 'ceo'];
+const VIEWER_ROLE = 'hse_director'; // للتوافق مع الكود القديم
 const VIEWER_ALLOWED_WRITES = [
   /^\/api\/auth\/(change-password|profile|refresh)$/,
   /^\/api\/chatbot\/message$/,
@@ -433,7 +435,7 @@ app.use((req, res, next) => {
   if (!token) return next();
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    if (decoded.role === VIEWER_ROLE && !viewerWriteAllowed(req.path)) {
+    if (VIEWER_ROLES.includes(decoded.role) && !viewerWriteAllowed(req.path)) {
       return res.status(403).json({
         error: 'الحساب ده للمتابعة والعرض فقط — مش مسموح بأي إضافة أو تعديل أو حذف.',
         readOnly: true,
@@ -1412,12 +1414,51 @@ async function ensureHseDirectorAccount() {
   }
 }
 
+/**
+ * حسابات المتابعة لازم تكون مقفولة على كود وظيفي واحد: المدير التنفيذي
+ * ومدير السلامة. لو الحساب موجود من غير كود، بنجيبه من سجل الموظفين
+ * (المسمى الوظيفي أو الاسم). 12 سبتمبر 2026 بطلب بشمهندس أحمد.
+ */
+async function ensureViewerAccountLocks() {
+  const storage = readStorage();
+  let users = [];
+  if (storage['app-users']) { try { users = JSON.parse(storage['app-users']); } catch { users = []; } }
+  const employees = readEmployees();
+  const norm = v => String(v || '').replace(/\s+/g, ' ').trim();
+  let changed = false;
+
+  users.forEach(u => {
+    if (!['ceo', 'hse_director'].includes(u.role) || u.empCode) return;
+    let emp = null;
+    if (u.role === 'hse_director') {
+      emp = employees.find(e => /hse\s*director/i.test(String(e.jobTitle || '')) && String(e.department || '').trim().toUpperCase() === 'HSE');
+    } else if (u.role === 'ceo') {
+      emp = employees.find(e => /managing director|chief executive|\bceo\b|general manager/i.test(String(e.jobTitle || '')));
+    }
+    if (!emp && u.name) {
+      const clean = norm(u.name).replace(/^متابعة\s*—\s*/, '');
+      emp = employees.find(e => norm(e.name) === clean);
+    }
+    if (emp) {
+      u.empCode = normalizeEmpCode(emp.empCode || emp.code);
+      changed = true;
+      console.log(`🔒 حساب ${u.username} اتقفل على الكود الوظيفي ${u.empCode} (${emp.name})`);
+    }
+  });
+
+  if (changed) {
+    storage['app-users'] = JSON.stringify(users);
+    writeStorage(storage);
+  }
+}
+
 // ── Startup Sequence ──────────────────────────────────────────
 (async () => {
   await migrateRolesIfNeeded();
   await ensureDefaultSuperAdmin();
   await autoSeedDeptAdmins();
   await ensureHseDirectorAccount();
+  await ensureViewerAccountLocks();
   await migratePasswordsIfNeeded();
   await flagKnownDefaultPasswordsIfNeeded();
   runHazardBackfillOnStartup();
@@ -1522,9 +1563,9 @@ function requireRole(...roles) {
     if (!req.user) {
       return res.status(401).json({ error: 'غير مصرح: لم يتم التحقق من الهوية' });
     }
-    // حساب المتابعة (hse_director): قراءة كاملة زي السوبر أدمن — والكتابة
-    // مقفولة أصلاً في الميدلوير اللي فوق، فمفيش أي طريق للتعديل من هنا.
-    if (req.user.role === 'hse_director' && (req.method === 'GET' || req.method === 'HEAD')) {
+    // حسابات المتابعة (مدير السلامة والمدير التنفيذي): قراءة كاملة زي السوبر
+    // أدمن — والكتابة مقفولة أصلاً في الميدلوير اللي فوق، فمفيش أي طريق للتعديل.
+    if (['hse_director', 'ceo'].includes(req.user.role) && (req.method === 'GET' || req.method === 'HEAD')) {
       return next();
     }
     if (!roles.includes(req.user.role)) {
@@ -3031,6 +3072,7 @@ app.get('/api/export-hazards', authenticateToken, requireRole('super_admin', 'hs
     });
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    finalizeExcel(workbook, 'سجل بلاغات الخطورة');
     setDownloadFilename(res, `سجل بلاغات الخطورة - ${new Date().toISOString().slice(0,10)}`, 'xlsx');
 
     await workbook.xlsx.write(res);
@@ -3378,12 +3420,13 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
   // حسابات الأقسام/الصيانة اللي اتعملت تلقائيًا كلمة سرها الافتراضية معروفة
   // (123456)، وأي حد يعرف كود موظف في القسم كان يقدر يدخل بيها ويغيّرها
   // لنفسه. لازم السوبر أدمن يعملها كلمة سر جديدة الأول (شاشة المستخدمين).
+  // حسابات الأقسام اللي لسه على كلمة السر الافتراضية: بيدخلوا عادي، لكن أول
+  // شاشة بتقابلهم هي تغيير كلمة السر (mustChangePassword) ومش هيقدروا يعملوا
+  // حاجة قبلها. (كان الدخول مقفول تمامًا — اتغيّر بطلب بشمهندس أحمد 12 سبتمبر
+  // 2026 عشان الأقسام تقدر تدخل وتظبط كلمة سرها بنفسها.)
   const isAutoDeptAccount = typeof user.id === 'string' && (user.id.startsWith('auto-dept-') || user.id.startsWith('auto-maint-'));
   if (isAutoDeptAccount && user.mustChangePassword === true && String(password) === '123456') {
-    return res.status(403).json({
-      error: 'الحساب ده لسه على كلمة السر الافتراضية المعروفة (123456) ومقفول لحمايته. السوبر أدمن يعمله كلمة سر جديدة من شاشة "المستخدمين" ويديهالك.',
-      defaultPassword: true
-    });
+    console.log(`[LOGIN] ${user.username} دخل بكلمة السر الافتراضية — هيتطلب منه تغييرها فورًا`);
   }
 
   // Check empCode in employees sheet — يجب إن الكود الوظيفي يبقى موظف
@@ -3398,6 +3441,16 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
   if (!employee) {
     console.log(`[LOGIN ERROR] EmpCode not found in employees DB: ${empCodeStr}`);
     return res.status(401).json({ error: `الكود الوظيفي (${empCodeStr}) غير مسجل في قاعدة بيانات الموظفين` });
+  }
+
+  // حساب مربوط بكود وظيفي واحد (المدير التنفيذي ومدير السلامة مثلاً): محدش
+  // يقدر يدخل عليه غير صاحب الكود ده بالظبط. 12 سبتمبر 2026.
+  if (user.empCode) {
+    const lockedCode = normalizeEmpCode(user.empCode);
+    if (lockedCode && lockedCode !== searchCode) {
+      console.log(`[LOGIN ERROR] Account ${user.username} is locked to empCode ${lockedCode}, tried ${searchCode}`);
+      return res.status(403).json({ error: 'الحساب ده مربوط بكود وظيفي واحد بس — مش هينفع تدخل عليه بكود تاني' });
+    }
   }
 
   // Check department authorization for ALL department-scoped admin roles.
@@ -3712,6 +3765,9 @@ app.get('/api/users',
       role:       u.role,
       name:       u.name,
       department: u.department || '',
+      empCode:    u.empCode || '',
+      phone:      u.phone || '',
+      email:      u.email || '',
       createdAt:  u.createdAt,
       mustChangePassword: u.mustChangePassword === true
     }));
@@ -3763,6 +3819,9 @@ app.post('/api/users',
         department: role === 'dept_admin' ? (req.body.department || '').trim() : '',
         phone:      sanitizeStr(req.body.phone || '', 20), // لتنبيهات واتساب — 12 سبتمبر 2026
         whatsappOptIn: req.body.phone ? true : false,
+        // كود وظيفي واحد مسموح له بالدخول على الحساب ده (اختياري) — لو اتحدد،
+        // محدش غيره يقدر يدخل عليه مهما كان معاه كلمة السر. 12 سبتمبر 2026.
+        empCode:    normalizeEmpCode(sanitizeStr(req.body.empCode || '', 20)) || '',
         createdAt:  new Date().toISOString()
       };
       users.push(newUser);
@@ -3908,6 +3967,10 @@ app.put('/api/users/:id',
       users[idx].username = username;
       users[idx].role = role;
       users[idx].department = (role === 'dept_admin' || role === 'maint_admin') ? (department || users[idx].department || '') : '';
+      // قفل الحساب على كود وظيفي واحد (فاضي = أي كود مسجّل يقدر يدخل)
+      if (req.body.empCode !== undefined) {
+        users[idx].empCode = normalizeEmpCode(sanitizeStr(req.body.empCode || '', 20)) || '';
+      }
 
       if (newPassword) {
         users[idx].password = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
@@ -4196,6 +4259,7 @@ app.get('/api/employees/export-excel',
       ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
       ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD51E27' } };
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      finalizeExcel(wb, 'دليل الموظفين');
       setDownloadFilename(res, `دليل الموظفين - ${new Date().toISOString().slice(0,10)}`, 'xlsx');
       await wb.xlsx.write(res);
       return res.end();
@@ -4985,6 +5049,7 @@ app.post('/api/trainings/export-bulk', authenticateToken, requireRole('super_adm
     });
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    finalizeExcel(workbook, 'سجل المحاضرات التدريبية');
     setDownloadFilename(res, `سجل المحاضرات التدريبية - ${new Date().toISOString().slice(0,10)}`, 'xlsx');
     await workbook.xlsx.write(res);
     res.end();
@@ -5076,6 +5141,7 @@ app.get('/api/trainings/:id/export-excel', authenticateToken, requireRole('super
     });
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    finalizeExcel(wb, 'حضور محاضرة تدريبية');
     setDownloadFilename(res, `محاضرة - ${trn.topic || trn.title || ''} - ${trn.date || ''}`, 'xlsx');
     await wb.xlsx.write(res);
     res.end();
@@ -5214,6 +5280,7 @@ app.get('/api/drills/export/:id', authenticateTokenFlexible, async (req, res) =>
     }
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    finalizeExcel(wb, 'حضور تجربة طوارئ');
     setDownloadFilename(res, `حضور تجربة طوارئ - ${drl.title || ''} - ${drl.date || ''}`, 'xlsx');
     await wb.xlsx.write(res);
     res.end();
@@ -5643,6 +5710,7 @@ app.get('/api/drills/:id/export-excel', authenticateToken, requireRole('super_ad
     });
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    finalizeExcel(wb, 'تقرير تجربة طوارئ');
     setDownloadFilename(res, `تجربة طوارئ - ${drl.title || ''} - ${drl.date || ''}`, 'xlsx');
     await wb.xlsx.write(res);
     res.end();
@@ -5713,6 +5781,21 @@ async function buildDrillReportDocx(drill, report) {
     children: [ new DocxTextRun({ text, font: FONT, size: 26, bold: true, underline: {}, rightToLeft: true }) ]
   });
   const blank = () => new DocxParagraph({ text: '' });
+
+  // شعار الشركة في أول التقرير — 12 سبتمبر 2026
+  try {
+    if (fs.existsSync(COMPANY_LOGO_PATH)) {
+      children.push(new DocxParagraph({
+        alignment: DocxAlign.CENTER,
+        spacing: { after: 120 },
+        children: [ new DocxImageRun({
+          data: fs.readFileSync(COMPANY_LOGO_PATH),
+          transformation: { width: 150, height: 66 },
+          type: 'png',
+        }) ],
+      }));
+    }
+  } catch (e) { /* الشعار اختياري — التقرير بيتولد عادي من غيره */ }
 
   children.push(new DocxParagraph({
     alignment: DocxAlign.CENTER,
@@ -6412,7 +6495,16 @@ function backupEmailSettingsResponse() {
 // الباسورد بيتخزن متشفّر ومبيرجعش للواجهة أبدًا. أضيف 12 سبتمبر 2026 عشان
 // صاحب المنصة يظبط الإيميل بنفسه من غير ما يفتح .env على السيرفر.
 app.get('/api/admin/smtp-settings', authenticateToken, requireRole('super_admin'), (req, res) => {
-  res.json(mailer.publicSettings());
+  // إيميل صاحب الحساب (من بياناته المسجّلة) بيتقترح تلقائيًا في الخانات
+  // الفاضية عشان ميفضلش غير الباسورد بس. 12 سبتمبر 2026.
+  let suggestedEmail = '';
+  try {
+    const users = getAppUsersSync();
+    const me = users.find(u => u.id === req.user.id || String(u.username || '').toLowerCase() === String(req.user.username || '').toLowerCase());
+    const code = normalizeEmpCode(req.user.empCode || '');
+    suggestedEmail = (me && ((me.profiles && me.profiles[code] && me.profiles[code].email) || me.email)) || '';
+  } catch (e) { /* اقتراح اختياري */ }
+  res.json({ ...mailer.publicSettings(), suggestedEmail });
 });
 
 app.put('/api/admin/smtp-settings', authenticateToken, requireRole('super_admin'), (req, res) => {
@@ -7595,6 +7687,7 @@ app.get('/api/inspections/sections/:id/export', authenticateTokenFlexible, requi
       items.forEach((it, i) => {
         ws.addRow([i + 1, it.itemNumber || '', it.name || '', it.department || '', it.location || '']);
       });
+      finalizeExcel(wb, 'الفحص الشهري');
       setDownloadFilename(res, `الفحص الشهري - ${section.name} - سجل الأصناف`, 'xlsx');
     } else {
       const year = parseInt(req.query.year, 10) || new Date().getFullYear();
@@ -7620,6 +7713,7 @@ app.get('/api/inspections/sections/:id/export', authenticateTokenFlexible, requi
           r && r.inspectionDate ? r.inspectionDate : '', r ? (r.inspector || '') : ''
         ]);
       });
+      finalizeExcel(wb, 'الفحص الشهري');
       setDownloadFilename(res, `الفحص الشهري - ${section.name} - ${month}-${year}`, 'xlsx');
     }
 
@@ -7641,11 +7735,20 @@ app.get('/api/inspections/sections/:id/export', authenticateTokenFlexible, requi
 // القائم بالفحص. هذا المحلل يكتشف الأعمدة من نص الهيدر نفسه (لا يفترض
 // ترتيبًا ثابتًا) حتى يعمل عبر أكثر من تنسيق ملف بدون كتابة parser مخصص
 // لكل قسم على حدة. 11 سبتمبر 2026.
+// الملفات القديمة بتكتب عمود النتيجة بأشكال مختلفة: "مطابق" / "مطابقة" /
+// "جيد" / "سليم"، والعكس "غير مطابق" / "غير مطابقة" / "غير جيد". بنقبلهم كلهم
+// عشان مايبقاش فيه ملف بيترفض بسبب صيغة العنوان. 12 سبتمبر 2026.
+const LEGACY_OK_HEADERS = ['مطابق', 'مطابقة', 'مطابقه', 'جيد', 'جيدة', 'جيده', 'سليم', 'سليمة', 'سليمه', 'صالح', 'صالحة'];
+const LEGACY_BAD_HEADERS = ['غير مطابق', 'غير مطابقة', 'غير مطابقه', 'غير جيد', 'غير جيدة', 'غير جيده', 'غير سليم', 'غير سليمة', 'غير صالح', 'غير صالحة', 'تالف'];
+const cleanHeader = v => String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
+const isLegacyOkHeader = raw => LEGACY_OK_HEADERS.includes(raw);
+const isLegacyBadHeader = raw => LEGACY_BAD_HEADERS.includes(raw);
+
 function findLegacyInspectionHeaderRow(ws) {
-  for (let r = 1; r <= Math.min(6, ws.rowCount); r++) {
+  for (let r = 1; r <= Math.min(8, ws.rowCount); r++) {
     const row = ws.getRow(r);
     for (let c = 1; c <= ws.columnCount; c++) {
-      if (String(row.getCell(c).value || '').trim() === 'مطابق') return r;
+      if (isLegacyOkHeader(cleanHeader(row.getCell(c).value))) return r;
     }
   }
   return null;
@@ -7662,14 +7765,14 @@ function parseLegacyInspectionSheet(ws) {
   for (let c = 1; c <= ws.columnCount; c++) {
     const raw = String(headerRow.getCell(c).value || '').replace(/\s+/g, ' ').trim();
     if (!raw) continue;
-    if (raw === 'مطابق' && cols.compliantCol == null) cols.compliantCol = c;
-    else if (raw === 'غير مطابق' && cols.nonCompliantCol == null) cols.nonCompliantCol = c;
-    else if (raw.includes('الملاحظات') && !raw.includes('تعديل') && cols.notesCol == null) cols.notesCol = c;
+    if (isLegacyOkHeader(raw) && cols.compliantCol == null) cols.compliantCol = c;
+    else if (isLegacyBadHeader(raw) && cols.nonCompliantCol == null) cols.nonCompliantCol = c;
+    else if ((raw.includes('الملاحظات') || raw.includes('وصف المشكلة') || raw.includes('الملاحظة')) && !raw.includes('تعديل') && !raw.includes('صور') && cols.notesCol == null) cols.notesCol = c;
     else if (raw.includes('تاريخ الفحص') && cols.dateCol == null) cols.dateCol = c;
     else if (raw.includes('القائم بالفحص') && cols.inspectorCol == null) cols.inspectorCol = c;
     else if (raw.includes('القسم') && cols.deptCol == null) cols.deptCol = c;
     else if ((raw.includes('المكان') || raw.includes('الموقع')) && cols.locationCol == null) cols.locationCol = c;
-    else if (raw.includes('رقم') && itemNumberCol == null) itemNumberCol = c;
+    else if ((raw.includes('رقم') || raw.includes('النوع') || raw.includes('انوع') || raw.includes('البند')) && itemNumberCol == null) itemNumberCol = c;
     else if (itemNumberCol != null && cols.compliantCol == null) typeCols.push(c);
   }
   if (itemNumberCol == null) itemNumberCol = 1;
@@ -7679,7 +7782,7 @@ function parseLegacyInspectionSheet(ws) {
 // ── POST /api/inspections/sections/:id/import-legacy-excel — رفع سجل قديم
 // (Excel) لقسم فحص محدد: ينشئ الأصناف غير الموجودة + سجلات الفحص الشهرية
 // من كل الأوراق (شهور) الموجودة في الملف دفعة واحدة.
-app.post('/api/inspections/sections/:id/import-legacy-excel', authenticateToken, requireRole(...INSPECTION_ADMIN_ROLES), async (req, res) => {
+const importLegacyExcelHandler = async (req, res) => {
   const sectionId = req.params.id;
   const { base64Data } = req.body || {};
   if (!base64Data) return res.status(400).json({ error: 'لا يوجد ملف' });
@@ -7810,6 +7913,65 @@ app.post('/api/inspections/sections/:id/import-legacy-excel', authenticateToken,
     }
   });
   res.status(result ? result.status : 500).json(result ? result.body : { error: 'حدث خطأ غير متوقع أثناء المعالجة، حاول مرة أخرى' });
+};
+
+app.post('/api/inspections/sections/:id/import-legacy-excel', authenticateToken, requireRole(...INSPECTION_ADMIN_ROLES), importLegacyExcelHandler);
+
+// ── رفع ملفات الفحص القديمة دفعة واحدة: كل ملف بيروح لقسمه لوحده ──────
+// كان لازم تفتح كل قسم وترفع ملفه بإيدك (33 ملف لـ B1 و 27 لـ B2)، وده كان
+// بيخلط الملفات بالأقسام. دلوقتي بنطابق اسم الملف باسم القسم تلقائيًا:
+// "13-طفايات الحريق.xlsx" → قسم "طفايات الحريق" في نفس البرنامج.
+// 12 سبتمبر 2026 بطلب بشمهندس أحمد.
+function normalizeSectionKey(s) {
+  return normalizeArabicText(String(s || ''))
+    .replace(/\.(xlsx|xlsm|xls)$/i, '')
+    .replace(/\.lsx$/i, '')
+    .replace(/^[\s\d\-_.]+/, '')       // "13-" في أول اسم الملف
+    .replace(/[\s\-_().]+/g, ' ')
+    .replace(/(^|\s)ال/g, ' ')          // "الطفايات" = "طفايات"
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function matchInspectionSectionByFileName(fileName, category) {
+  const key = normalizeSectionKey(fileName);
+  if (!key) return null;
+  const sections = readInspectionSections().filter(s => !category || s.category === category);
+  const scored = sections.map(s => {
+    const sKey = normalizeSectionKey(s.name);
+    if (!sKey) return { s, score: 0 };
+    if (sKey === key) return { s, score: 100 };
+    if (sKey.includes(key) || key.includes(sKey)) return { s, score: 80 };
+    const a = new Set(key.split(' ').filter(w => w.length > 1));
+    const b = new Set(sKey.split(' ').filter(w => w.length > 1));
+    if (!a.size || !b.size) return { s, score: 0 };
+    let hits = 0;
+    a.forEach(w => { if (b.has(w)) hits++; });
+    return { s, score: Math.round((hits / Math.max(a.size, b.size)) * 70) };
+  }).sort((x, y) => y.score - x.score);
+  const top = scored[0];
+  return top && top.score >= 50 ? top.s : null;
+}
+
+app.post('/api/inspections/import-legacy-auto', authenticateToken, requireRole(...INSPECTION_ADMIN_ROLES), async (req, res) => {
+  const category = String((req.body && req.body.category) || '').toUpperCase();
+  const fileName = sanitizeStr((req.body && req.body.fileName) || '', 200);
+  if (category !== 'P1' && category !== 'P2') return res.status(400).json({ error: 'حدّد البرنامج (P1 أو P2)' });
+  if (!fileName) return res.status(400).json({ error: 'اسم الملف مطلوب' });
+  if (!req.body || !req.body.base64Data) return res.status(400).json({ error: 'لا يوجد ملف' });
+
+  const section = matchInspectionSectionByFileName(fileName, category);
+  if (!section) {
+    return res.status(404).json({
+      error: `مش لاقي قسم في ${category} باسم قريب من "${fileName}" — افتح القسم المناسب وارفع الملف من جوه، أو غيّر اسم الملف لاسم القسم`,
+      unmatched: true, fileName,
+    });
+  }
+  // نفس منطق الاستيراد بالظبط، بس القسم اتحدد من اسم الملف
+  req.params = { ...(req.params || {}), id: section.id };
+  const origJson = res.json.bind(res);
+  res.json = body => origJson({ ...body, fileName, section: { id: section.id, name: section.name, category: section.category } });
+  return importLegacyExcelHandler(req, res);
 });
 
 // ============================================================
@@ -7824,7 +7986,60 @@ app.post('/api/inspections/sections/:id/import-legacy-excel', authenticateToken,
 // صحيح مع PDFKit (اختُبر). 11 سبتمبر 2026.
 const PDF_FONT_REGULAR = path.join(__dirname, 'assets', 'fonts', 'Amiri-Regular.ttf');
 const PDF_FONT_BOLD = path.join(__dirname, 'assets', 'fonts', 'Amiri-Bold.ttf');
-const PDF_LOGO_PATH = path.join(__dirname, 'public', 'icons', 'icon-512.png');
+// شعار السويدي بوليمرز الرسمي — بيتحط في رأس كل مستند بيتطبع (تصاريح،
+// بلاغات، تقارير تجارب الطوارئ، وملفات الإكسيل). 12 سبتمبر 2026.
+const COMPANY_LOGO_PATH = path.join(__dirname, 'public', 'icons', 'elsewedy-logo.png');
+const PDF_LOGO_PATH = fs.existsSync(COMPANY_LOGO_PATH)
+  ? COMPANY_LOGO_PATH
+  : path.join(__dirname, 'public', 'icons', 'icon-512.png');
+
+/**
+ * stampExcelHeader — بيضيف 3 صفوف فوق الجدول فيهم شعار الشركة + عنوان
+ * التقرير، عشان أي ملف إكسيل يتطبع يبان عليه إنه من منصة السويدي بوليمرز.
+ * (مش بيتستخدم في ملف Power BI لأن الصف الأول لازم يفضل عناوين الأعمدة.)
+ */
+function stampExcelHeader(wb, ws, title) {
+  try {
+    if (!ws) return;
+    ws.spliceRows(1, 0, [], [], []);
+    const t = ws.getRow(2).getCell(3);
+    t.value = title || 'تقرير';
+    t.font = { bold: true, size: 14, color: { argb: 'FF7C1D1D' } };
+    const s = ws.getRow(3).getCell(3);
+    s.value = `ELSEWEDY POLYMERS — منصة السلامة والصحة المهنية · ${new Date().toISOString().slice(0, 10)}`;
+    s.font = { size: 9, color: { argb: 'FF6B6B6B' } };
+    ws.getRow(1).height = 16;
+    ws.getRow(2).height = 20;
+    addCompanyLogoToSheet(wb, ws, { col: 0, row: 0, width: 110, height: 48 });
+  } catch (e) {
+    console.warn('[logo] تعذّر تجهيز رأس الملف:', e.message);
+  }
+}
+
+/** بيحط الشعار والعنوان في أول ورقة من الملف قبل ما يتبعت للمستخدم */
+function finalizeExcel(wb, title) {
+  try {
+    const ws = wb && wb.worksheets && wb.worksheets[0];
+    if (ws) stampExcelHeader(wb, ws, title);
+  } catch (e) { /* الشعار اختياري */ }
+}
+
+/** يحط شعار الشركة في أول ورقة إكسيل (ExcelJS) */
+function addCompanyLogoToSheet(wb, ws, opts = {}) {
+  try {
+    if (!fs.existsSync(COMPANY_LOGO_PATH)) return false;
+    const imageId = wb.addImage({ filename: COMPANY_LOGO_PATH, extension: 'png' });
+    ws.addImage(imageId, {
+      tl: { col: opts.col != null ? opts.col : 0, row: opts.row != null ? opts.row : 0 },
+      ext: { width: opts.width || 120, height: opts.height || 52 },
+      editAs: 'oneCell',
+    });
+    return true;
+  } catch (e) {
+    console.warn('[logo] تعذّر إضافة الشعار للملف:', e.message);
+    return false;
+  }
+}
 const PDF_PAGE_MARGIN = 46;
 
 function pdfBaseUrl(req) {
@@ -7920,13 +8135,26 @@ function findPermitById(permitId) {
 
 const PDF_EXPORT_ROLES = ['super_admin', 'hse_admin', 'dept_admin', 'maint_admin'];
 
+// لو حصل خطأ وسط تكوين الـ PDF لازم نفصل الـ stream عن الـ response الأول،
+// وإلا PDFKit يفضل يكتب في response اتقفل → "write after end" يوقّع السيرفر.
+function abortPdfStream(doc, res, message) {
+  if (doc) {
+    try { doc.unpipe(res); } catch (e) { /* الـ stream ممكن يكون اتقفل أصلاً */ }
+    try { doc.removeAllListeners('data'); doc.removeAllListeners('end'); } catch (e) { /* ignore */ }
+    try { if (typeof doc.destroy === 'function') doc.destroy(); } catch (e) { /* ignore */ }
+  }
+  if (res.headersSent) { try { res.end(); } catch (e) { /* ignore */ } return; }
+  res.status(500).json({ error: message });
+}
+
 // ── GET /api/permits/:id/pdf — تصدير تصريح عمل كـ PDF رسمي ──────
 app.get('/api/permits/:id/pdf', authenticateTokenFlexible, requireRole(...PDF_EXPORT_ROLES), async (req, res) => {
+  let doc = null;
   try {
     const permit = findPermitById(req.params.id);
     if (!permit) return res.status(404).json({ error: 'التصريح غير موجود' });
 
-    const doc = new PDFDocument({ size: 'A4', margin: PDF_PAGE_MARGIN, bufferPages: true });
+    doc = new PDFDocument({ size: 'A4', margin: PDF_PAGE_MARGIN, bufferPages: true });
     res.setHeader('Content-Type', 'application/pdf');
     setDownloadFilename(res, `تصريح عمل - ${permit.typeFullLabel || permit.typeLabel || ''} - ${permit.date || ''}`, 'pdf');
     doc.pipe(res);
@@ -7968,17 +8196,18 @@ app.get('/api/permits/:id/pdf', authenticateTokenFlexible, requireRole(...PDF_EX
     doc.end();
   } catch (err) {
     console.error('[PDF] Permit export failed:', err);
-    if (!res.headersSent) res.status(500).json({ error: 'فشل إنشاء ملف PDF' });
+    abortPdfStream(doc, res, 'فشل إنشاء ملف PDF');
   }
 });
 
 // ── GET /api/hazards/:id/pdf — تصدير بلاغ خطورة كـ PDF رسمي ──────
 app.get('/api/hazards/:id/pdf', authenticateTokenFlexible, requireRole(...PDF_EXPORT_ROLES), async (req, res) => {
+  let doc = null;
   try {
     const hazard = readHazards().find(h => h.id === req.params.id);
     if (!hazard) return res.status(404).json({ error: 'البلاغ غير موجود' });
 
-    const doc = new PDFDocument({ size: 'A4', margin: PDF_PAGE_MARGIN, bufferPages: true });
+    doc = new PDFDocument({ size: 'A4', margin: PDF_PAGE_MARGIN, bufferPages: true });
     res.setHeader('Content-Type', 'application/pdf');
     setDownloadFilename(res, `بلاغ خطورة - ${hazard.department || ''} - ${hazard.date || ''}`, 'pdf');
     doc.pipe(res);
@@ -8010,7 +8239,7 @@ app.get('/api/hazards/:id/pdf', authenticateTokenFlexible, requireRole(...PDF_EX
     doc.end();
   } catch (err) {
     console.error('[PDF] Hazard export failed:', err);
-    if (!res.headersSent) res.status(500).json({ error: 'فشل إنشاء ملف PDF' });
+    abortPdfStream(doc, res, 'فشل إنشاء ملف PDF');
   }
 });
 
@@ -8138,6 +8367,7 @@ app.post('/api/dashboard/export-excel-charts', authenticateToken, requireRole('s
     wsCharts.getColumn(1).width = 80;
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    finalizeExcel(wb, 'لوحة التحكم والإحصائيات');
     setDownloadFilename(res, `لوحة التحكم بالرسوم البيانية - ${new Date().toISOString().slice(0,10)}`, 'xlsx');
     await wb.xlsx.write(res);
     res.end();
@@ -8177,7 +8407,7 @@ function pbiAddSheet(wb, name, headers, rows, widths) {
   return ws;
 }
 
-app.get('/api/dashboard/export-powerbi', authenticateTokenFlexible, requireRole(...PBI_ROLES), async (req, res) => {
+const exportPowerBiHandler = async (req, res) => {
   try {
     const role = req.user.role;
     const scopeDept = (role === 'dept_admin' || role === 'maint_admin') ? String(req.user.department || '') : String(req.query.dept || '');
@@ -8343,6 +8573,27 @@ app.get('/api/dashboard/export-powerbi', authenticateTokenFlexible, requireRole(
         ['نسبة الالتزام الكلية %', comp.rows.length ? Math.round(((comp.rows.filter(r => r.trainOk).length + comp.rows.filter(r => r.hazOk).length) / (2 * comp.rows.length)) * 100) : 0],
       ], [34, 30]);
 
+    // ── ورقة الرسوم البيانية (صور الشاشة) — بتتبعت من المتصفح مع الطلب ──
+    const charts = Array.isArray(req.body && req.body.charts) ? req.body.charts : [];
+    if (charts.length) {
+      const wsCharts = wb.addWorksheet('الرسوم البيانية');
+      wsCharts.getColumn(1).width = 90;
+      addCompanyLogoToSheet(wb, wsCharts, { col: 0, row: 0, width: 120, height: 52 });
+      let rowCursor = 4;
+      for (const chart of charts) {
+        if (!chart || typeof chart.dataUrl !== 'string') continue;
+        const m = chart.dataUrl.match(/^data:image\/(png|jpeg);base64,(.+)$/);
+        if (!m) continue;
+        const cell = wsCharts.getCell(`A${rowCursor}`);
+        cell.value = sanitizeStr(chart.title || '', 120);
+        cell.font = { bold: true, size: 13, color: { argb: 'FF7C1D1D' } };
+        rowCursor += 1;
+        const imageId = wb.addImage({ buffer: Buffer.from(m[2], 'base64'), extension: m[1] === 'png' ? 'png' : 'jpeg' });
+        wsCharts.addImage(imageId, { tl: { col: 0, row: rowCursor - 1 }, ext: { width: 620, height: 300 } });
+        rowCursor += 17;
+      }
+    }
+
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     setDownloadFilename(res, `بيانات لوحة التحكم - Power BI - ${new Date().toISOString().slice(0, 10)}`, 'xlsx');
     await wb.xlsx.write(res);
@@ -8351,7 +8602,11 @@ app.get('/api/dashboard/export-powerbi', authenticateTokenFlexible, requireRole(
     console.error('[Dashboard] Power BI export failed:', err);
     if (!res.headersSent) res.status(500).json({ error: 'فشل إنشاء ملف البيانات' });
   }
-});
+};
+
+// GET للتنزيل المباشر (بيانات بس) و POST لما المتصفح يبعت صور الرسومات معاه
+app.get('/api/dashboard/export-powerbi', authenticateTokenFlexible, requireRole(...PBI_ROLES), exportPowerBiHandler);
+app.post('/api/dashboard/export-powerbi', authenticateToken, requireRole(...PBI_ROLES), exportPowerBiHandler);
 
 // ============================================================
 // 🤖 الشات بوت — /api/chatbot/message
