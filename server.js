@@ -7804,8 +7804,8 @@ app.post('/api/dashboard/export-excel-charts', authenticateToken, requireRole('s
 // ============================================================
 // 🤖 الشات بوت — /api/chatbot/message
 // ============================================================
-// إضافة 12 سبتمبر 2026. يدعم كل من العمال (بدون JWT — نفس نموذج الثقة
-// المستخدم لباقي مسارات العمال في هذا الملف) والأدمن (عبر JWT العادي).
+// لازم جلسة (عامل أو إدارة): الشات بوت مبيظهرش ولا بيرد قبل تسجيل الدخول،
+// وبيجاوب عن بيانات صاحب الجلسة بس (الهوية من التوكن، مش من جسم الطلب).
 function getPermitsArray() {
   const storage = readStorage();
   if (!storage['work-permits']) return [];
@@ -7815,36 +7815,32 @@ function getPermitsArray() {
   } catch { return []; }
 }
 
-function resolveChatbotUser(req) {
-  const authHeader = req.headers['authorization'];
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    try {
-      const decoded = jwt.verify(authHeader.slice(7), JWT_SECRET);
-      return { role: decoded.role, username: decoded.username, name: decoded.name, department: decoded.department || '' };
-    } catch (err) {
-      // Token غير صالح/منتهي — نكمل كعامل مجهول بدل ما نفشل الطلب بالكامل
-    }
-  }
-  const body = req.body || {};
+/** البيانات الحية اللي الشات بوت بيقرا منها (قراءة بس) */
+function chatbotData() {
   return {
-    role: 'worker',
-    empCode: normalizeEmpCode(body.empCode || ''),
-    name: sanitizeStr(body.name || '', 100),
-    department: sanitizeStr(body.department || '', 100),
+    employees: readEmployees,
+    trainings: readTrainings,
+    hazards: readHazards,
+    permits: getPermitsArray,
+    penalties: readPenalties,
+    drills: readDrills,
+    appUsers: getAppUsersSync,
   };
 }
 
-app.post('/api/chatbot/message', chatbotLimiter, (req, res) => {
-  const text = sanitizeStr(req.body.text || '', 500);
+/** صاحب الجلسة (من التوكن) — عمره ما بياخد كود موظف من جسم الطلب */
+function chatbotUserFromSession(req) {
+  if (req.worker) return { role: 'worker', empCode: req.worker.empCode, name: req.worker.name, department: req.worker.department };
+  const u = req.user || {};
+  return { role: u.role, username: u.username, name: u.fullName || u.name || '', empCode: u.empCode ? normalizeEmpCode(u.empCode) : '', department: u.department || '' };
+}
+
+app.post('/api/chatbot/message', chatbotLimiter, authenticateSession, (req, res) => {
+  const text = sanitizeStr((req.body && req.body.text) || '', 500);
   if (!text) return res.status(400).json({ error: 'الرسالة فارغة' });
-  const user = resolveChatbotUser(req);
   try {
-    const result = chatbot.handleMessage({
-      text,
-      user,
-      getCollections: { permits: getPermitsArray, hazards: readHazards, trainings: readTrainings },
-    });
-    res.json(result);
+    const result = chatbot.handleMessage({ text, user: chatbotUserFromSession(req), data: chatbotData() });
+    res.json({ reply: result.reply, source: result.source || null, suggestions: (result.suggestions || []).slice(0, 4) });
   } catch (err) {
     console.error('[chatbot] خطأ غير متوقع:', err);
     res.status(500).json({ reply: 'حصل خطأ غير متوقع في الشات بوت، حاول تاني أو راجع مشرف السلامة.' });
@@ -7898,14 +7894,16 @@ async function handleWhatsAppButtonAction(incoming) {
 
 async function handleWhatsAppTextMessage(incoming) {
   const admin = findAdminByWhatsAppPhone(incoming.from);
+  // رقم أدمن متسجّل → نفس بيانات المنصة. أي رقم تاني → تعليمات السلامة و SDS
+  // بس (من غير أسماء الموظفين ولا بيانات شخصية لحد مش مسجّل).
   const user = admin
-    ? { role: admin.role, username: admin.username, name: admin.name, department: admin.department || '' }
-    : { role: 'worker', empCode: '', name: '', department: '' }; // رسائل نصية من عمال: بيانات محدودة (بدون تسجيل دخول حقيقي عبر واتساب حاليًا)
+    ? { role: admin.role, username: admin.username, name: admin.name, department: admin.department || '', empCode: '' }
+    : { role: 'guest' };
   try {
     const result = chatbot.handleMessage({
       text: incoming.text,
       user,
-      getCollections: { permits: getPermitsArray, hazards: readHazards, trainings: readTrainings },
+      data: admin ? chatbotData() : {},
     });
     await whatsapp.sendText(incoming.from, result.reply);
   } catch (err) {

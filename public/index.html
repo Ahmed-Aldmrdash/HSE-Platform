@@ -52,7 +52,7 @@
         rel="stylesheet"
       />
     </noscript>
-    <link rel="stylesheet" href="style.min.css?v=2.40.0" />
+    <link rel="stylesheet" href="style.min.css?v=2.42.0" />
     <!-- PERF: xlsx.js (~900KB) and chart.js are only ever used AFTER login
          (dashboard charts, Excel export/import buttons) — never on this
          initial login screen. Loading them as normal <script> tags (even
@@ -2435,39 +2435,31 @@
     </div>
 
     <!-- ============================================================
-         🤖 مساعد السلامة الذكي (Chatbot) — أُضيف 12 سبتمبر 2026
+         🦺 مساعد السلامة الذكي — بيظهر بس بعد تسجيل الدخول، وكل حساب
+         ليه محادثته (بتتمسح مع تسجيل الخروج)
          ============================================================ -->
-    <div id="cbFab" onclick="toggleChatbot()" title="مساعد السلامة">🤖</div>
-    <div id="cbPanel" style="display:none">
-      <div id="cbHeader">
-        <span>🤖 مساعد السلامة</span>
-        <span id="cbClose" onclick="toggleChatbot()">✕</span>
-      </div>
-      <div id="cbMessages"></div>
-      <div id="cbInputRow">
-        <input type="text" id="cbInput" placeholder="اسأل عن تعليمات السلامة أو فرق الطوارئ..." onkeydown="if(event.key==='Enter') sendChatbotMessage()" />
-        <button onclick="sendChatbotMessage()">إرسال</button>
-      </div>
-    </div>
-    <style>
-      #cbFab{position:fixed;bottom:20px;left:20px;width:56px;height:56px;border-radius:50%;
-        background:var(--amber,#E2001A);color:#fff;display:flex;align-items:center;justify-content:center;
-        font-size:26px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);z-index:9999;}
-      #cbPanel{position:fixed;bottom:86px;left:20px;width:min(360px,92vw);max-height:70vh;
-        background:var(--paper,#fff);border:1px solid var(--paper-line,#ddd);border-radius:14px;
-        box-shadow:0 8px 30px rgba(0,0,0,.3);z-index:9999;display:flex;flex-direction:column;overflow:hidden;}
-      #cbHeader{background:var(--amber,#E2001A);color:#fff;padding:10px 14px;display:flex;
-        justify-content:space-between;align-items:center;font-weight:bold;}
-      #cbClose{cursor:pointer;font-size:18px;}
-      #cbMessages{flex:1;overflow-y:auto;padding:10px;font-size:14px;min-height:180px;max-height:45vh;}
-      .cbMsg{margin-bottom:10px;padding:8px 10px;border-radius:10px;white-space:pre-wrap;line-height:1.5;}
-      .cbMsg.user{background:var(--amber,#E2001A);color:#fff;margin-left:30px;}
-      .cbMsg.bot{background:var(--paper-line,#f0f0f0);margin-right:30px;}
-      .cbMsg.source{font-size:11px;opacity:.65;margin-top:4px;}
-      #cbInputRow{display:flex;border-top:1px solid var(--paper-line,#ddd);}
-      #cbInputRow input{flex:1;border:none;padding:10px;font-size:14px;outline:none;}
-      #cbInputRow button{border:none;background:var(--amber,#E2001A);color:#fff;padding:0 16px;cursor:pointer;}
-    </style>
-    <script src="app.min.js?v=99.9.39" defer></script>
+    <button id="cbFab" class="cb-fab" type="button" onclick="toggleChatbot()" title="مساعد السلامة" aria-label="مساعد السلامة" style="display: none">
+      <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path fill="currentColor" d="M12 3C6.5 3 2 6.6 2 11c0 2.3 1.2 4.4 3.2 5.9L4.5 21l4.4-2.3c1 .2 2 .3 3.1.3 5.5 0 10-3.6 10-8s-4.5-8-10-8Zm-4 9.3a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6Zm4 0a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6Zm4 0a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6Z"/></svg>
+    </button>
+    <section id="cbPanel" class="cb-panel" style="display: none" role="dialog" aria-label="مساعد السلامة">
+      <header class="cb-header">
+        <div class="cb-avatar" aria-hidden="true">🦺</div>
+        <div class="cb-head-text">
+          <div class="cb-title">مساعد السلامة</div>
+          <div class="cb-sub"><span class="cb-online"></span><span>بيرد من مصادر المصنع وبياناتك</span></div>
+        </div>
+        <button type="button" class="cb-icon-btn" onclick="clearChatbot()" title="محادثة جديدة" aria-label="محادثة جديدة">⟳</button>
+        <button type="button" class="cb-icon-btn" onclick="toggleChatbot()" title="إغلاق" aria-label="إغلاق">✕</button>
+      </header>
+      <div id="cbMessages" class="cb-messages" aria-live="polite"></div>
+      <form class="cb-input-row" onsubmit="event.preventDefault(); sendChatbotMessage();">
+        <input type="text" id="cbInput" autocomplete="off" maxlength="500" enterkeyhint="send" placeholder="اكتب سؤالك هنا..."
+               onkeydown="if (event.key === 'Enter' &amp;&amp; !event.isComposing) { event.preventDefault(); sendChatbotMessage(); }" />
+        <button type="submit" id="cbSend" class="cb-send" aria-label="إرسال">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M3.4 20.4 21 12 3.4 3.6v6.4l12.6 2-12.6 2z"/></svg>
+        </button>
+      </form>
+    </section>
+    <script src="app.min.js?v=99.9.40" defer></script>
   </body>
 </html>

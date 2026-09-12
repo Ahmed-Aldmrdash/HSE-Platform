@@ -137,6 +137,25 @@ Object.assign(I18N_STRINGS, {
   'تنزيل القائمة (CSV)': 'Download list (CSV)',
   'لازم تتغير كلمة السر': 'Password must be changed',
   'اسأل عن تعليمات السلامة أو فرق الطوارئ...': 'Ask about safety instructions or emergency teams...',
+  'أهلاً': 'Hi',
+  'يا': '',
+  'أنا مساعد السلامة الذكي — بجاوبك من تعليمات السلامة، فرق الطوارئ، كروت SDS للمواد الكيميائية، الهيكل الإداري، وبياناتك انت (محاضراتك، التارجت، بلاغاتك، تصاريحك).': "I'm the Safety Assistant — I answer from the safety instructions, emergency teams, chemical SDS cards, the org chart, and your own records (trainings, targets, hazard reports, permits). Arabic questions work best.",
+  'اكتب سؤالك بالعامية عادي، أو اختار من دول:': 'Type your question, or pick one:',
+  'انت مين؟': 'Who are you?',
+  'محاضراتي': 'My trainings',
+  'التارجت بتاعي': 'My targets',
+  'بلاغاتي': 'My hazard reports',
+  'كام بلاغ مفتوح؟': 'How many open hazards?',
+  'مين مديرين الأقسام؟': 'Who are the department managers?',
+  'SDS الأسيتون': 'SDS Acetone',
+  'المصدر:': 'Source:',
+  'حصل خطأ، حاول تاني.': 'Something went wrong, please try again.',
+  'تعذّر الاتصال بالسيرفر، تأكد من اتصالك وحاول تاني.': 'Could not reach the server, check your connection and try again.',
+  'مساعد السلامة': 'Safety Assistant',
+  'بيرد من مصادر المصنع وبياناتك': 'Answers from plant sources and your data',
+  'اكتب سؤالك هنا...': 'Type your question...',
+  'محادثة جديدة': 'New chat',
+  'إغلاق': 'Close',
 });
 
 /** لغة تنسيق التواريخ والأرقام: عربية بأرقام عربية، إنجليزية بأرقام لاتينية. */
@@ -784,6 +803,7 @@ function applyRbacUI() {
 
   // Sync CSS safety-net attribute
   document.body.dataset.session = sessionRole;
+  syncChatbotVisibility();
 
   // ── Main app container visibility ──────────────────────────────────
   // Show mainApp only when a role is active.  When isNone the overlay
@@ -1358,6 +1378,7 @@ function showUserBadge(){
 }
 
 function logout(){
+  resetChatbot(); // محادثة الحساب اللي خرج متفضلش للي بعده
   // ── Reset supervisor session state ────────────────────────
   isLoggedIn      = false;
   currentUsername = '';
@@ -1528,6 +1549,7 @@ function showEmpBadge(){
 
 /** تسجيل خروج الموظف: مسح الجلسة والعودة لشاشة الدخول */
 function workerLogout(){
+  resetChatbot();
   currentEmployee = null;
   localStorage.removeItem('ep_currentEmployee');
   if(myHistoryPollTimer){ clearInterval(myHistoryPollTimer); myHistoryPollTimer = null; }
@@ -10197,88 +10219,186 @@ async function sendBackupEmailNow() {
   } catch (e) { /* السطر ده معلوماتي بس */ }
 }
 // ============================================================
-// 🤖 مساعد السلامة الذكي (Chatbot Widget) — أُضيف 12 سبتمبر 2026
+// 🦺 مساعد السلامة الذكي (Chatbot Widget)
 // ============================================================
+// بيظهر بس لما يكون فيه جلسة (عامل / إدارة / CEO). المحادثة مربوطة بصاحب
+// الجلسة: أول ما الحساب يتغير (خروج أو دخول بحساب تاني) بتتمسح بالكامل —
+// والسيرفر نفسه بيرد عن بيانات صاحب التوكن بس.
 let _cbOpen = false;
-let _cbHistory = [];
+let _cbOwner = '';
+let _cbBusy = false;
+
+function chatbotOwnerKey() {
+  if (sessionRole === 'worker' && typeof currentEmployee !== 'undefined' && currentEmployee) return 'w:' + currentEmployee.empCode;
+  if ((sessionRole === 'supervisor' || sessionRole === 'ceo') && getToken()) return 'a:' + (currentUsername || currentUserName || '');
+  return '';
+}
+
+function chatbotDisplayName() {
+  if (sessionRole === 'worker' && typeof currentEmployee !== 'undefined' && currentEmployee) return currentEmployee.name || '';
+  return currentUserName || '';
+}
+
+/** يمسح المحادثة (يتنادى مع الخروج/الدخول ولما صاحب الجلسة يتغير) */
+function resetChatbot() {
+  _cbOwner = '';
+  _cbBusy = false;
+  const box = document.getElementById('cbMessages');
+  if (box) box.innerHTML = '';
+  const input = document.getElementById('cbInput');
+  if (input) input.value = '';
+  closeChatbot();
+}
+
+function closeChatbot() {
+  _cbOpen = false;
+  const panel = document.getElementById('cbPanel');
+  if (panel) panel.style.display = 'none';
+  const fab = document.getElementById('cbFab');
+  if (fab) fab.classList.remove('is-open');
+}
+
+/** الزرار العائم بيظهر بعد تسجيل الدخول بس */
+function syncChatbotVisibility() {
+  const fab = document.getElementById('cbFab');
+  const owner = chatbotOwnerKey();
+  if (fab) fab.style.display = owner ? 'flex' : 'none';
+  if (!owner || (_cbOwner && _cbOwner !== owner)) resetChatbot();
+}
 
 function toggleChatbot() {
+  const owner = chatbotOwnerKey();
+  if (!owner) { resetChatbot(); return; }
+  if (_cbOwner && _cbOwner !== owner) resetChatbot();
   _cbOpen = !_cbOpen;
   const panel = document.getElementById('cbPanel');
   if (!panel) return;
   panel.style.display = _cbOpen ? 'flex' : 'none';
-  if (_cbOpen && _cbHistory.length === 0) {
-    appendChatbotMessage('bot', T('أهلاً! أنا مساعد السلامة — اسألني عن أي حاجة في تعليمات السلامة (SE-W01) أو فرق الطوارئ، حتى لو كتبت بالعامية أو فيها غلطة إملائية 🙂'));
+  const fab = document.getElementById('cbFab');
+  if (fab) fab.classList.toggle('is-open', _cbOpen);
+  if (_cbOpen && !_cbOwner) {
+    _cbOwner = owner;
+    chatbotWelcome();
   }
+  if (_cbOpen) setTimeout(() => { const i = document.getElementById('cbInput'); if (i) i.focus(); }, 80);
 }
 
-function appendChatbotMessage(role, text, sourceText) {
+function clearChatbot() {
+  const box = document.getElementById('cbMessages');
+  if (box) box.innerHTML = '';
+  chatbotWelcome();
+}
+
+function chatbotWelcome() {
+  const first = String(chatbotDisplayName()).replace(/^\s*(م|ا|أ|د)\s*\/\s*/, '').trim().split(/\s+/)[0] || '';
+  const isAdmin = sessionRole === 'supervisor' || sessionRole === 'ceo';
+  appendChatbotMessage('bot',
+    T('أهلاً') + (first ? ' ' + T('يا') + ' ' + first : '') + ' 👋\n' +
+    T('أنا مساعد السلامة الذكي — بجاوبك من تعليمات السلامة، فرق الطوارئ، كروت SDS للمواد الكيميائية، الهيكل الإداري، وبياناتك انت (محاضراتك، التارجت، بلاغاتك، تصاريحك).') + '\n' +
+    T('اكتب سؤالك بالعامية عادي، أو اختار من دول:'),
+    null,
+    isAdmin
+      ? [T('انت مين؟'), T('كام بلاغ مفتوح؟'), T('مين مديرين الأقسام؟'), T('SDS الأسيتون')]
+      : [T('انت مين؟'), T('محاضراتي'), T('التارجت بتاعي'), T('بلاغاتي')]);
+}
+
+function _cbTime() {
+  try { return new Date().toLocaleTimeString(LOC(), { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; }
+}
+
+function appendChatbotMessage(role, text, sourceText, suggestions) {
   const box = document.getElementById('cbMessages');
   if (!box) return;
-  const div = document.createElement('div');
-  div.className = 'cbMsg ' + (role === 'user' ? 'user' : 'bot');
-  div.textContent = text;
-  box.appendChild(div);
+  box.querySelectorAll('.cb-chips').forEach(c => c.remove()); // الاقتراحات القديمة ملهاش لازمة
+  const row = document.createElement('div');
+  row.className = 'cb-row ' + (role === 'user' ? 'user' : 'bot');
+  if (role !== 'user') {
+    const av = document.createElement('div');
+    av.className = 'cb-mini-avatar';
+    av.textContent = '🦺';
+    row.appendChild(av);
+  }
+  const meta = document.createElement('div');
+  meta.className = 'cb-meta';
+  const bubble = document.createElement('div');
+  bubble.className = 'cb-bubble';
+  bubble.textContent = text;
   if (sourceText) {
     const src = document.createElement('div');
-    src.className = 'cbMsg source';
-    src.textContent = '📎 ' + sourceText;
-    box.appendChild(src);
+    src.className = 'cb-source';
+    src.textContent = '📄 ' + T('المصدر:') + ' ' + sourceText;
+    bubble.appendChild(src);
+  }
+  meta.appendChild(bubble);
+  const time = document.createElement('div');
+  time.className = 'cb-time';
+  time.textContent = _cbTime();
+  meta.appendChild(time);
+  row.appendChild(meta);
+  box.appendChild(row);
+  if (role !== 'user' && Array.isArray(suggestions) && suggestions.length) {
+    const chips = document.createElement('div');
+    chips.className = 'cb-chips';
+    suggestions.slice(0, 4).forEach(s => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'cb-chip';
+      b.textContent = s;
+      b.onclick = () => sendChatbotMessage(s);
+      chips.appendChild(b);
+    });
+    box.appendChild(chips);
   }
   box.scrollTop = box.scrollHeight;
 }
 
-/**
- * ينفّذ الإجراء اللي رجّعه البوت (لو موجود) — بيوجّه المستخدم للفورم
- * الصحيح مع تعبئة مبدئية، بدل ما ينفّذ العملية مباشرة من جوه الشات
- * (راجع التعليق في lib/chatbot.js لشرح سبب هذا القرار المعماري).
- */
-function applyChatbotAction(action) {
-  if (!action) return;
-  if (action.type === 'navigate' && action.tab) {
-    try { switchTab(action.tab); } catch (e) { /* لو التبويب مش متاح في السياق الحالي */ }
-    if (action.prefill && action.prefill.permitType && typeof selectType === 'function') {
-      setTimeout(() => { try { selectType(action.prefill.permitType); } catch (e) {} }, 150);
-    }
-    if (action.prefill && action.prefill.description) {
-      setTimeout(() => {
-        const el = document.getElementById('hz_desc');
-        if (el) el.value = action.prefill.description;
-      }, 150);
-    }
-    toggleChatbot(); // اقفل الشات بعد التوجيه عشان الفورم يبان كامل
-  }
+function _cbTyping(show) {
+  const box = document.getElementById('cbMessages');
+  if (!box) return;
+  const old = document.getElementById('cbTypingRow');
+  if (old) old.remove();
+  if (!show) return;
+  const row = document.createElement('div');
+  row.id = 'cbTypingRow';
+  row.className = 'cb-row bot cb-typing';
+  row.innerHTML = '<div class="cb-mini-avatar">🦺</div><div class="cb-bubble"><span class="cb-dot"></span><span class="cb-dot"></span><span class="cb-dot"></span></div>';
+  box.appendChild(row);
+  box.scrollTop = box.scrollHeight;
 }
 
-async function sendChatbotMessage() {
+async function sendChatbotMessage(preset) {
+  if (_cbBusy) return;
+  const owner = chatbotOwnerKey();
+  if (!owner) { resetChatbot(); return; }
   const input = document.getElementById('cbInput');
-  const text = (input.value || '').trim();
+  const text = String(typeof preset === 'string' ? preset : (input && input.value) || '').trim();
   if (!text) return;
-  input.value = '';
+  if (input) input.value = '';
   appendChatbotMessage('user', text);
-  _cbHistory.push({ role: 'user', text });
-
-  const payload = { text };
-  // هوية المستخدم: عامل (currentEmployee) أو أدمن (JWT عبر authFetch تلقائيًا)
-  if (typeof currentEmployee !== 'undefined' && currentEmployee) {
-    payload.empCode = currentEmployee.empCode;
-    payload.name = currentEmployee.name;
-    payload.department = currentEmployee.department;
-  }
-
+  _cbBusy = true;
+  const sendBtn = document.getElementById('cbSend');
+  if (sendBtn) sendBtn.disabled = true;
+  _cbTyping(true);
   try {
-    const useAuth = typeof isLoggedIn !== 'undefined' && isLoggedIn && typeof authFetch === 'function';
-    const res = useAuth
-      ? await authFetch('/api/chatbot/message', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-      : await fetch('/api/chatbot/message', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    const data = await res.json();
+    const res = await authFetch('/api/chatbot/message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+    const data = await res.json().catch(() => ({}));
+    _cbTyping(false);
+    if (chatbotOwnerKey() !== owner) { resetChatbot(); return; } // الحساب اتغير أثناء الانتظار
     if (!res.ok) {
-      appendChatbotMessage('bot', data.error || 'حصل خطأ، حاول تاني.');
-      return;
+      appendChatbotMessage('bot', data.error || data.reply || T('حصل خطأ، حاول تاني.'));
+    } else {
+      appendChatbotMessage('bot', data.reply, data.source, data.suggestions);
     }
-    appendChatbotMessage('bot', data.reply, data.source);
-    applyChatbotAction(data.action);
   } catch (err) {
-    appendChatbotMessage('bot', 'تعذّر الاتصال بالسيرفر، تأكد من اتصالك وحاول تاني.');
+    _cbTyping(false);
+    appendChatbotMessage('bot', T('تعذّر الاتصال بالسيرفر، تأكد من اتصالك وحاول تاني.'));
+  } finally {
+    _cbBusy = false;
+    if (sendBtn) sendBtn.disabled = false;
+    if (input) input.focus();
   }
 }
