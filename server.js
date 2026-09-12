@@ -3544,6 +3544,30 @@ app.post('/api/auth/forgot-password', loginLimiter, async (req, res) => {
 
   const temp = generateTempPassword();
   const hash = await bcrypt.hash(temp, BCRYPT_ROUNDS);
+
+  // مهم: بنبعت الإيميل الأول وبعدين نغيّر كلمة السر. لو غيّرناها قبل
+  // الإرسال وفشل الإيميل، صاحب الحساب يبقى اتقفل برّه بكلمة سر محدش يعرفها.
+  const sent = await mailer.sendMail({
+    to: email,
+    subject: 'كلمة سر مؤقتة — منصة السلامة (السويدي بوليمرز)',
+    text: `كلمة السر المؤقتة لحسابك (${user.username}): ${temp}\nصالحة 30 دقيقة، وأول ما تدخل بيها هيتطلب منك تعمل كلمة سر جديدة.\nلو مش إنت اللي طلبتها، كلّم مدير النظام فورًا.`,
+    html: `<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;font-size:15px;line-height:2">
+      <b>كلمة سر مؤقتة لحسابك على منصة السلامة</b><br>
+      الحساب: <b>${user.username}</b><br>
+      كلمة السر المؤقتة: <b style="font-size:20px;letter-spacing:2px;font-family:Consolas,monospace">${temp}</b><br>
+      صالحة <b>30 دقيقة</b> بس، وأول ما تدخل بيها هيتطلب منك تعمل كلمة سر جديدة.<br>
+      <span style="color:#b91c1c">لو مش إنت اللي طلبتها، كلّم مدير النظام فورًا.</span>
+    </div>`,
+  });
+  if (!sent.sent) {
+    logAuditEvent({
+      entityType: 'user', entityId: user.id || user.username, action: 'forgot_password',
+      actor: { username: user.username, name: (profile && profile.name) || '' },
+      note: `فشل إرسال كلمة السر المؤقتة (كلمة السر القديمة زي ما هي): ${sent.error || sent.reason}`,
+    });
+    return res.status(502).json({ error: `فشل إرسال الإيميل: ${sent.error || sent.reason} — كلمة السر القديمة زي ما هي` });
+  }
+
   let ok = false;
   await enqueueWrite(async () => {
     const st = readStorage();
@@ -3561,24 +3585,11 @@ app.post('/api/auth/forgot-password', loginLimiter, async (req, res) => {
   });
   if (!ok) return res.status(500).json({ error: 'فشل تجهيز كلمة السر المؤقتة' });
 
-  const sent = await mailer.sendMail({
-    to: email,
-    subject: 'كلمة سر مؤقتة — منصة السلامة (السويدي بوليمرز)',
-    text: `كلمة السر المؤقتة لحسابك (${user.username}): ${temp}\nصالحة 30 دقيقة، وأول ما تدخل بيها هيتطلب منك تعمل كلمة سر جديدة.\nلو مش إنت اللي طلبتها، كلّم مدير النظام فورًا.`,
-    html: `<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;font-size:15px;line-height:2">
-      <b>كلمة سر مؤقتة لحسابك على منصة السلامة</b><br>
-      الحساب: <b>${user.username}</b><br>
-      كلمة السر المؤقتة: <b style="font-size:20px;letter-spacing:2px;font-family:Consolas,monospace">${temp}</b><br>
-      صالحة <b>30 دقيقة</b> بس، وأول ما تدخل بيها هيتطلب منك تعمل كلمة سر جديدة.<br>
-      <span style="color:#b91c1c">لو مش إنت اللي طلبتها، كلّم مدير النظام فورًا.</span>
-    </div>`,
-  });
   logAuditEvent({
     entityType: 'user', entityId: user.id || user.username, action: 'forgot_password',
     actor: { username: user.username, name: (profile && profile.name) || '' },
-    note: sent.sent ? `كلمة سر مؤقتة اتبعتت على ${maskEmail(email)}` : `فشل إرسال كلمة السر المؤقتة: ${sent.error || sent.reason}`,
+    note: `كلمة سر مؤقتة اتبعتت على ${maskEmail(email)}`,
   });
-  if (!sent.sent) return res.status(502).json({ error: `فشل إرسال الإيميل: ${sent.error || sent.reason}` });
   res.json({ success: true, sentTo: maskEmail(email) });
 });
 
@@ -8379,12 +8390,34 @@ function chatbotUserFromSession(req) {
   return { role: u.role, username: u.username, name: u.fullName || u.name || '', empCode: u.empCode ? normalizeEmpCode(u.empCode) : '', department: u.department || '' };
 }
 
+// موضوع آخر إجابة (بييجي من الواجهة) — بيسمح بأسئلة المتابعة زي "وفي القسم
+// كله؟" من غير ما نخزّن أي محادثة على السيرفر. بيتفلتر لقيم معروفة بس.
+const CHATBOT_TOPICS = ['hazards', 'permits', 'trainings', 'drills', 'penalties', 'employees', 'compliance', 'inspections'];
+function chatbotContextFromBody(body) {
+  const c = body && body.context;
+  if (!c || typeof c !== 'object') return null;
+  const lastEntity = CHATBOT_TOPICS.includes(c.lastEntity) ? c.lastEntity : null;
+  if (!lastEntity) return null;
+  const depts = Array.isArray(c.depts) ? c.depts.slice(0, 5).map(d => sanitizeStr(d, 60)).filter(Boolean) : [];
+  return { lastEntity, depts };
+}
+
 app.post('/api/chatbot/message', chatbotLimiter, authenticateSession, (req, res) => {
   const text = sanitizeStr((req.body && req.body.text) || '', 500);
   if (!text) return res.status(400).json({ error: 'الرسالة فارغة' });
   try {
-    const result = chatbot.handleMessage({ text, user: chatbotUserFromSession(req), data: chatbotData() });
-    res.json({ reply: result.reply, source: result.source || null, suggestions: (result.suggestions || []).slice(0, 4) });
+    const result = chatbot.handleMessage({
+      text,
+      user: chatbotUserFromSession(req),
+      data: chatbotData(),
+      context: chatbotContextFromBody(req.body),
+    });
+    res.json({
+      reply: result.reply,
+      source: result.source || null,
+      suggestions: (result.suggestions || []).slice(0, 4),
+      topic: result.topic ? { lastEntity: result.topic.entity, depts: result.topic.depts || [] } : null,
+    });
   } catch (err) {
     console.error('[chatbot] خطأ غير متوقع:', err);
     res.status(500).json({ reply: 'حصل خطأ غير متوقع في الشات بوت، حاول تاني أو راجع مشرف السلامة.' });

@@ -9089,27 +9089,37 @@ function renderDashboardHTML(container, data) {
  * ولما يكون فيه فلتر قسم، بيتعرض القسم ده بس ومعاه ترتيبه بين كل الأقسام.
  * (تصحيح بطلب بشمهندس أحمد 12 سبتمبر 2026.)
  */
-function _dashRenderDeptCompliance(scoredAll, q, scopeDept) {
+function _dashRenderDeptCompliance(scoredAll, q, scopeDept, penaltyMap) {
   const boardEl = document.getElementById('dashDeptLeaderboard');
   if (!boardEl) return; // personal/department view — no leaderboard on screen
+  const pens = penaltyMap || new Map();
   const byDept = new Map();
   (scoredAll || []).forEach(e => {
     const d = String(e.department || '').trim() || T('غير محدد');
-    if (!byDept.has(d)) byDept.set(d, { dept: d, n: 0, t: 0, h: 0 });
+    if (!byDept.has(d)) byDept.set(d, { dept: d, n: 0, t: 0, h: 0, sum: 0, pen: 0 });
     const b = byDept.get(d);
+    const st = e._stats || { trainingHours: 0, hazardsCount: 0 };
+    const nPen = pens.get(normalizeCode(e.code || e.empCode || e.id)) || 0;
+    // درجة الموظف = (نسبة التدريب + نسبة البلاغات) ÷ 2 − خصم الجزاءات،
+    // نفس أساس ترتيب "العامل المثالي" — عشان قسم عليه جزاءات ما ياخدش 100%.
+    const trainPct = Math.min(100, Math.round((st.trainingHours / q.targetHours) * 100));
+    const hazPct   = Math.min(100, Math.round((st.hazardsCount  / q.targetHazards) * 100));
+    const score = Math.max(0, Math.round((trainPct + hazPct) / 2) - nPen * MODEL_EMP_PENALTY_DEDUCTION);
     b.n++;
-    if (e._stats && e._stats.trainingHours >= q.targetHours) b.t++;
-    if (e._stats && e._stats.hazardsCount  >= q.targetHazards) b.h++;
+    b.sum += score;
+    b.pen += nPen;
+    if (st.trainingHours >= q.targetHours) b.t++;
+    if (st.hazardsCount  >= q.targetHazards) b.h++;
   });
   // قسم فيه أقل من 3 موظفين نسبته مضللة (موظف واحد = 0% أو 100%)
   const MIN_DEPT_EMPLOYEES = 3;
   const rows = [...byDept.values()]
     .filter(b => b.n >= MIN_DEPT_EMPLOYEES)
     .map(b => ({
-      dept: b.dept, n: b.n,
+      dept: b.dept, n: b.n, penalties: b.pen,
       trainPct: Math.round((b.t / b.n) * 100),
       hazPct:   Math.round((b.h / b.n) * 100),
-      score:    Math.round(((b.t / b.n) + (b.h / b.n)) * 50),
+      score:    Math.round(b.sum / b.n),
     }))
     .sort((a, b) => b.score - a.score || b.n - a.n);
 
@@ -9120,7 +9130,7 @@ function _dashRenderDeptCompliance(scoredAll, q, scopeDept) {
   const shown = scopeDept
     ? rows.filter(r => r.dept.toLowerCase().includes(String(scopeDept).toLowerCase()))
     : rows.slice(0, 12);
-  const note = `<div class="dash-board-note">${T('المعيار: نسبة موظفي القسم اللي حققوا تارجت')} ${q.targetHours}${T('س تدريب و')}${q.targetHazards} ${T('بلاغ خطورة لحد')} ${q.label}${scopeDept ? ` · ${T('مفلتر على قسم')} ${escapeHtml(scopeDept)}` : ''}</div>`;
+  const note = `<div class="dash-board-note">${T('المعيار: متوسط درجات موظفي القسم — إنجاز تارجت')} ${q.targetHours}${T('س تدريب و')}${q.targetHazards} ${T('بلاغ خطورة لحد')} ${q.label}${T('، وكل جزاء نشط بيخصم')} ${MODEL_EMP_PENALTY_DEDUCTION} ${T('نقطة')}${scopeDept ? ` · ${T('مفلتر على قسم')} ${escapeHtml(scopeDept)}` : ''}</div>`;
   boardEl.innerHTML = note + (shown.length ? shown.map(r => {
     const rank = rows.findIndex(x => x.dept === r.dept) + 1;
     const cls = r.score >= 80 ? 'good' : r.score >= 50 ? 'mid' : 'bad';
@@ -9132,7 +9142,7 @@ function _dashRenderDeptCompliance(scoredAll, q, scopeDept) {
           <div class="exec-leaderboard-bar-bg">
             <div class="exec-leaderboard-bar-fill ${cls}" style="width:${Math.max(2, r.score)}%"></div>
           </div>
-          <div class="dash-board-sub">${T('تدريب')} ${r.trainPct}% · ${T('بلاغات')} ${r.hazPct}%${scopeDept ? ` · ${T('الترتيب')} ${rank} ${T('من')} ${rows.length}` : ''}</div>
+          <div class="dash-board-sub">${T('تدريب')} ${r.trainPct}% · ${T('بلاغات')} ${r.hazPct}%${r.penalties ? ` · <span style="color:var(--danger);font-weight:700;">${T('جزاءات')} ${r.penalties} ⚖️</span>` : ''}${scopeDept ? ` · ${T('الترتيب')} ${rank} ${T('من')} ${rows.length}` : ''}</div>
         </div>
         <div class="exec-leaderboard-score">${r.score}</div>
       </div>`;
@@ -9180,14 +9190,16 @@ async function _dashLoadTargetCompliance(scopeDept, ids) {
   if (!pctTrainAchEl || !pctHazEl) return;
 
   try {
-    const [empRes, hazRes, trainRes] = await Promise.all([
+    const [empRes, hazRes, trainRes, penRes] = await Promise.all([
       authFetch('/api/employees'),
       authFetch('/api/hazards'),
-      authFetch('/api/trainings')
+      authFetch('/api/trainings'),
+      authFetch('/api/penalties')
     ]);
     const allEmployees = empRes.ok ? toArray(await empRes.json()) : [];
     window._allHazardsCache = hazRes.ok ? toArray(await hazRes.json()) : [];
     window._trainingsCache  = trainRes.ok ? toArray(await trainRes.json()) : [];
+    const penaltiesList = penRes && penRes.ok ? toArray(await penRes.json()) : [];
 
     const q = _dashGetCurrentQuarterInfo();
     // Both training hours and hazard reports are counted cumulatively since
@@ -9222,8 +9234,18 @@ async function _dashLoadTargetCompliance(scopeDept, ids) {
       if (subOverallEl) subOverallEl.innerHTML = `${T("تدريب")} ${trainAchPct}${T("% · بلاغات خطورة")} ${hazPct}%`;
     }
 
+    // الجزاءات النشطة من أول السنة لكل موظف — بتخصم من درجة القسم
+    const penaltyMap = new Map();
+    penaltiesList.forEach(p => {
+      if (!p || p.status === 'deleted' || p.status === 'cancelled') return;
+      const d = new Date(p.date || p.createdAt || 0);
+      if (isNaN(d) || d < q.yearStart) return;
+      const code = normalizeCode(p.empCode || p.code || '');
+      if (code) penaltyMap.set(code, (penaltyMap.get(code) || 0) + 1);
+    });
+
     // ترتيب الأقسام من نفس الحساب (لو الجدول ظاهر على الشاشة)
-    _dashRenderDeptCompliance(scoredAll, q, scopeDept);
+    _dashRenderDeptCompliance(scoredAll, q, scopeDept, penaltyMap);
   } catch (err) {
     console.error('Target compliance load error', err);
     pctTrainAchEl.textContent = '—';
@@ -10551,6 +10573,7 @@ async function sendBackupEmailNow() {
 let _cbOpen = false;
 let _cbOwner = '';
 let _cbBusy = false;
+let _cbTopic = null; // موضوع آخر إجابة (للأسئلة اللي بتكمّل على اللي قبلها)
 
 function chatbotOwnerKey() {
   if (sessionRole === 'worker' && typeof currentEmployee !== 'undefined' && currentEmployee) return 'w:' + currentEmployee.empCode;
@@ -10567,6 +10590,7 @@ function chatbotDisplayName() {
 function resetChatbot() {
   _cbOwner = '';
   _cbBusy = false;
+  _cbTopic = null;
   const box = document.getElementById('cbMessages');
   if (box) box.innerHTML = '';
   const input = document.getElementById('cbInput');
@@ -10707,9 +10731,11 @@ async function sendChatbotMessage(preset) {
     const res = await authFetch('/api/chatbot/message', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text })
+      // موضوع آخر إجابة بيتبعت مع السؤال عشان أسئلة المتابعة ("وفي القسم كله؟")
+      body: JSON.stringify({ text, context: _cbTopic })
     });
     const data = await res.json().catch(() => ({}));
+    if (data && data.topic) _cbTopic = data.topic;
     _cbTyping(false);
     if (chatbotOwnerKey() !== owner) { resetChatbot(); return; } // الحساب اتغير أثناء الانتظار
     if (!res.ok) {
