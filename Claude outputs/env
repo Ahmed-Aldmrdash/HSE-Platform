@@ -1,0 +1,11 @@
+JWT_SECRET=f5012e0a10cb433c8212bca9572fb38e9ef591a393982f6b25ec5453d731e139a09952ba31c7b0e3f74074ca0c0b30247971cb2fff382bacc5aeb6df73ebfab3
+JWT_EXPIRES_IN=30m
+PORT=3000
+BCRYPT_ROUNDS=12
+
+# --- تكامل واتساب (اختياري) — شيّل الـ # وحط القيم الحقيقية لما تجهزها ---
+# راجع .env.example أو تعليقات lib/whatsapp.js لشرح كل خطوة بالتفصيل
+# WHATSAPP_TOKEN=
+# WHATSAPP_PHONE_NUMBER_ID=
+# WHATSAPP_VERIFY_TOKEN=
+# WHATSAPP_API_VERSION=v20.0
