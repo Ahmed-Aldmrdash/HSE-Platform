@@ -874,9 +874,12 @@ function applyRbacUI() {
   // access as any department head (e.g. Quality Control's dept_admin).
   setDisplay('tabSup',          isSup);
   setDisplay('tabSupHazard',    isSup);
-  // Users tab: super_admin only
+  // Users tab: super_admin only — مش لحسابات المتابعة (hse_director/ceo)،
+  // حتى لو uiRole بيتحوّل لهم لـ super_admin (عشان يشوفوا باقي الشاشات
+  // زي السوبر أدمن). إدارة الحسابات مالهاش لازمة في وضع "عرض فقط". بطلب
+  // بشمهندس أحمد 13 سبتمبر 2026.
   const tabUsers = document.getElementById('tabUsers');
-  if (tabUsers) tabUsers.style.display = (isSup && uiRole === 'super_admin') ? '' : 'none';
+  if (tabUsers) tabUsers.style.display = (isSup && uiRole === 'super_admin' && !isViewer) ? '' : 'none';
   // Employees tab: all supervisor-session roles
   const tabEmployees = document.getElementById('tabEmployees');
   if (tabEmployees) tabEmployees.style.display = isSup ? '' : 'none';
@@ -909,6 +912,14 @@ function applyRbacUI() {
   setDisplay('clearPermitsBtn', isSafetyOrSuper);
   setDisplay('clearHazardsBtn', isSafetyOrSuper);
   setDisplay('clearEmployeesBtn', isSafetyOrSuper);
+
+  // "إضافة موظف" و"استيراد Excel" في شاشة الموظفين: كانوا شغالين لحسابات
+  // المتابعة (hse_director/ceo) لأن الكلاس بتاعهم (emp-dir-btn) مش من
+  // الكلاسات اللي حارس القراءة-فقط العام (_applyReadonlyGuards) بيفحصها —
+  // فضلوا ظاهرين رغم وضع "عرض فقط". حسابات المتابعة تقدر تشوف وتصدّر بس،
+  // من غير إضافة أو رفع ملف. بطلب بشمهندس أحمد 13 سبتمبر 2026.
+  setDisplay('empAddBtn', isSup && !isViewer);
+  setDisplay('empImportBtn', isSup && !isViewer);
 
   // "رفع ملفات" (Excel import) buttons: super_admin/hse_admin only — same
   // roles already enforced server-side (requireRole('super_admin','hse_admin')
@@ -1315,7 +1326,11 @@ function showLoginError(msg){
   el.classList.add('show');
 }
 
+let _loginInFlight = false;
 async function attemptLogin(){
+  // منع ضغطتين سريعة (زرار + Enter مع بعض، أو دبل كليك) من إرسال الطلب
+  // مرتين وتشغيل شاشة الترحيب مرتين فوق بعض. 13 سبتمبر 2026.
+  if (_loginInFlight) return;
   // Request permission explicitly on button click for mobile browsers
   if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
     Notification.requestPermission();
@@ -1327,6 +1342,7 @@ async function attemptLogin(){
     showLoginError(T('اكتب اسم المستخدم والكود الوظيفي وكلمة المرور'));
     return;
   }
+  _loginInFlight = true;
   try{
     const res = await fetch('/api/auth/login',{
       method:'POST',
@@ -1351,6 +1367,8 @@ async function attemptLogin(){
     startAdminSession(data);
   } catch(e){
     showLoginError(T('لا يوجد اتصال بالسيرفر'));
+  } finally {
+    _loginInFlight = false;
   }
 }
 
@@ -1531,7 +1549,8 @@ function showAdminProfileModal(previousHolder) {
   overlay.innerHTML = `
     <div class="force-pw-card">
       <h3>${T('👤 سجّل بياناتك قبل ما تكمل')}</h3>
-      <p>${T('الحساب ده ممكن يستخدمه أكتر من شخص، فمحتاجين نعرف مين بيستخدمه دلوقتي. البيانات دي بتتحفظ على كودك الوظيفي انت، وعليها هتوصلك كلمة السر المؤقتة لو نسيت كلمة السر.')}</p>
+      <p>${T('الحساب ده ممكن يستخدمه أكتر من شخص، فمحتاجين نعرف مين بيستخدمه دلوقتي. البيانات دي بتتحفظ على كودك الوظيفي انت — مش هتتطلب منك تاني كل ما تدخل، مرة واحدة بس.')}</p>
+      <p style="font-size:12.5px;opacity:.75">${T('الإيميل ده هيستخدم بس لو احتجت كلمة سر مؤقتة من "نسيت كلمة السر؟" في المستقبل — دخولك دلوقتي تم بنجاح بالفعل.')}</p>
       ${previousHolder && previousHolder.name ? `<div class="bk-email-warn">${T('آخر واحد استخدم الحساب ده:')} <b>${escapeHtml(previousHolder.name)}</b>${previousHolder.empCode ? ` (${escapeHtml(previousHolder.empCode)})` : ''}</div>` : ''}
       <input type="text" id="apName" placeholder="${T('اسمك')}" value="${escapeHtml(currentUserName || '')}" />
       <input type="tel" id="apPhone" dir="ltr" placeholder="${T('رقم الموبايل (واتساب) — 01xxxxxxxxx')}" autocomplete="tel" />
@@ -2107,13 +2126,15 @@ function _playKeyClick(){
     const osc  = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'square';
-    osc.frequency.setValueAtTime(1150 + Math.random() * 450, now);
+    // نغمة أهدى وأطول شوية (بدل نقرة سريعة قوي) — بطلب بشمهندس أحمد
+    // 13 سبتمبر 2026 (كان حاسس إن صوت الكتابة سريع جدًا).
+    osc.frequency.setValueAtTime(950 + Math.random() * 350, now);
     gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.07, now + 0.004);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.035);
+    gain.gain.exponentialRampToValueAtTime(0.06, now + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.065);
     osc.connect(gain).connect(ctx.destination);
     osc.start(now);
-    osc.stop(now + 0.045);
+    osc.stop(now + 0.075);
   } catch(e) { /* الصوت اختياري بحت — الأنيميشن يشتغل عادي من غيره */ }
 }
 
@@ -2122,11 +2143,18 @@ function _playKeyClick(){
  * حرف مع صوت كيبورد لكل حرف، ثم onDone() بعد لحظة من انتهاء الكتابة.
  * @param {{name:string, greeting?:string, subtitle?:string, onDone?:Function}} opts
  */
+// رقم تشغيلة الأنيميشن الحالية — لو حصل نداء تاني لـ showAnimatedWelcome
+// (مثلاً ضغطتين سريعة على "دخول") وهو شغال، بنبطّل التشغيلة القديمة بدل ما
+// تفضل شغالة جنب الجديدة وتلخبط الجرافيك/الصوت مع بعض. 13 سبتمبر 2026.
+let _welcomeAnimRun = 0;
 function showAnimatedWelcome({ name, greeting, subtitle, onDone }){
   const overlay = document.getElementById('welcomeAnimOverlay');
   const textEl  = document.getElementById('welcomeAnimText');
   const subEl   = document.getElementById('welcomeAnimSub');
   if (!overlay || !textEl) { if (typeof onDone === 'function') onDone(); return; }
+
+  const myRun = ++_welcomeAnimRun;
+  const isCurrent = () => myRun === _welcomeAnimRun;
 
   const fullText = `${greeting || T('أهلاً بك')}${T("،")} ${name || ''}`;
   textEl.innerHTML = '<span id="welcomeAnimCursor" class="welcome-anim-cursor">|</span>';
@@ -2142,13 +2170,17 @@ function showAnimatedWelcome({ name, greeting, subtitle, onDone }){
   const chars = Array.from(fullText);
   let i = 0;
   function typeNext(){
+    if (!isCurrent()) return; // تشغيلة قديمة بطّلها نداء جديد — متكملش
     if (i >= chars.length) {
-      if (subEl && subtitle) setTimeout(() => subEl.classList.add('show'), 150);
-      // وقفة أطول شوية بعد الكتابة عشان أنيميشن مهمات الوقاية يبان (ثانية ونص)
+      if (subEl && subtitle) setTimeout(() => { if (isCurrent()) subEl.classList.add('show'); }, 150);
+      // وقفة كافية بعد الكتابة عشان اللي داخل يقدر يشوف الاسم والجرافيك
+      // كويس قبل ما يتقفل — كانت قليلة أوي (900ms) وبقت تحس إنها بتلمح
+      // بس، فرجّعناها لحد معقول. بطلب بشمهندس أحمد 13 سبتمبر 2026.
       setTimeout(() => {
+        if (!isCurrent()) return;
         overlay.style.display = 'none';
         if (typeof onDone === 'function') onDone();
-      }, 1500);
+      }, 1700);
       return;
     }
     const ch = chars[i];
@@ -2157,9 +2189,16 @@ function showAnimatedWelcome({ name, greeting, subtitle, onDone }){
     if (cursor) textEl.insertBefore(node, cursor); else textEl.appendChild(node);
     if (ch.trim()) _playKeyClick();
     i++;
-    setTimeout(typeNext, (ch === ' ' || ch === '،') ? 90 : (38 + Math.random() * 45));
+    // أبطأ كمان بطلب بشمهندس أحمد — كل حرف وصوته يتلاحظوا كويس بدل ما
+    // يجروا وراء بعض. 13 سبتمبر 2026.
+    setTimeout(typeNext, (ch === ' ' || ch === '،') ? 130 : (60 + Math.random() * 40));
   }
-  setTimeout(typeNext, 220);
+  // بنستنى فريم واحد على الأقل يترسم (rAF) قبل ما نبدأ الكتابة، عشان نضمن
+  // إن المتصفح فعلاً لوّن الأوفرلاي على الشاشة قبل ما التايمر يبدأ — من غيرها
+  // ممكن على أجهزة بطيئة/تحت ضغط الأنيميشن "يفلاش" أو ميتشافش خالص. 13 سبتمبر 2026.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (isCurrent()) setTimeout(typeNext, 200);
+  }));
 }
 
 // ============================================================
@@ -2198,11 +2237,22 @@ async function renderExecutiveView(){
     const board = (d.departmentLeaderboard || []).slice(0, 12);
     const maxScore = board.length ? Math.max(...board.map(b => b.score)) : 100;
 
+    // الاسم والمسمى الوظيفي هنا كانوا بياخدوا من currentEmployee — متغيّر
+    // بيتحط بس لجلسات العمال، فكان فاضل دايمًا لأي دخول أدمن (سوبر أدمن/
+    // مدير سلامة متابعة/مدير تنفيذي)، والمسمى كان بيقع على القيمة
+    // الافتراضية "المدير التنفيذي" ثابتة حتى لو الداخل مدير السلامة
+    // (hse_director) مش المدير التنفيذي (ceo). بطلب بشمهندس أحمد 13 سبتمبر
+    // 2026: بقى ياخد من جلسة الأدمن نفسها، والمسمى بقى حسب الدور الفعلي.
+    const EXEC_ROLE_TITLE = {
+      ceo:          L ? 'Managing Director' : T('المدير التنفيذي'),
+      hse_director: L ? 'HSE Director' : T('مدير السلامة والصحة المهنية'),
+    };
+    const execRoleTitle = EXEC_ROLE_TITLE[currentUserRole] || (L ? 'Managing Director' : T('المدير التنفيذي'));
     container.innerHTML = `
       <div class="exec-hero">
         <div class="exec-hero-eyebrow">Executive View${L ? '' : T(' — عرض تنفيذي')}</div>
-        <div class="exec-hero-name">${escapeHtml(currentEmployee && currentEmployee.name || '')}</div>
-        <div class="exec-hero-role">${escapeHtml(currentEmployee && currentEmployee.jobTitle || (L ? 'Managing Director' : T('المدير التنفيذي')))} · ${L ? 'Read only' : T('قراءة فقط')}</div>
+        <div class="exec-hero-name">${escapeHtml(currentUserName || '')}</div>
+        <div class="exec-hero-role">${escapeHtml(execRoleTitle)} · ${L ? 'Read only' : T('قراءة فقط')}</div>
         <div class="exec-hero-score">
           <div class="num">${scoreLabel}</div>
           <div class="label">${L ? 'Company-wide safety score (out of 100) — average across all departments' : T('مؤشر السلامة العام للشركة (من 100) — متوسط أداء كل الأقسام')}</div>
@@ -6423,13 +6473,20 @@ async function loadAdminTraining(isSilent = false) {
       window.trnAdminPollTimer = null;
     }
     
-    // Hide create lecture card and live sessions if not hse_admin or super_admin
+    // Hide create lecture card if not hse_admin or super_admin. حسابات
+    // المتابعة (hse_director/ceo) كانت بتقع في نفس الشرط ده فيتقفل معاها
+    // القسم كله بما فيه سجل المحاضرات نفسه (#trnAdminLiveSessions متداخل
+    // جوه #liveSessionsSection) — يعني الصفحة كانت بتبان فاضية تمامًا لحساب
+    // المتابعة رغم إن مفروض يشوف كل حاجة عرض بس. بطلب بشمهندس أحمد 13 سبتمبر
+    // 2026: liveSection بقى ظاهر لحسابات المتابعة كمان، وبس createCard (نموذج
+    // إضافة محاضرة جديدة) هو اللي فاضل مقفول عليهم.
     const isSafetyOrSuper = (currentUserRole === 'hse_admin' || currentUserRole === 'super_admin');
+    const isViewerRole = VIEWER_ROLES_UI.includes(currentUserRole);
     const createCard = document.getElementById('createLectureCard');
     const liveSection = document.getElementById('liveSessionsSection');
-    
+
     if (createCard) createCard.style.display = isSafetyOrSuper ? 'block' : 'none';
-    if (liveSection) liveSection.style.display = isSafetyOrSuper ? 'block' : 'none';
+    if (liveSection) liveSection.style.display = (isSafetyOrSuper || isViewerRole) ? 'block' : 'none';
 
     // Auto-fill trainer fields from logged-in admin info
     window.populateTrainerInfo();

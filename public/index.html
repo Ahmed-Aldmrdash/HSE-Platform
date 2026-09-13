@@ -52,7 +52,7 @@
         rel="stylesheet"
       />
     </noscript>
-    <link rel="stylesheet" href="style.min.css?v=2.43.0" />
+    <link rel="stylesheet" href="style.min.css?v=2.46.0" />
     <!-- PERF: xlsx.js (~900KB) and chart.js are only ever used AFTER login
          (dashboard charts, Excel export/import buttons) — never on this
          initial login screen. Loading them as normal <script> tags (even
@@ -1306,10 +1306,11 @@
         <div id="empTableWrap">
           <!-- Action Bar -->
           <div class="emp-dir-topbar">
-            <button class="emp-dir-btn primary" onclick="openEmpModal()">
+            <button id="empAddBtn" class="emp-dir-btn primary" onclick="openEmpModal()">
               ➕ إضافة موظف
             </button>
             <label
+              id="empImportBtn"
               class="emp-dir-btn secondary"
               style="cursor: pointer"
               title="استيراد من Excel"
@@ -2518,6 +2519,6 @@
         </button>
       </form>
     </section>
-    <script src="app.min.js?v=99.9.42" defer></script>
+    <script src="app.min.js?v=99.9.48" defer></script>
   </body>
 </html>

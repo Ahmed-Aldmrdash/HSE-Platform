@@ -1107,7 +1107,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 5000;
+  /* كانت 5000 — أقل من شاشة تسجيل الدخول (z-index: 9000)، فأي نافذة من دي
+     (نسيت كلمة السر / سجّل بياناتك / غيّر كلمة السر) بتتفتح فعليًا لكن ورا
+     شاشة الدخول تمامًا، فمحدش شايفها. بطلب بشمهندس أحمد 13 سبتمبر 2026. */
+  z-index: 9500;
   padding: 16px;
 }
 .force-pw-card {
@@ -1758,10 +1761,13 @@ select {
   padding: 22px 14px;
   overflow: auto;
   border-radius: 0;
+  /* درجة أغمق وأقرب لأحمر السويدي (بدل الرمادي الفاتح القديم) — بطلب
+     بشمهندس أحمد 13 سبتمبر 2026، على نفس درجة اللون في الصورة المرجعية. */
   background:
-    radial-gradient(1100px 460px at 85% -10%, rgba(226, 0, 26, 0.18), transparent 60%),
-    radial-gradient(900px 420px at 0% 110%, rgba(51, 51, 51, 0.22), transparent 60%),
-    linear-gradient(160deg, #14161a 0%, #1d2026 45%, #101114 100%);
+    radial-gradient(1200px 620px at 50% 35%, rgba(120, 12, 22, 0.55), transparent 65%),
+    radial-gradient(1100px 460px at 85% -10%, rgba(226, 0, 26, 0.28), transparent 60%),
+    radial-gradient(900px 420px at 0% 110%, rgba(60, 10, 16, 0.4), transparent 60%),
+    linear-gradient(160deg, #050506 0%, #2b0a0e 45%, #0a0506 100%);
 }
 .login-v2 { display: flex; }
 .login-bg { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
@@ -5529,7 +5535,12 @@ body[data-session="supervisor"] #empBadgeArea {
 .welcome-anim-overlay {
   position: fixed;
   inset: 0;
-  z-index: 9000;
+  /* كانت 9000 — نفس رقم شاشة تسجيل الدخول (.login-v2/.worker-login-overlay)،
+     وده كان بيخلّي شاشة الدخول (اللي لسه ظاهرة وقت الأنيميشن، لأن #loginGate
+     بييجي بعدها في الـ DOM) تكسب وتغطّي الأنيميشن بالكامل — الصوت بيشتغل
+     عادي لأنه مش متأثر بالعرض، لكن الجرافيك مستخبي تحتها تمامًا. بطلب
+     بشمهندس أحمد 13 سبتمبر 2026. */
+  z-index: 9600;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -6159,7 +6170,10 @@ body, .sup-card, .ticket, .app-header, .tabs, .um-add-card,
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 5000;
+  /* نفس مشكلة .force-pw-overlay بالظبط: 5000 أقل من شاشة الدخول (9000) —
+     أي استخدام لـ openAppModal قبل تسجيل الدخول كان هيختفي ورا الشاشة.
+     13 سبتمبر 2026. */
+  z-index: 9500;
   padding: 16px;
 }
 .app-modal-card {

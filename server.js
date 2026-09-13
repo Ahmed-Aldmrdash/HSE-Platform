@@ -15,7 +15,7 @@ const ExcelJS    = require('exceljs');
 const { Document: DocxDocument, Packer: DocxPacker, Paragraph: DocxParagraph, TextRun: DocxTextRun, AlignmentType: DocxAlign, ImageRun: DocxImageRun } = require('docx');
 const bcrypt     = require('bcryptjs');
 const jwt        = require('jsonwebtoken');
-const rateLimit  = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const webpush    = require('web-push');
 const compression = require('compression');
 const { parsePermitsWorkbook } = require('./lib/permits-excel-parser');
@@ -367,7 +367,10 @@ const chatbotLimiter = rateLimit({
     if (h && h.startsWith('Bearer ')) {
       return 'cb:' + crypto.createHash('sha256').update(h.slice(7)).digest('hex').slice(0, 20);
     }
-    return `cb-ip:${req.ip}`;
+    // ipKeyGenerator بيطبّع عناوين IPv6 لأول /64 قبل ما يستخدمها كمفتاح —
+    // من غيرها أي حد معاه IPv6 كان يقدر يلف على آخر أجزاء العنوان ويتهرب من
+    // الحد المسموح بيه بالكامل (تحذير express-rate-limit ERR_ERL_KEY_GEN_IPV6).
+    return `cb-ip:${ipKeyGenerator(req.ip)}`;
   },
   message: { error: 'تجاوزت عدد الرسائل المسموح بها للشات بوت. حاول مجدداً بعد شوية.' }
 });
@@ -1391,7 +1394,20 @@ async function ensureHseDirectorAccount() {
   const storage = readStorage();
   let users = [];
   if (storage['app-users']) { try { users = JSON.parse(storage['app-users']); } catch { users = []; } }
-  if (users.some(u => u.role === 'hse_director')) return;
+  // بالدور فقط كان بيسيب باب مفتوح: نسخة قديمة من الدالة دي كانت بتعمل
+  // الحساب بدور 'ceo' غلط، فالتحقق بالدور بس فشل يلاقيها ويعمل حساب تاني
+  // بنفس اسم المستخدم (hse_director) — سبب باج تسجيل دخول مضاعف. اتصلّح
+  // 13 سبتمبر 2026: نتحقق من اسم المستخدم كمان، وأي نسخة قديمة بدور غلط
+  // بتتشال قبل ما نكمل.
+  const staleDuplicate = users.findIndex(u => u.username === 'hse_director' && u.role !== 'hse_director');
+  if (staleDuplicate !== -1) {
+    users.splice(staleDuplicate, 1);
+    console.log('🧹 اتشال حساب hse_director مكرر بدور غلط من نسخة قديمة.');
+  }
+  if (users.some(u => u.username === 'hse_director' || u.role === 'hse_director')) {
+    if (staleDuplicate !== -1) { storage['app-users'] = JSON.stringify(users); writeStorage(storage); }
+    return;
+  }
 
   const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
   const pw = Array.from(crypto.randomBytes(12)).map(b => ALPHABET[b % ALPHABET.length]).join('');
@@ -3450,6 +3466,17 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
     if (lockedCode && lockedCode !== searchCode) {
       console.log(`[LOGIN ERROR] Account ${user.username} is locked to empCode ${lockedCode}, tried ${searchCode}`);
       return res.status(403).json({ error: 'الحساب ده مربوط بكود وظيفي واحد بس — مش هينفع تدخل عليه بكود تاني' });
+    }
+  }
+
+  // حساب مقفول على قائمة أكواد وظيفية محددة (مش كود واحد بس) — مثلاً حساب
+  // السوبر أدمن، مسموح بيه بس لعدد معيّن من المسؤولين، وأي كود تاني حتى لو
+  // مسجّل فعليًا في قاعدة الموظفين يترفض. بطلب بشمهندس أحمد 13 سبتمبر 2026.
+  if (Array.isArray(user.allowedEmpCodes) && user.allowedEmpCodes.length > 0) {
+    const allowedSet = new Set(user.allowedEmpCodes.map(c => normalizeEmpCode(c)));
+    if (!allowedSet.has(searchCode)) {
+      console.log(`[LOGIN ERROR] Account ${user.username} restricted to a fixed list of empCodes — tried ${searchCode}`);
+      return res.status(403).json({ error: 'الحساب ده مقفول على مجموعة محددة من الأكواد الوظيفية — الكود ده مش من ضمنها' });
     }
   }
 
